@@ -18,7 +18,7 @@ export type SavedReport = {
 
 export type StoredReports = { reports: SavedReport[]; activeId: string };
 
-const STORAGE_KEY = 'ag-paypal-demo:reports:v1';
+const STORAGE_KEY = 'settle:reports:v1';
 
 export const BUILT_IN_ID = 'paypal-overview';
 
