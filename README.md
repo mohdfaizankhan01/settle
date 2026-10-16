@@ -71,7 +71,10 @@ claude plugin install playwright@claude-plugins-official --scope project
 claude plugin install code-review@claude-plugins-official --scope project
 claude mcp add --scope project ag-mcp -- npx ag-mcp   # already in .mcp.json; skip if present
 npx context-plugins install paypal --targets claude -y  # APIMatic PayPal SDK skills (installs at user scope)
+claude plugin disable paypal@context-plugins            # keep it off for now (see below)
 ```
+
+The APIMatic PayPal SDK skills add about 5k tokens to every session and only help if we use PayPal's TypeScript Server SDK. We use plain `fetch` in `lib/paypal.ts`, so keep the plugin disabled until we switch (`claude plugin enable paypal@context-plugins`). It installs at user scope, so disabling it affects all your projects.
 
 Then:
 
