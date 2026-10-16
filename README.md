@@ -4,7 +4,54 @@ Safer buying and selling with strangers from social chats. Paste an Instagram, F
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). See [docs/PLAN.md](docs/PLAN.md) for the roadmap.
 
-Started from PayPal's [AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate) (Next.js, AG Grid, AG Studio, plain-fetch PayPal client). Its notes are kept below under "Boilerplate reference".
+Started from PayPal's [AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate) (Next.js, AG Grid, AG Studio, plain-fetch PayPal client). Its notes are kept below under "Boilerplate reference". Licensed under [MIT](LICENSE).
+
+## Problem
+
+Social sellers and buyers in the US and UK trade with strangers in Instagram DMs, Facebook Marketplace and WhatsApp. There is no checkout, no record of what was agreed, and scams are common: fake payment screenshots, "send it first" pressure, overpayment tricks, off-platform payment links. Sellers ship before money has really arrived; buyers pay for items that never come.
+
+## Solution
+
+_TODO: one-paragraph pitch and screenshots._
+
+1. **Deal check.** Paste the chat. Settle flags scam signs ("for the buyer" / "for the seller") and turns the chat into a deal card (item, price, delivery) that both sides confirm by link.
+2. **Pay with PayPal.** The buyer pays on the deal page. The order is created on the server from the locked deal card, never from the browser.
+3. **Ship gate.** Settle shows "Safe to ship" only after a verified PayPal webhook and a fresh order lookup confirm the money. Anything else is Hold or Review.
+4. **Disputes.** If the buyer opens a PayPal dispute, Settle drafts a response with the evidence it holds. The seller approves before anything is sent.
+
+## How it works
+
+_TODO: architecture diagram._
+
+- **Jev + code rules** check the redacted chat for warning signs. Prices, dates and links are parsed in code, not by AI. Jev can only add caution; it never approves shipping.
+- **PayPal** (sandbox): Orders v2, Log in with PayPal, webhooks with `verify-webhook-signature`, order tracking, Disputes API. All calls run on the server (`lib/paypal.ts`).
+- **Fail closed**: any error means Hold or Review. The UI says "no warning signs found", never "safe deal".
+- **Receipts**: every decision writes a receipt, shown in the AG Studio dashboard.
+
+## Setup and run (for judges)
+
+_TODO: live demo URL and sandbox test buyer login._
+
+Requires Node.js 22 (`nvm use` reads `.nvmrc`) and a PayPal sandbox REST app.
+
+```bash
+git clone <repo-url> settle && cd settle
+nvm use
+npm install
+cp env.example .env.local   # fill in PAYPAL_CLIENT_ID, PAYPAL_SECRET and the others
+npm run dev                 # http://localhost:3000
+npm test                    # unit tests, Jev and PayPal mocked
+```
+
+_TODO: webhook setup for local runs, seed data, demo walkthrough._
+
+## Tools used
+
+- **PayPal APIs**: Orders v2, JS SDK v6, Log in with PayPal, Webhooks, Disputes (sandbox).
+- **Jev** (TypeSafe decision model) for chat warning signs.
+- **AG Grid and AG Studio** for the deals, warnings and receipts dashboard.
+- **Render** for hosting and Postgres.
+- Built with Claude Code; plugins listed under Team setup.
 
 ## Team setup
 
