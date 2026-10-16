@@ -1,15 +1,40 @@
-> [!TIP]
-> **PayPal AI Hackathon**
-> 
-> Win part of $69,750 in total prizes
-> 
-> Build What's Next with PayPal and AI is a global online hackathon inviting developers, designers, founders, students, and builders to create something new using PayPal and AI.
-> 
-> There are no prescribed problem statements and no set of tracks. Build an agent, an app, an automation, a new payment experience, a business tool, a social product, or something we haven't thought of yet.
-> 
-> https://paypalaihackathon.devpost.com
+# Settle
 
-# PayPal SDK data pages
+Safer buying and selling with strangers from social chats. Paste an Instagram, Facebook Marketplace or WhatsApp chat; Settle checks it for scam signs, turns it into a deal card both sides confirm, takes payment through PayPal, and says "safe to ship" only after PayPal confirms the money.
+
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). See [docs/PLAN.md](docs/PLAN.md) for the roadmap.
+
+Started from PayPal's [AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate) (Next.js, AG Grid, AG Studio, plain-fetch PayPal client). Its notes are kept below under "Boilerplate reference".
+
+## Team setup
+
+Each teammate runs these once from the repo root. The project-scope plugins are listed in `.claude/settings.json` and `ag-mcp` in `.mcp.json`, so these lines just fetch them.
+
+```bash
+# Only if `claude plugin marketplace list` doesn't already show claude-plugins-official
+claude plugin marketplace add anthropics/claude-plugins-official
+
+claude plugin marketplace add typesafe-ai/skills
+claude plugin install paypal@claude-plugins-official --scope project
+claude plugin install typesafe@typesafe-ai --scope project
+claude plugin install render@claude-plugins-official --scope project
+claude plugin install security-guidance@claude-plugins-official --scope project
+claude plugin install frontend-design@claude-plugins-official --scope project
+claude plugin install playwright@claude-plugins-official --scope project
+claude plugin install code-review@claude-plugins-official --scope project
+claude mcp add --scope project ag-mcp -- npx ag-mcp   # already in .mcp.json; skip if present
+npx context-plugins install paypal --targets claude -y  # APIMatic PayPal SDK skills (installs at user scope)
+```
+
+Then:
+
+1. Put your sandbox keys in `.env.local` (see `env.example`). It is git-ignored.
+2. Put a sandbox access token in **your user** settings (`~/.claude/settings.json`, never the repo) as `env.PAYPAL_SANDBOX_ACCESS_TOKEN`, for the paypal plugin's sandbox MCP. `/paypal:setup` does this; `/paypal:setup refresh` renews it (sandbox tokens last about 9 hours).
+3. Restart Claude Code, approve `ag-mcp` when asked, and run `/paypal:setup` to check the token.
+
+# Boilerplate reference
+
+## PayPal SDK data pages
 
 A Next.js app that reads PayPal sandbox data over the [PayPal REST API](https://developer.paypal.com/api/rest/) and shows it two ways:
 
