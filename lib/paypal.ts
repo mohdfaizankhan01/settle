@@ -1,6 +1,7 @@
 // PayPal REST client: every call this demo makes to PayPal goes through here. It covers
-// catalog products, billing plans, invoicing, Transaction Search and balances, with plain
-// fetch and no SDK. Server-side only: it reads the client secret from the environment.
+// catalog products, billing plans, invoicing, Transaction Search, balances and webhook
+// signature checks, with plain fetch and no SDK. Server-side only: it reads the client
+// secret from the environment.
 
 const BASE_URL = 'https://api-m.sandbox.paypal.com';
 const MAX_ATTEMPTS = 4;
@@ -10,8 +11,10 @@ export class PayPalApiError extends Error {
     readonly status: number,
     readonly path: string,
     body: string,
+    // From the paypal-debug-id response header; PayPal support asks for it.
+    readonly debugId?: string,
   ) {
-    super(`PayPal ${status} on ${path}: ${body.slice(0, 300)}`);
+    super(`PayPal ${status} on ${path}${debugId ? ` (debug id ${debugId})` : ''}: ${body.slice(0, 300)}`);
     this.name = 'PayPalApiError';
   }
 }
@@ -42,9 +45,25 @@ async function accessToken(): Promise<string> {
 }
 
 async function get<T>(path: string): Promise<T> {
+  return send<T>('GET', path);
+}
+
+// POSTs carry a PayPal-Request-Id, kept the same across retries so PayPal treats a retry as
+// the same request rather than a second one.
+async function post<T>(path: string, body: unknown): Promise<T> {
+  return send<T>('POST', path, body, crypto.randomUUID());
+}
+
+async function send<T>(method: 'GET' | 'POST', path: string, body?: unknown, requestId?: string): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     const res = await fetch(`${BASE_URL}${path}`, {
-      headers: { Authorization: `Bearer ${await accessToken()}` },
+      method,
+      headers: {
+        Authorization: `Bearer ${await accessToken()}`,
+        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        ...(requestId && { 'PayPal-Request-Id': requestId }),
+      },
+      ...(body !== undefined && { body: JSON.stringify(body) }),
       cache: 'no-store',
     });
     if (res.ok) return (await res.json()) as T;
@@ -58,7 +77,7 @@ async function get<T>(path: string): Promise<T> {
       await new Promise((resolve) => setTimeout(resolve, 2 ** attempt * 250));
       continue;
     }
-    throw new PayPalApiError(res.status, path, await res.text());
+    throw new PayPalApiError(res.status, path, await res.text(), res.headers.get('paypal-debug-id') ?? undefined);
   }
 }
 
@@ -220,4 +239,40 @@ export type Balances = {
 
 export function getBalances(): Promise<Balances> {
   return get<Balances>('/v1/reporting/balances');
+}
+
+// --- Webhooks ----------------------------------------------------------------------
+
+// The transmission headers PayPal sends with every webhook, and the verify-webhook-signature
+// field each one fills.
+const SIGNATURE_HEADERS = {
+  auth_algo: 'paypal-auth-algo',
+  cert_url: 'paypal-cert-url',
+  transmission_id: 'paypal-transmission-id',
+  transmission_sig: 'paypal-transmission-sig',
+  transmission_time: 'paypal-transmission-time',
+} as const;
+
+export type WebhookEvent = { id: string; event_type: string; resource?: Record<string, unknown> } & Record<string, unknown>;
+
+/**
+ * Asks PayPal whether a webhook really came from PayPal, for the webhook registered as
+ * `webhookId`. Missing signature headers mean FAILURE without a call; a PayPal error throws,
+ * and the caller must treat that as unverified.
+ */
+export async function verifyWebhookSignature(
+  headers: Headers,
+  event: WebhookEvent,
+  webhookId: string,
+): Promise<'SUCCESS' | 'FAILURE'> {
+  const fields = Object.fromEntries(
+    Object.entries(SIGNATURE_HEADERS).map(([field, header]) => [field, headers.get(header)]),
+  );
+  if (Object.values(fields).some((value) => !value)) return 'FAILURE';
+
+  const { verification_status } = await post<{ verification_status: string }>(
+    '/v1/notifications/verify-webhook-signature',
+    { ...fields, webhook_id: webhookId, webhook_event: event },
+  );
+  return verification_status === 'SUCCESS' ? 'SUCCESS' : 'FAILURE';
 }
