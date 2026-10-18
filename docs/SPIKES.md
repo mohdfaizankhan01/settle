@@ -47,4 +47,4 @@ Needs the same accounts as D1, with the app's *Customer disputes* feature ticked
 
 ## Early deploy — blocked
 
-Needs a Render login (the render plugin's MCP or `RENDER_API_KEY`) and permission to install the packages the webhook route's tests need.
+Needs a Render login (the render plugin's MCP or `RENDER_API_KEY`). The webhook route is ready: `app/api/paypal/webhook/route.ts`, tested in `tests/webhook.test.ts`.
