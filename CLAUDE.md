@@ -11,6 +11,14 @@
 - Every decision writes a receipt (lib/settle/receipts.ts).
 - npm test must pass before every commit. New logic gets tests with Jev and PayPal mocked. Small commits with clear messages.
 - Ask me before adding a dependency or external service, or changing the plan.
+- Every feature serves the thread: chat, deal card, PayPal order, ship gate, dispute. One record.
+- Deal terms are locked by hash. The PayPal order carries it, and a mismatch blocks payment and shipping.
+- Protection checks cite docs/protection-terms.md. Never tell anyone they're protected or will win a dispute: say which checks pass and that PayPal decides.
+- Dispute text is templated from records. Jev never writes text. The seller approves the exact request before it's sent.
+- Every screen says what's real and what's simulated.
+- Judge mode data is per session and never touches real deals.
+- Running late: drop COULD, then SHOULD items, and ask me before cutting a MUST.
+- Plan: docs/PLAN.md (v2, M1 to M6). Decisions: docs/DECISIONS.md.
 
 # Tools
 
