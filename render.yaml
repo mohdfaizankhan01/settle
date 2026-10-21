@@ -1,0 +1,24 @@
+# Settle on Render: one free Next.js web service. Secrets are entered in the Render Dashboard
+# (sync: false), never committed. Spec: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: settle
+    runtime: node
+    plan: free
+    # Closest to the team (Switzerland). Can't be changed after creation.
+    region: frankfurt
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeployTrigger: commit
+    envVars:
+      # Node version comes from package.json "engines" (22.x), matching .nvmrc.
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_SECRET
+        sync: false
+      # Filled in after the webhook is registered against this service's URL.
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: SETTLE_PUBLIC_HOST
+        sync: false
