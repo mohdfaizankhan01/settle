@@ -71,10 +71,22 @@ Findings:
 
 Proposed decision **D1**: the seller's own PayPal account is the payee, connected through Partner Referrals, with `payer_id` from merchant-integrations as the locked payee on the deal card. Payments, tracking and refunds go through `PayPal-Auth-Assertion`. Disputes depend on D2: if seller-dispute calls work on a real dispute, Settle sends the seller-approved response through the API; if not, Settle builds the templated case file and the seller submits it in PayPal's Resolution Center.
 
-## D2: disputes in the sandbox — blocked
+## D2: disputes in the sandbox — in progress (2026-10-21)
 
-Needs the same accounts as D1, with the app's *Customer disputes* feature ticked.
+| Step | Assertion | Status | Debug ID | Result |
+| --- | --- | --- | --- | --- |
+| `POST /v2/customer-support/process-chargeback`, empty or capture-only body | — | 500 | f245170b44362, f9332024d1608 | endpoint exists; needs the full card-chargeback body from developer.paypal.com/platforms/disputes/test-go-live and a card-funded payment |
+| `POST /v1/customer/disputes` (sandbox-only create), seller capture ID | buyer | 400 | f462995a1db19 | `No permissions to set target_client_id` |
+| same, buyer transaction ID `4SS78204TL630382C` | buyer (payer_id, then email) | 400 | f839257b656c3, f257004173a03 | same: acting as the buyer needs the buyer's consent to our app |
+| same | seller | 403 | f611484f846af, f245261ce1ca3 | `NOT_AUTHORIZED` |
 
-## Early deploy — blocked
+- Before letting the buyer file, the Resolution Center shows the tracking number we added through the API (UPS `1Z999AA10123456784`). Tracking upload is visible to the buyer.
+- Next: the buyer opens an Item Not Received dispute in the sandbox Resolution Center (form filled up to Submit, not submitted). Then check the `CUSTOMER.DISPUTE.CREATED` webhook, `GET /v1/customer/disputes/{id}` as the seller with the assertion, and the dispute's action links. Nothing is sent for the seller without approval of the exact request.
 
-Needs a Render login (the render plugin's MCP or `RENDER_API_KEY`). The webhook route is ready: `app/api/paypal/webhook/route.ts`, tested in `tests/webhook.test.ts`.
+## Early deploy — done 2026-10-21
+
+- Render Blueprint `settle` from `render.yaml` (validated by the Render API, `valid: true`): web service `srv-dbcdsm1srm7s738g1iog`, free plan, Frankfurt, https://settle-ulya.onrender.com. Secrets set through the Render API from `.env.local`.
+- Before deploying, the boilerplate data pages and `/api/ai` were closed in production (`proxy.ts` plus a guard in each route, `SETTLE_DEV_PAGES=1` to override). Live check: `/` 200 with the sandbox notice, `/transactions` and `/dashboard` 404, unsigned webhook POST 400.
+- PayPal sandbox webhook `14T357433V893904A` → `/api/paypal/webhook`, 11 events (order approved, capture completed/denied/pending/refunded/reversed, dispute created/updated/resolved, merchant onboarding completed, partner consent revoked).
+- **Verified webhook received:** a $1 refund on the seller's capture (made with `PayPal-Auth-Assertion`, debug f59915509156f) produced `PAYMENT.CAPTURE.REFUNDED`, logged as `{"status":200,"outcome":"verified","eventId":"WH-9AJ45519YM173530G-6T229948JJ436592U"}`. So events for a connected seller's payments reach our webhook.
+- Free-tier limits (render.com/docs/free): spins down after 15 minutes idle, about 1 minute to wake (PayPal retries webhooks; wake the site before a demo); ephemeral filesystem, so receipts go to Postgres; free Postgres expires 30 days after creation and only one per workspace; 750 instance hours a month.
