@@ -37,9 +37,39 @@ Sources: PayPal's OpenAPI specs (`github.com/paypal/paypal-rest-api-specificatio
 - **Disputes:** `GET /v1/customer/disputes`, `GET /v1/customer/disputes/{id}`. Actions come from the dispute's HATEOAS `links` (for example `send-message`, `escalate`, `accept-claim`, `make-offer`, `provide-evidence`). `provide-evidence` is `multipart/form-data` with a JSON part and file parts; the docs' example attaches `file1=@NewDoc.pdf;type=application/pdf`, so PDFs are accepted. To confirm in D2.
 - **Sandbox chargeback (unconfirmed):** the Exhibit reference repo's README calls `POST /v2/customer-support/process-chargeback` ("sandbox only"), with card reason codes such as 13.1 or 4855 (not received) and C2 (not as described). It also says "PayPal reviews a new chargeback for five to eight minutes before the seller can respond". The paypal plugin's references don't mention this endpoint; D2 must confirm it with a real call.
 
-## D1: whose account gets paid — blocked
+## D1: whose account gets paid — run 2026-10-21
 
-Needs: our sandbox REST app's client ID and secret in `.env.local`, a **second sandbox business account** (the seller: its email or merchant ID), and a **sandbox personal account** (the buyer) to approve orders.
+Setup: sandbox REST app `settle`, type **Platform** (partner account `sb-bggow53338036@business.example.com`, merchant ID `L6E4H2XBV8NP6`). Seller `sb-s74z753471539@business.example.com` (merchant ID `RRBVDNUTQMAXN`), buyer `sb-9aelh53480109@personal.example.com`, all US. App token scopes include `customer/partner-referrals/readwrite`, `disputes/read-seller`, `disputes/update-seller`, `reporting/search/read`. Throwaway script, plain fetch, unsigned `PayPal-Auth-Assertion` (`alg: none`, `iss` = our client ID, `payer_id` = seller) per developer.paypal.com/api/rest/requests/.
+
+Order `8YK30689B0267651L`, USD 10.00, `payee.email_address` = seller, `custom_id` = 73 chars (deal ID + 64-hex hash). Buyer approved in the browser.
+
+| Step | Assertion | Status | Debug ID | Result |
+| --- | --- | --- | --- | --- |
+| Create order, payee = seller | — | 200 | ca4e12d6ebc57 | `PAYER_ACTION_REQUIRED` |
+| Capture, seller not onboarded | — | **403** | f853492d72d1f | `PAYEE_NOT_CONSENTED` |
+| Partner Referrals (PAYMENT, REFUND, ACCESS_MERCHANT_INFORMATION) | — | 201 | ca4e12d7b5cd3 | `action_url`; seller signed in and allowed |
+| Capture after consent | — | 201 | f801206f9697d | `6CL39374CJ081260C` COMPLETED, `seller_protection: ELIGIBLE` (ITEM_NOT_RECEIVED, UNAUTHORIZED_TRANSACTION), fee 0.84 |
+| GET order / GET capture | none and seller | 200 | f280444e7601a, f389844fe2a8c | `custom_id` kept; capture shows `payee.merchant_id` |
+| Add tracking | none | 403 | f62475647dcad | `PERMISSION_DENIED` |
+| Add tracking | seller | **201** | f5013755514bd | works without `TRACKING_SHIPMENT_READWRITE` |
+| Refund 1.00 | none | 403 | f9195367a6839 | `PERMISSION_DENIED` |
+| Refund 1.00 | seller | **201** | f197758619422 | capture `PARTIALLY_REFUNDED` |
+| List disputes | none | 200 | f37121943ad96 | 0 items (our own account's disputes, not the seller's) |
+| List disputes | seller | 403 | f197758b4524c | `NOT_AUTHORIZED` (no dispute feature requested yet) |
+| Partner Referrals + READ/UPDATE_SELLER_DISPUTE, ADVANCED_TRANSACTIONS_SEARCH | — | 201 | f476823f3578f | seller allowed again; `TRACKING_SHIPMENT_READWRITE` alone gives 422 `FEATURES_UNAUTHORIZED` (f190886fc4237) |
+| merchant-integrations | — | 200 | f8139607f1d56 | `payments_receivable` and `primary_email_confirmed` true; scopes include `disputes/read-seller`, `disputes/update-seller`, `reporting/search/read`, `payments/partnerfee` |
+| List disputes | seller (payer_id, then email) | **403** | f10874245da55, f494357b7d0b6 | `NOT_AUTHORIZED` even with the grant |
+| Transaction search | seller | **403** | f7005632cecc9, f49435750464d | `NOT_AUTHORIZED` |
+
+Findings:
+
+- **A platform can't take money for a seller until the seller consents.** Partner Referrals onboarding works in the sandbox for our app; after it, the seller is paid directly, and capture, GET, tracking and refunds on the seller's payment all work with `PayPal-Auth-Assertion`.
+- **Disputes and Transaction Search on behalf of the seller are unproven.** The seller's grant lists the dispute and search scopes, but listing still returns 403. D2 must test `GET /v1/customer/disputes/{id}` and `provide-evidence` with the assertion on a real dispute against this capture before we rely on it.
+- Seller onboarding shows the app's display name (`Test Store`) and PayPal's wording that the app may "manage any disputes … on your behalf". Rename the display name to Settle before the demo.
+- The capture response states Seller Protection eligibility and categories. The ship gate can show this, citing protection-terms.md, and still say PayPal decides.
+- We never request `PARTNER_FEE`, but PayPal's consent screen and scopes include fee deduction by default.
+
+Proposed decision **D1**: the seller's own PayPal account is the payee, connected through Partner Referrals, with `payer_id` from merchant-integrations as the locked payee on the deal card. Payments, tracking and refunds go through `PayPal-Auth-Assertion`. Disputes depend on D2: if seller-dispute calls work on a real dispute, Settle sends the seller-approved response through the API; if not, Settle builds the templated case file and the seller submits it in PayPal's Resolution Center.
 
 ## D2: disputes in the sandbox — blocked
 
