@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
+import { devPagesEnabled } from '@/lib/settle/dev-pages';
 import { amountOf, listInvoices } from '@/lib/paypal';
 import { EndpointPage } from '../endpoint-page';
 
@@ -7,6 +9,7 @@ export const metadata: Metadata = { title: 'Invoices' };
 
 export default async function InvoicesPage() {
   await connection();
+  if (!devPagesEnabled()) notFound();
   const invoices = await listInvoices();
 
   return (

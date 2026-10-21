@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
+import { devPagesEnabled } from '@/lib/settle/dev-pages';
 import { listProducts } from '@/lib/paypal';
 import { EndpointPage } from '../endpoint-page';
 
@@ -8,6 +10,7 @@ export const metadata: Metadata = { title: 'Catalog products' };
 export default async function ProductsPage() {
   // Live PayPal data: render per request, not at build time.
   await connection();
+  if (!devPagesEnabled()) notFound();
   const products = await listProducts();
 
   return (

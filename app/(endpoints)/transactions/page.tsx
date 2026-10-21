@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
+import { devPagesEnabled } from '@/lib/settle/dev-pages';
 import { amountOf, searchTransactions, TRANSACTION_SEARCH_MAX_DAYS } from '@/lib/paypal';
 import { EndpointPage } from '../endpoint-page';
 
@@ -7,6 +9,7 @@ export const metadata: Metadata = { title: 'Transactions' };
 
 export default async function TransactionsPage() {
   await connection();
+  if (!devPagesEnabled()) notFound();
   const end = new Date();
   const start = new Date(end.getTime() - TRANSACTION_SEARCH_MAX_DAYS * 86_400_000);
   const transactions = await searchTransactions(start, end);

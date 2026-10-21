@@ -1,4 +1,5 @@
 import { aiModels, openAiKey } from '@/lib/ai';
+import { devPagesEnabled } from '@/lib/settle/dev-pages';
 
 // Proxy for AG Studio's OpenAI adapter (app/dashboard/studio/openai-adapter.ts). The adapter
 // runs in the browser and POSTs to `${endpoint}/responses`; with its endpoint set to /api/ai it lands
@@ -14,6 +15,7 @@ const MAX_OUTPUT_TOKENS = 32_000;
 const error = (status: number, message: string) => Response.json({ error: { message } }, { status });
 
 export async function POST(request: Request) {
+  if (!devPagesEnabled()) return error(404, 'Not found.');
   const apiKey = openAiKey();
   if (!apiKey) return error(503, 'The AI assistant is not configured: set AG_STUDIO_OPENAI_API_KEY in .env.local.');
 

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { devPagesEnabled } from '@/lib/settle/dev-pages';
 
 const dashboard = { href: '/dashboard', label: 'Dashboard', detail: 'AG Studio reports over all of the data below' };
 
@@ -23,6 +24,18 @@ function PageLink({ href, label, detail }: { href: string; label: string; detail
 }
 
 export default function Home() {
+  // The data pages below are local-only (lib/settle/dev-pages.ts), so production doesn't link them.
+  if (!devPagesEnabled()) {
+    return (
+      <main className="mx-auto w-full max-w-3xl p-16 font-paypal text-pp-ink">
+        <h1 className="text-[28px] font-semibold text-pp-navy">Settle</h1>
+        <p className="mt-4 text-pp-muted">
+          Hackathon build in progress. Everything here runs on the PayPal sandbox: no real money moves.
+        </p>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto w-full max-w-3xl p-16 font-paypal text-pp-ink">
       <h1 className="text-[28px] font-semibold text-pp-navy">PayPal REST APIs with AG Grid &amp; AG Studio</h1>

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
+import { devPagesEnabled } from '@/lib/settle/dev-pages';
 import { amountOf, listPlans, type BillingCycle } from '@/lib/paypal';
 import { EndpointPage } from '../endpoint-page';
 
@@ -11,6 +13,7 @@ const interval = (cycle?: BillingCycle) =>
 
 export default async function PlansPage() {
   await connection();
+  if (!devPagesEnabled()) notFound();
   const plans = await listPlans();
 
   return (
