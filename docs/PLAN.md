@@ -32,7 +32,7 @@ Only the base app from the old Phase 0 exists. Old roadmap items 1 to 7 are not 
 ## Prerequisite: Jev module (blocks M2)
 
 - [x] **Decided 2026-10-18: rebuild in M2** (DECISIONS #9). Was: recover `settle-jev` (the zip or the folder) and move it in as the old Phase 0 planned, or rebuild `redact`, `dealCheck`, `shipGate`, `disputePlan`, `receipts`, `policy` and the eval harness from scratch. Rebuilding costs about 1.5 to 2 days, taken from M2.
-- [x] `tsx` and the `test` script added 2026-10-18; `@typesafe-ai/sdk` still needs approval in M2. Was: needs approval to add `@typesafe-ai/sdk`, `tsx`, and a `test` script (`tsx --test tests/*.test.ts`).
+- [x] `tsx` and the `test` script added 2026-10-18; `@typesafe-ai/sdk` and `postgres` approved and added 2026-10-22 (DECISIONS #11). Was: needs approval to add `@typesafe-ai/sdk`, `tsx`, and a `test` script (`tsx --test tests/*.test.ts`).
 
 ## M1: Spikes and early deploy (MUST, Oct 19 to 21) — closed 2026-10-22
 

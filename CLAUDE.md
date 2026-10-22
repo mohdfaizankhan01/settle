@@ -3,7 +3,7 @@
 # Project rules
 
 - PayPal sandbox only. All PayPal calls run on the server in lib/paypal.ts. Secrets live in .env.local or Render env vars, never in git or logs.
-- Never trust the browser for money: create orders on the server from the locked deal card, and check amount, currency and payee (the seller's merchant ID from Log in with PayPal).
+- Never trust the browser for money: create orders on the server from the locked deal card, and check amount, currency and payee (the seller's merchant ID from Partner Referrals, verified with merchant-integrations; D1).
 - Payment is confirmed only by a verified webhook (verify-webhook-signature) plus a fresh GET of the order. Never by client callbacks, screenshots or emails.
 - Jev only adds caution. It never approves shipping and never sends a dispute response. The seller approves every dispute response.
 - Fail closed: any error means HOLD or REVIEW, never "safe". The UI says "no warning signs found", never "safe deal".
