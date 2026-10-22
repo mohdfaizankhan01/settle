@@ -46,8 +46,10 @@ export type Warning = {
   /** Message the warning was found in, if known. */
   messageId?: string;
   probability?: number;
-  /** 'jev' or 'rule:<id>'. */
+  /** 'jev', 'rule:<id>' or 'term:<key>'. */
   by: string;
+  /** For keyword rules: the text that matched, shown as a hint. */
+  matched?: string;
   /** Row IDs in docs/protection-terms.md. */
   cites: string[];
 };
