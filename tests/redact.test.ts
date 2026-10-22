@@ -100,3 +100,23 @@ test('parsePrice', () => {
   assert.deepEqual(parsePrice('C$ 40'), { amount: '40.00', currency: 'CAD' });
   assert.deepEqual(parsePrice('75 bucks'), { amount: '75.00', currency: 'USD' });
 });
+
+test('a PayPal-looking host with more labels after it is not PayPal', () => {
+  const { tokens } = one('pay at paypal.com.secure-checkout.ru/pay or paypal.com.evil.co');
+  assert.deepEqual(tokens.map((t) => [t.host, t.isPayPal]), [
+    ['paypal.com.secure-checkout.ru', false],
+    ['paypal.com.evil.co', false],
+  ]);
+});
+
+test('names with accents or non-Latin letters are still redacted', () => {
+  const { messages } = redactChat([
+    { id: 'm1', speaker: 'José', role: 'seller', text: 'hola, soy José. Zoë will pay' },
+    { id: 'm2', speaker: 'Zoë', role: 'buyer', text: 'José, gracias' },
+  ]);
+  assert.deepEqual(messages.map((m) => m.text), ['hola, soy [SELLER]. [BUYER] will pay', '[SELLER], gracias']);
+});
+
+test('decimals and file names are not links', () => {
+  assert.deepEqual(one('£12.50 for photo.jpg e.g. this').tokens.map((t) => t.kind), ['PRICE']);
+});

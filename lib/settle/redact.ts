@@ -39,7 +39,8 @@ const RULES: Rule[] = [
   { kind: 'EMAIL', re: /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g },
   {
     kind: 'LINK',
-    re: /\b(?:https?:\/\/|www\.)[^\s<>"')\]]+|\b(?:[a-z0-9-]+\.)+(?:com|me|co|uk|io|net|org|app|link|ly|xyz|shop|store|pay|info|biz)(?:\/[^\s<>"')\]]*)?/gi,
+    // The whole dotted run is taken, so "paypal.com.evil.ru" is one link whose host isn't PayPal's.
+    re: /\b(?:https?:\/\/|www\.)[^\s<>"')\]]+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[^\s<>"')\]]*)?/gi,
   },
   { kind: 'IBAN', re: /\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){2,7}(?:\s?[A-Z0-9]{1,4})?\b/g },
   { kind: 'WALLET', re: /\b(?:bc1[a-z0-9]{25,59}|[13][a-km-zA-HJ-NP-Z1-9]{25,34}|0x[a-fA-F0-9]{40})\b/g },
@@ -83,6 +84,15 @@ const RULES: Rule[] = [
   { kind: 'NUMBER', re: /\b\d{6,}\b/g },
 ];
 
+const TLDS = new Set(['com', 'me', 'co', 'uk', 'io', 'net', 'org', 'app', 'link', 'ly', 'xyz', 'shop', 'store', 'pay', 'info', 'biz', 'online', 'site']);
+
+/** A bare dotted run is a link if its last label is a known TLD or a two-letter country code. */
+function looksLikeLink(raw: string): boolean {
+  if (/^(?:https?:\/\/|www\.)/i.test(raw)) return true;
+  const last = raw.split('/')[0].split('.').pop()!.toLowerCase();
+  return TLDS.has(last) || /^[a-z]{2}$/.test(last);
+}
+
 const TOKEN_KINDS = new Set<string>(['PRICE', 'DATE', 'LINK', 'POSTCODE', 'ZIP']);
 
 type Span = { start: number; end: number; kind: Rule['kind']; raw: string };
@@ -93,6 +103,7 @@ function findSpans(text: string): Span[] {
     for (const m of text.matchAll(re)) {
       const start = m.index;
       const end = start + m[0].length;
+      if (kind === 'LINK' && !looksLikeLink(m[0])) continue;
       if (kind === 'PHONE' && m[0].replace(/\D/g, '').length < 9) continue;
       // "PS5 2TB" looks like a postcode; real inward codes never end in a unit or ordinal.
       if (kind === 'POSTCODE' && /\d(?:tb|gb|mb|kg|nd|rd|th|st)$/i.test(m[0])) continue;
@@ -144,7 +155,7 @@ function replaceNames(text: string, names: { name: string; label: string }[]): s
       [name, ...name.split(/\s+/)].filter((p) => p.length >= 3 && !NOT_NAMES.has(p.toLowerCase())).map((p) => ({ p, label })),
     )
     .sort((a, b) => b.p.length - a.p.length);
-  return parts.reduce((out, { p, label }) => out.replace(new RegExp(`\\b${escapeRegExp(p)}\\b`, 'gi'), label), text);
+  return parts.reduce((out, { p, label }) => out.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExp(p)}(?![\\p{L}\\p{N}_])`, 'giu'), label), text);
 }
 
 export function redactChat(messages: readonly ChatMessage[], extraNames: string[] = []): Redacted {
