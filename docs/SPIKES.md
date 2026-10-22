@@ -71,7 +71,9 @@ Findings:
 
 Proposed decision **D1**: the seller's own PayPal account is the payee, connected through Partner Referrals, with `payer_id` from merchant-integrations as the locked payee on the deal card. Payments, tracking and refunds go through `PayPal-Auth-Assertion`. Disputes depend on D2: if seller-dispute calls work on a real dispute, Settle sends the seller-approved response through the API; if not, Settle builds the templated case file and the seller submits it in PayPal's Resolution Center.
 
-## D2: disputes in the sandbox — in progress (2026-10-21)
+## D2: disputes in the sandbox — run 2026-10-21 and 2026-10-22
+
+Opening a dispute by API failed; the buyer's Resolution Center works.
 
 | Step | Assertion | Status | Debug ID | Result |
 | --- | --- | --- | --- | --- |
@@ -80,8 +82,24 @@ Proposed decision **D1**: the seller's own PayPal account is the payee, connecte
 | same, buyer transaction ID `4SS78204TL630382C` | buyer (payer_id, then email) | 400 | f839257b656c3, f257004173a03 | same: acting as the buyer needs the buyer's consent to our app |
 | same | seller | 403 | f611484f846af, f245261ce1ca3 | `NOT_AUTHORIZED` |
 
-- Before letting the buyer file, the Resolution Center shows the tracking number we added through the API (UPS `1Z999AA10123456784`). Tracking upload is visible to the buyer.
-- Next: the buyer opens an Item Not Received dispute in the sandbox Resolution Center (form filled up to Submit, not submitted). Then check the `CUSTOMER.DISPUTE.CREATED` webhook, `GET /v1/customer/disputes/{id}` as the seller with the assertion, and the dispute's action links. Nothing is sent for the seller without approval of the exact request.
+| Buyer opens Item Not Received in the sandbox Resolution Center on buyer txn `4SS78204TL630382C` | — | — | — | case `PP-R-XYO-10194059`, USD 8.00 requested |
+| GET dispute | none | 403 | f484405a9f762 | `ACTION_NOT_ALLOWED` |
+| GET dispute | seller | **200** | f974974804ee7 | `INQUIRY`, `UNDER_REVIEW`; carries our `custom` (deal ID + hash) and `seller_transaction_id` = our capture |
+| List disputes | seller | 200 | f45157537f9b9 | was 403 on 2026-10-21 (before the dispute existed / grant settled) |
+| Webhooks on Render | — | 200 | — | `CUSTOMER.DISPUTE.CREATED` and `CUSTOMER.DISPUTE.UPDATED`, both `verified` |
+| GET dispute after ~3 min | seller | 200 | — | stage now `CHARGEBACK`, still `UNDER_REVIEW`; only action link `provide_supporting_info` |
+| provide-supporting-info, JSON `{notes}`, text built from logged records, approved by the user first | seller | **200** | f109742f431f2 | re-read shows the note verbatim, `source: SUBMITTED_BY_SELLER` |
+
+Findings:
+
+- **Settle can work a dispute for a connected seller**: read it, receive its webhooks, and send seller-approved supporting info with `PayPal-Auth-Assertion`. PayPal records the note as the seller's.
+- Opening disputes on demand needs a buyer login (Resolution Center). The disputes create API needs the buyer's consent to our app; `process-chargeback` needs a card-funded payment and the full chargeback body. For judge mode, pre-open a dispute per demo, or retry `process-chargeback` with a card payment in M4.
+- The buyer sees tracking we uploaded before they can file.
+- Only actions in the dispute's links are offered: here just `provide_supporting_info`. `provide-supporting-info` also takes multipart documents (not tested yet; M4).
+- The dispute's `seller_protection_eligible` was `false` although the capture said `ELIGIBLE`. Don't present either field as a verdict; cite the checks and say PayPal decides.
+- Stages moved from `INQUIRY` to `CHARGEBACK` within minutes in the sandbox; Settle must re-read the dispute before offering an action.
+
+Proposed decision **D2**: disputes run through the API for the connected seller. Settle reads the dispute, offers only the actions in its links, builds text from records, shows the seller the exact request, and sends only after approval. The Resolution Center upload stays as the fallback when an action isn't offered. Demo disputes are opened by the buyer in the sandbox Resolution Center.
 
 ## Early deploy — done 2026-10-21
 
