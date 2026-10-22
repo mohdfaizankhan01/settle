@@ -86,5 +86,7 @@ export type Deal = {
   keyHashes: Record<Role, string>;
   /** The seller's PayPal merchant ID once they connect (D1, DECISIONS #12). Part of the locked card. */
   payeeMerchantId?: string;
+  /** The seller's latest Partner Referrals attempt for this deal. */
+  connect?: { trackingId: string; startedAt: string };
   order?: PaymentOrder;
 };

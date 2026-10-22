@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
-import { PayPalApiError, verifyWebhookSignature } from '../lib/paypal';
+import { authAssertion, createOrder, getOrder, PayPalApiError, sellerByTrackingId, verifyWebhookSignature } from '../lib/paypal';
 
 // PayPal is mocked by replacing fetch: the token call, then the verify call.
 
@@ -104,4 +104,66 @@ test('a 401 refreshes the token once without using up a 5xx retry', async () => 
   assert.equal(verifyCalls, 5);
   const firstVerify = calls.findIndex((c) => c.url.endsWith('/verify-webhook-signature'));
   assert.ok(calls[firstVerify + 1].url.endsWith('/v1/oauth2/token'), 'a new token is fetched after the 401');
+});
+
+test('the auth assertion is an unsigned JWT naming our client ID and the seller', () => {
+  const [header, payload, signature] = authAssertion('SELLER1').split('.');
+  assert.deepEqual(JSON.parse(Buffer.from(header, 'base64url').toString()), { alg: 'none' });
+  assert.deepEqual(JSON.parse(Buffer.from(payload, 'base64url').toString()), { iss: 'id', payer_id: 'SELLER1' });
+  assert.equal(signature, '');
+});
+
+test('createOrder sends the card fields, our request ID, and returns the debug ID', async () => {
+  mockPayPal(() => Response.json({ id: 'O-1', status: 'CREATED' }, { headers: { 'paypal-debug-id': 'dbg-9' } }));
+  const result = await createOrder(
+    {
+      dealId: 'd1',
+      customId: 'd1:abc',
+      payeeMerchantId: 'SELLER1',
+      amount: { currency_code: 'GBP', value: '350.00' },
+      item: { name: 'PS5', description: 'Settle deal d1', physical: true },
+      returnUrl: 'https://settle.test/d/d1',
+      cancelUrl: 'https://settle.test/d/d1',
+    },
+    'req-1',
+  );
+  assert.deepEqual(result, { data: { id: 'O-1', status: 'CREATED' }, debugId: 'dbg-9' });
+  const call = calls.find((c) => c.url.endsWith('/v2/checkout/orders'))!;
+  assert.equal((call.init.headers as Record<string, string>)['PayPal-Request-Id'], 'req-1');
+  const unit = JSON.parse(call.init.body as string).purchase_units[0];
+  assert.equal(unit.custom_id, 'd1:abc');
+  assert.deepEqual(unit.payee, { merchant_id: 'SELLER1' });
+  assert.deepEqual(unit.items[0].unit_amount, { currency_code: 'GBP', value: '350.00' });
+  assert.equal(unit.items[0].category, 'PHYSICAL_GOODS');
+});
+
+test('getOrder reads as the seller with PayPal-Auth-Assertion', async () => {
+  mockPayPal(() => Response.json({ id: 'O-1', status: 'APPROVED' }));
+  await getOrder('O-1', 'SELLER1');
+  const call = calls.find((c) => c.url.endsWith('/v2/checkout/orders/O-1'))!;
+  assert.equal(call.init.method, 'GET');
+  assert.equal((call.init.headers as Record<string, string>)['PayPal-Auth-Assertion'], authAssertion('SELLER1'));
+});
+
+test('sellerByTrackingId reads the merchant ID back from PayPal and checks our grant', async () => {
+  process.env.PAYPAL_PARTNER_MERCHANT_ID = 'PARTNER1';
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    calls.push({ url, init });
+    if (url.endsWith('/v1/oauth2/token')) return Response.json({ access_token: 'token', expires_in: 3600 });
+    if (url.includes('?tracking_id=')) return Response.json({ merchant_id: 'SELLER1', tracking_id: 't1' });
+    return Response.json({
+      merchant_id: 'SELLER1',
+      payments_receivable: true,
+      primary_email_confirmed: true,
+      oauth_integrations: [{ integration_type: 'OAUTH_THIRD_PARTY', oauth_third_party: [{ partner_client_id: 'id' }] }],
+    });
+  }) as typeof fetch;
+  assert.deepEqual(await sellerByTrackingId('t1'), { merchantId: 'SELLER1', paymentsReceivable: true, primaryEmailConfirmed: true, granted: true });
+  assert.ok(calls.some((c) => c.url.includes('/v1/customer/partners/PARTNER1/merchant-integrations?tracking_id=t1')));
+});
+
+test('sellerByTrackingId is undefined while PayPal has no seller for the tracking ID', async () => {
+  process.env.PAYPAL_PARTNER_MERCHANT_ID = 'PARTNER1';
+  mockPayPal(() => new Response('{"name":"RESOURCE_NOT_FOUND"}', { status: 404 }));
+  assert.equal(await sellerByTrackingId('t1'), undefined);
 });

@@ -1,6 +1,6 @@
 // PayPal REST client: every call this demo makes to PayPal goes through here. It covers
-// catalog products, billing plans, invoicing, Transaction Search, balances and webhook
-// signature checks, with plain fetch and no SDK. Server-side only: it reads the client
+// catalog products, billing plans, invoicing, Transaction Search, balances, webhook signature
+// checks, seller onboarding (Partner Referrals) and orders, with plain fetch and no SDK. Server-side only: it reads the client
 // secret from the environment.
 
 const BASE_URL = 'https://api-m.sandbox.paypal.com';
@@ -44,18 +44,28 @@ async function accessToken(): Promise<string> {
   return access_token;
 }
 
-async function get<T>(path: string): Promise<T> {
-  return send<T>('GET', path);
+async function get<T>(path: string, headers?: Record<string, string>): Promise<T> {
+  return (await send<T>('GET', path, undefined, undefined, headers)).data;
 }
 
 // POSTs carry a PayPal-Request-Id, kept the same across retries so PayPal treats a retry as
-// the same request rather than a second one.
+// the same request rather than a second one. A caller can pass its own ID to make a repeated
+// call (a double click, a retried page) idempotent too.
 async function post<T>(path: string, body: unknown): Promise<T> {
-  return send<T>('POST', path, body, crypto.randomUUID());
+  return (await send<T>('POST', path, body, crypto.randomUUID())).data;
 }
 
+/** A successful response with its paypal-debug-id, which receipts keep. */
+export type WithDebugId<T> = { data: T; debugId?: string };
+
 // A string body is sent as-is: it is already JSON (verify-webhook-signature needs PayPal's exact bytes).
-async function send<T>(method: 'GET' | 'POST', path: string, body?: unknown, requestId?: string): Promise<T> {
+async function send<T>(
+  method: 'GET' | 'POST',
+  path: string,
+  body?: unknown,
+  requestId?: string,
+  extraHeaders?: Record<string, string>,
+): Promise<WithDebugId<T>> {
   let tokenRefreshed = false;
   for (let attempt = 1; ; attempt++) {
     const res = await fetch(`${BASE_URL}${path}`, {
@@ -64,11 +74,12 @@ async function send<T>(method: 'GET' | 'POST', path: string, body?: unknown, req
         Authorization: `Bearer ${await accessToken()}`,
         ...(body !== undefined && { 'Content-Type': 'application/json' }),
         ...(requestId && { 'PayPal-Request-Id': requestId }),
+        ...extraHeaders,
       },
       ...(body !== undefined && { body: typeof body === 'string' ? body : JSON.stringify(body) }),
       cache: 'no-store',
     });
-    if (res.ok) return (await res.json()) as T;
+    if (res.ok) return { data: (await res.json()) as T, debugId: res.headers.get('paypal-debug-id') ?? undefined };
 
     // A revoked or expired token: drop it and mint a new one, once per call. The retry doesn't use
     // up one of the attempts kept for 429 and 5xx.
@@ -283,4 +294,175 @@ export async function verifyWebhookSignature(
     `${envelope.slice(0, -1)},"webhook_event":${rawBody}}`,
   );
   return verification_status === 'SUCCESS' ? 'SUCCESS' : 'FAILURE';
+}
+
+// --- Seller onboarding (Partner Referrals, D1) ----------------------------------
+
+/**
+ * Lets our platform app act for a connected seller (D1): an unsigned JWT naming our client ID
+ * and the seller's merchant ID, sent as PayPal-Auth-Assertion.
+ * https://developer.paypal.com/api/rest/requests/
+ */
+export function authAssertion(sellerMerchantId: string): string {
+  const id = process.env.PAYPAL_CLIENT_ID;
+  if (!id) throw new Error('PAYPAL_CLIENT_ID must be set');
+  const part = (v: object) => Buffer.from(JSON.stringify(v)).toString('base64url');
+  return `${part({ alg: 'none' })}.${part({ iss: id, payer_id: sellerMerchantId })}.`;
+}
+
+// The features the D1 and D2 spikes needed: take payments, refund, read the seller's account
+// status, and read and answer the seller's disputes.
+const SELLER_FEATURES = ['PAYMENT', 'REFUND', 'ACCESS_MERCHANT_INFORMATION', 'READ_SELLER_DISPUTE', 'UPDATE_SELLER_DISPUTE'];
+
+/** Starts onboarding. Returns PayPal's URL where the seller signs in and grants permission. */
+export async function createPartnerReferral(trackingId: string, returnUrl: string): Promise<WithDebugId<{ actionUrl: string }>> {
+  const { data, debugId } = await send<{ links?: { rel: string; href: string }[] }>(
+    'POST',
+    '/v2/customer/partner-referrals',
+    {
+      tracking_id: trackingId,
+      operations: [
+        {
+          operation: 'API_INTEGRATION',
+          api_integration_preference: {
+            rest_api_integration: {
+              integration_method: 'PAYPAL',
+              integration_type: 'THIRD_PARTY',
+              third_party_details: { features: SELLER_FEATURES },
+            },
+          },
+        },
+      ],
+      products: ['EXPRESS_CHECKOUT'],
+      legal_consents: [{ type: 'SHARE_DATA_CONSENT', granted: true }],
+      partner_config_override: { return_url: returnUrl },
+    },
+    crypto.randomUUID(),
+  );
+  const actionUrl = data.links?.find((l) => l.rel === 'action_url')?.href;
+  if (!actionUrl) throw new PayPalApiError(200, '/v2/customer/partner-referrals', 'no action_url in response', debugId);
+  return { data: { actionUrl }, debugId };
+}
+
+export type SellerStatus = {
+  merchantId: string;
+  paymentsReceivable: boolean;
+  primaryEmailConfirmed: boolean;
+  /** True when the seller granted our app third-party permissions. */
+  granted: boolean;
+};
+
+/**
+ * Looks up the seller who finished onboarding with our own `trackingId`, then their status.
+ * We never trust the merchant ID in the return URL's query string: it is read back from PayPal.
+ * Returns undefined while PayPal has no seller for that tracking ID.
+ */
+export async function sellerByTrackingId(trackingId: string): Promise<SellerStatus | undefined> {
+  const partner = process.env.PAYPAL_PARTNER_MERCHANT_ID;
+  if (!partner) throw new Error('PAYPAL_PARTNER_MERCHANT_ID must be set');
+  let merchantId: string | undefined;
+  try {
+    ({ merchant_id: merchantId } = await get<{ merchant_id?: string }>(
+      `/v1/customer/partners/${encodeURIComponent(partner)}/merchant-integrations?tracking_id=${encodeURIComponent(trackingId)}`,
+    ));
+  } catch (error) {
+    if (error instanceof PayPalApiError && error.status === 404) return undefined;
+    throw error;
+  }
+  if (!merchantId) return undefined;
+  const status = await get<{
+    merchant_id: string;
+    payments_receivable?: boolean;
+    primary_email_confirmed?: boolean;
+    oauth_integrations?: { integration_type?: string; oauth_third_party?: { partner_client_id?: string }[] }[];
+  }>(`/v1/customer/partners/${encodeURIComponent(partner)}/merchant-integrations/${encodeURIComponent(merchantId)}`);
+  const granted = (status.oauth_integrations ?? []).some(
+    (o) => o.integration_type === 'OAUTH_THIRD_PARTY' && (o.oauth_third_party ?? []).some((t) => t.partner_client_id === process.env.PAYPAL_CLIENT_ID),
+  );
+  return {
+    merchantId: status.merchant_id,
+    paymentsReceivable: status.payments_receivable === true,
+    primaryEmailConfirmed: status.primary_email_confirmed === true,
+    granted,
+  };
+}
+
+// --- Orders (checkout) --------------------------------------------------------
+
+export type OrderRequest = {
+  dealId: string;
+  /** `<dealId>:<card hash>`: ties the order to the exact card both sides confirmed. */
+  customId: string;
+  payeeMerchantId: string;
+  amount: Money;
+  item: { name: string; description: string; physical: boolean };
+  returnUrl: string;
+  cancelUrl: string;
+};
+
+export type Order = {
+  id: string;
+  status: string;
+  purchase_units?: {
+    reference_id?: string;
+    custom_id?: string;
+    amount?: Money;
+    payee?: { merchant_id?: string; email_address?: string };
+    items?: { name: string; description?: string; quantity: string; unit_amount: Money }[];
+    shipping?: { address?: Record<string, string> };
+    payments?: { captures?: { id: string; status: string; amount?: Money }[] };
+  }[];
+  links?: { rel: string; href: string }[];
+};
+
+/** Creates the order on the server from the locked card. Never from browser input. */
+export async function createOrder(o: OrderRequest, requestId: string): Promise<WithDebugId<Order>> {
+  return send<Order>(
+    'POST',
+    '/v2/checkout/orders',
+    {
+      intent: 'CAPTURE',
+      purchase_units: [
+        {
+          reference_id: o.dealId,
+          custom_id: o.customId,
+          payee: { merchant_id: o.payeeMerchantId },
+          amount: { ...o.amount, breakdown: { item_total: o.amount } },
+          items: [
+            {
+              name: o.item.name,
+              description: o.item.description,
+              quantity: '1',
+              unit_amount: o.amount,
+              category: o.item.physical ? 'PHYSICAL_GOODS' : 'DIGITAL_GOODS',
+            },
+          ],
+        },
+      ],
+      payment_source: {
+        paypal: {
+          experience_context: {
+            brand_name: 'Settle',
+            user_action: 'PAY_NOW',
+            shipping_preference: o.item.physical ? 'GET_FROM_FILE' : 'NO_SHIPPING',
+            return_url: o.returnUrl,
+            cancel_url: o.cancelUrl,
+          },
+        },
+      },
+    },
+    requestId,
+  );
+}
+
+/** A fresh read of the order, as the connected seller. */
+export function getOrder(orderId: string, sellerMerchantId: string): Promise<WithDebugId<Order>> {
+  return send<Order>('GET', `/v2/checkout/orders/${encodeURIComponent(orderId)}`, undefined, undefined, {
+    'PayPal-Auth-Assertion': authAssertion(sellerMerchantId),
+  });
+}
+
+/** Captures an approved order. The request ID makes a repeated capture the same request. */
+export function captureOrder(orderId: string, requestId: string): Promise<WithDebugId<Order>> {
+  return send<Order>('POST', `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {}, requestId);
 }
