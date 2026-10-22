@@ -22,3 +22,12 @@ services:
         sync: false
       - key: SETTLE_PUBLIC_HOST
         sync: false
+      - key: PAYPAL_PARTNER_MERCHANT_ID
+        sync: false
+      # Internal URL of the free Render Postgres settle-db (expires 2026-11-21; upgrade in M6).
+      - key: DATABASE_URL
+        sync: false
+      - key: TYPESAFE_API_KEY
+        sync: false
+      - key: JEV_MODEL
+        sync: false

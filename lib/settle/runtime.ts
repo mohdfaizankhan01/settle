@@ -1,0 +1,73 @@
+// Server wiring shared by the deal API routes: the store, the public host, the caller's link
+// key, a simple rate limit, and error mapping. Fail closed: production without DATABASE_URL
+// refuses to run instead of falling back to memory.
+
+import { PayPalApiError } from '../paypal';
+import { ChatError } from './chat';
+import { DealError } from './deals';
+import { PgDealStore } from './pg-store';
+import { MemoryDealStore, type DealStore } from './store';
+
+const g = globalThis as unknown as { settleStore?: DealStore; settleHits?: Map<string, number[]> };
+
+export function getStore(): DealStore {
+  if (g.settleStore) return g.settleStore;
+  const url = process.env.DATABASE_URL;
+  if (url) g.settleStore = PgDealStore.fromUrl(url);
+  else if (process.env.NODE_ENV !== 'production') g.settleStore = new MemoryDealStore();
+  else throw new Error('DATABASE_URL must be set in production');
+  return g.settleStore;
+}
+
+export function publicHost(request: Request): string {
+  return (process.env.SETTLE_PUBLIC_HOST || new URL(request.url).origin).replace(/\/$/, '');
+}
+
+/** The caller's link key. It lives in the page's URL fragment, so it never reaches server logs. */
+export const linkKey = (request: Request) => request.headers.get('x-settle-key');
+
+/** At most `limit` calls per `windowMs` per client address and bucket. In memory, per instance. */
+export function rateLimited(request: Request, bucket: string, limit: number, windowMs = 60 * 60 * 1000): boolean {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local';
+  const key = `${bucket}:${ip}`;
+  const hits = (g.settleHits ??= new Map<string, number[]>());
+  const cutoff = Date.now() - windowMs;
+  const recent = (hits.get(key) ?? []).filter((t) => t > cutoff);
+  if (recent.length >= limit) return true;
+  recent.push(Date.now());
+  hits.set(key, recent);
+  return false;
+}
+
+/** Runs a route body and maps known errors to JSON responses. Unknown errors log their name only. */
+export async function api(fn: () => Promise<unknown>): Promise<Response> {
+  try {
+    return Response.json(await fn());
+  } catch (error) {
+    if (error instanceof DealError) return Response.json({ error: error.message }, { status: error.status });
+    if (error instanceof ChatError) return Response.json({ error: error.message }, { status: 400 });
+    if (error instanceof PayPalApiError) {
+      console.log(`[deal] PayPal ${error.status} on ${error.path} debug=${error.debugId ?? '-'}`);
+      return Response.json({ error: 'PayPal returned an error', debugId: error.debugId ?? null }, { status: 502 });
+    }
+    console.log(`[deal] unexpected ${error instanceof Error ? error.name : 'error'}`);
+    return Response.json({ error: 'Something went wrong. Reload the page to see the deal as it is now.' }, { status: 500 });
+  }
+}
+
+export async function jsonBody(request: Request): Promise<Record<string, unknown>> {
+  const text = await request.text();
+  if (text.length > 64 * 1024) throw new DealError('request too large');
+  try {
+    const v = JSON.parse(text || '{}');
+    if (typeof v !== 'object' || v === null || Array.isArray(v)) throw new Error();
+    return v;
+  } catch {
+    throw new DealError('body must be a JSON object');
+  }
+}
+
+export const str = (v: unknown, name: string) => {
+  if (typeof v !== 'string' || v.length === 0) throw new DealError(`${name} is required`);
+  return v;
+};
