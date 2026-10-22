@@ -42,7 +42,13 @@ export type TermPicks = {
   deliveryMessage?: Pick;
 };
 
-export type DealCheckResult = { run: CheckRun; warnings: Warning[]; picks: TermPicks };
+export type DealCheckResult = {
+  run: CheckRun;
+  warnings: Warning[];
+  picks: TermPicks;
+  /** Raw yes-probability per signal, for the eval. Empty when the check failed. */
+  scores: Record<string, number>;
+};
 
 export const DELIVERY_OPTIONS: Record<Delivery | 'unclear', string> = {
   post: 'The seller posts the item with a postal service.',
@@ -138,10 +144,12 @@ export async function dealCheck(redacted: Redacted, ask: AskJev = defaultAskJev(
   try {
     const { model, answers } = await ask({ state: buildState(redacted), questions });
     const warnings: Warning[] = [];
+    const scores: Record<string, number> = {};
     for (const s of SIGNALS) {
       const yes = answers[`sig_${s.id}`];
       // A missing or malformed answer is an error, not a "no".
       if (!isNoul(yes)) throw new Error(`no answer for ${s.id}`);
+      scores[s.id] = yes.noul;
       if (yes.noul < signalThreshold(s.id)) continue;
       const evidence = toPick(answers[`ev_${s.id}`]);
       const validMessage = evidence && evidence.id !== NONE && redacted.messages.some((m) => m.id === evidence.id);
@@ -162,12 +170,13 @@ export async function dealCheck(redacted: Redacted, ask: AskJev = defaultAskJev(
         picks[key] = pick;
       }
     }
-    return { run: { status: 'ran', at: now().toISOString(), model }, warnings, picks };
+    return { run: { status: 'ran', at: now().toISOString(), model }, warnings, picks, scores };
   } catch (error) {
     return {
       run: { status: 'failed', at: now().toISOString(), reason: error instanceof Error ? `${error.name}: ${error.message}`.slice(0, 200) : 'unknown error' },
       warnings: [],
       picks: {},
+      scores: {},
     };
   }
 }

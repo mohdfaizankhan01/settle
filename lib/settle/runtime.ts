@@ -27,18 +27,20 @@ export function publicHost(request: Request): string {
 export const linkKey = (request: Request) => request.headers.get('x-settle-key');
 
 /**
- * At most `limit` calls per `windowMs` per client address and bucket, and 10 × `limit` in total,
- * in memory per instance. The address is the rightmost X-Forwarded-For entry: the one Render's
+ * At most `limit` calls per `windowMs` per client address and bucket, in memory per instance.
+ * `globalLimit` also caps all clients together; it's only for routes that spend money (Jev
+ * calls), as a cost bound, since one busy client can then refuse service to others. The address is the rightmost X-Forwarded-For entry: the one Render's
  * proxy appends. Entries to its left come from the client and can be forged.
  */
-export function rateLimited(request: Request, bucket: string, limit: number, windowMs = 60 * 60 * 1000): boolean {
+export function rateLimited(request: Request, bucket: string, limit: number, globalLimit?: number, windowMs = 60 * 60 * 1000): boolean {
   const ip = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'local';
   const hits = (g.settleHits ??= new Map<string, number[]>());
   const cutoff = Date.now() - windowMs;
   const recent = (key: string) => (hits.get(key) ?? []).filter((t) => t > cutoff);
   const mine = recent(`${bucket}:${ip}`);
   const all = recent(`${bucket}:*`);
-  if (mine.length >= limit || all.length >= limit * 10) return true;
+  if (mine.length >= limit) return true;
+  if (globalLimit !== undefined && all.length >= globalLimit) return true;
   hits.set(`${bucket}:${ip}`, [...mine, Date.now()]);
   hits.set(`${bucket}:*`, [...all, Date.now()]);
   return false;

@@ -10,7 +10,9 @@ test('the limit keys on the proxy-added address, so a forged leftmost entry does
   assert.equal(rateLimited(req('203.0.113.10'), 'b1', 3), false);
 });
 
-test('a global cap applies across addresses', () => {
-  for (let i = 0; i < 20; i++) rateLimited(req(`198.51.100.${i}`), 'b2', 2);
-  assert.equal(rateLimited(req('198.51.100.200'), 'b2', 2), true);
+test('a global cap applies across addresses only when asked for', () => {
+  for (let i = 0; i < 20; i++) rateLimited(req(`198.51.100.${i}`), 'b2', 2, 20);
+  assert.equal(rateLimited(req('198.51.100.200'), 'b2', 2, 20), true);
+  for (let i = 0; i < 20; i++) rateLimited(req(`198.51.100.${i}`), 'b3', 2);
+  assert.equal(rateLimited(req('198.51.100.200'), 'b3', 2), false);
 });
