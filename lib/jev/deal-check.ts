@@ -156,7 +156,7 @@ export async function dealCheck(redacted: Redacted, ask: AskJev = defaultAskJev(
     for (const key of ['price', 'shipBy', 'delivery', 'itemMessage', 'deliveryMessage'] as const) {
       if (key in questions) {
         const pick = toPick(answers[key]);
-        if (!pick || !(pick.id in (questions[key] as { criteria: object }).criteria)) throw new Error(`bad answer for ${key}`);
+        if (!pick || !Object.hasOwn((questions[key] as { criteria: object }).criteria, pick.id)) throw new Error(`bad answer for ${key}`);
         picks[key] = pick;
       }
     }

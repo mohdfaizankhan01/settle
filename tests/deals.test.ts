@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { AskJev } from '../lib/jev/deal-check';
-import { cardHash, isLocked } from '../lib/settle/card';
+import { buildCard, cardHash, isLocked } from '../lib/settle/card';
 import { verifyChain } from '../lib/settle/receipts';
 import { answerQuestion, confirmCard, createDeal, DealError, enterTerm, roleFor, setPayee, type Deps } from '../lib/settle/deals';
 import { SIGNALS } from '../lib/settle/signals';
@@ -130,4 +130,12 @@ test('the seller can enter a missing price; the buyer cannot, and chat-sourced t
 test('a wrong link key is refused', async () => {
   const { d, deal } = await setup();
   await assert.rejects(confirmCard(deal.id, 'nope', 'x', d), (e: DealError) => e.status === 403);
+});
+
+test('buildCard: a delivery pick citing a message that does not exist becomes a question', () => {
+  const messages = [{ id: 'm1', speaker: 'A', role: 'seller' as const, text: 'posting it' }];
+  const p = (id: string) => ({ id, confidence: 0.9, probabilities: {} });
+  const { card, questions } = buildCard(messages, [], { delivery: p('post'), deliveryMessage: p('m42') }, 'UK');
+  assert.equal(card.delivery, undefined);
+  assert.equal(questions[0].id, 'q_delivery');
 });

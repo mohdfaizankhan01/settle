@@ -103,3 +103,8 @@ test('keyword rules: only the sending side, show the match, and catch details hi
     ],
   );
 });
+
+test('an answer naming an inherited property such as "toString" is not a valid option', async () => {
+  const result = await dealCheck(redacted, mock(answers({ delivery: pick('toString') })));
+  assert.equal(result.run.status, 'failed');
+});

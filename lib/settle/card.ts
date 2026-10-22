@@ -68,7 +68,12 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
   // Delivery: needs both the method and the message it came from.
   const deliveryPick = picks.delivery;
   const deliveryMessage = picks.deliveryMessage;
-  if (sure(deliveryPick) && deliveryPick.id !== 'unclear' && sure(deliveryMessage)) {
+  if (
+    sure(deliveryPick) &&
+    Object.hasOwn(DELIVERY_LABELS, deliveryPick.id) &&
+    sure(deliveryMessage) &&
+    messages.some((m) => m.id === deliveryMessage.id)
+  ) {
     const value = deliveryPick.id as Delivery;
     card.delivery = {
       value,
@@ -136,7 +141,7 @@ export function applyAnswer(card: DealCard, question: Question, optionId: string
     if (!t) throw new Error('unknown price option');
     next.price = { value: { amount: t.amount!, currency }, display: formatMoney(t.amount!, currency), source };
   } else if (question.term === 'delivery') {
-    if (!(optionId in DELIVERY_LABELS)) throw new Error('unknown delivery option');
+    if (!Object.hasOwn(DELIVERY_LABELS, optionId)) throw new Error('unknown delivery option');
     next.delivery = { value: optionId as Delivery, display: DELIVERY_LABELS[optionId as Delivery], source };
   } else if (question.term === 'shipBy') {
     if (optionId === NONE) delete next.shipBy;
