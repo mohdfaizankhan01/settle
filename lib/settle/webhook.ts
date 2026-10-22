@@ -46,7 +46,7 @@ export async function handleWebhook(rawBody: string, headers: Headers, deps: Dep
   if (!deps.webhookId) return { status: 503, outcome: 'unverifiable', ...ids, reason: 'PAYPAL_WEBHOOK_ID is not set' };
 
   try {
-    const status = await deps.verify(headers, event, deps.webhookId);
+    const status = await deps.verify(headers, rawBody, deps.webhookId);
     return status === 'SUCCESS'
       ? { status: 200, outcome: 'verified', ...ids }
       : { status: 400, outcome: 'rejected', ...ids, reason: 'signature verification failed' };
@@ -59,4 +59,29 @@ export async function handleWebhook(rawBody: string, headers: Headers, deps: Dep
       reason: 'could not reach verify-webhook-signature',
     };
   }
+}
+
+// PayPal events are a few KB; anything far larger is not from PayPal. Reading stops at the cap, so
+// an oversized body is never buffered in full.
+export const MAX_WEBHOOK_BYTES = 256 * 1024;
+
+/** The body as text, or undefined if it is larger than `maxBytes`. */
+export async function readBodyLimited(request: Request, maxBytes = MAX_WEBHOOK_BYTES): Promise<string | undefined> {
+  if (Number(request.headers.get('content-length')) > maxBytes) return undefined;
+  if (!request.body) return '';
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      return undefined;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }

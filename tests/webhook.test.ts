@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { PayPalApiError } from '../lib/paypal';
-import { handleWebhook } from '../lib/settle/webhook';
+import { handleWebhook, readBodyLimited } from '../lib/settle/webhook';
 
 // verify-webhook-signature is mocked; only SUCCESS may count as verified.
 
@@ -54,4 +54,22 @@ test('a PayPal error during verification is unverifiable, never verified, and ke
   assert.equal(result.outcome, 'unverifiable');
   assert.equal(result.status, 503);
   assert.equal(result.debugId, 'dbg-9');
+});
+
+test('a body over the cap is refused, whether or not it declares its length', async () => {
+  const big = 'x'.repeat(2000);
+  assert.equal(await readBodyLimited(new Request('http://x', { method: 'POST', body: big }), 1000), undefined);
+
+  const stream = new ReadableStream({
+    start(controller) {
+      for (let i = 0; i < 5; i++) controller.enqueue(new TextEncoder().encode('x'.repeat(400)));
+      controller.close();
+    },
+  });
+  const chunked = new Request('http://x', { method: 'POST', body: stream, duplex: 'half' } as RequestInit);
+  assert.equal(await readBodyLimited(chunked, 1000), undefined);
+});
+
+test('a body under the cap is read exactly', async () => {
+  assert.equal(await readBodyLimited(new Request('http://x', { method: 'POST', body })), body);
 });

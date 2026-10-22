@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { connection } from 'next/server';
 import { devPagesEnabled } from '@/lib/settle/dev-pages';
 
 const dashboard = { href: '/dashboard', label: 'Dashboard', detail: 'AG Studio reports over all of the data below' };
@@ -23,8 +24,10 @@ function PageLink({ href, label, detail }: { href: string; label: string; detail
   );
 }
 
-export default function Home() {
+export default async function Home() {
   // The data pages below are local-only (lib/settle/dev-pages.ts), so production doesn't link them.
+  // Checked per request, so SETTLE_DEV_PAGES on Render takes effect without a rebuild.
+  await connection();
   if (!devPagesEnabled()) {
     return (
       <main className="mx-auto w-full max-w-3xl p-16 font-paypal text-pp-ink">

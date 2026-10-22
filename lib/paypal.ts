@@ -54,7 +54,9 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return send<T>('POST', path, body, crypto.randomUUID());
 }
 
+// A string body is sent as-is: it is already JSON (verify-webhook-signature needs PayPal's exact bytes).
 async function send<T>(method: 'GET' | 'POST', path: string, body?: unknown, requestId?: string): Promise<T> {
+  let tokenRefreshed = false;
   for (let attempt = 1; ; attempt++) {
     const res = await fetch(`${BASE_URL}${path}`, {
       method,
@@ -63,14 +65,17 @@ async function send<T>(method: 'GET' | 'POST', path: string, body?: unknown, req
         ...(body !== undefined && { 'Content-Type': 'application/json' }),
         ...(requestId && { 'PayPal-Request-Id': requestId }),
       },
-      ...(body !== undefined && { body: JSON.stringify(body) }),
+      ...(body !== undefined && { body: typeof body === 'string' ? body : JSON.stringify(body) }),
       cache: 'no-store',
     });
     if (res.ok) return (await res.json()) as T;
 
-    // A revoked or expired token: drop it and mint a new one once.
-    if (res.status === 401 && attempt === 1) {
+    // A revoked or expired token: drop it and mint a new one, once per call. The retry doesn't use
+    // up one of the attempts kept for 429 and 5xx.
+    if (res.status === 401 && !tokenRefreshed) {
+      tokenRefreshed = true;
       cachedToken = undefined;
+      attempt--;
       continue;
     }
     if ((res.status === 429 || res.status >= 500) && attempt < MAX_ATTEMPTS) {
@@ -257,12 +262,14 @@ export type WebhookEvent = { id: string; event_type: string; resource?: Record<s
 
 /**
  * Asks PayPal whether a webhook really came from PayPal, for the webhook registered as
- * `webhookId`. Missing signature headers mean FAILURE without a call; a PayPal error throws,
- * and the caller must treat that as unverified.
+ * `webhookId`. `rawBody` is the request body exactly as received (already checked to be JSON):
+ * it is spliced into the request unparsed, because re-serializing can change number formats or
+ * escapes and break the signature. Missing signature headers mean FAILURE without a call; a
+ * PayPal error throws, and the caller must treat that as unverified.
  */
 export async function verifyWebhookSignature(
   headers: Headers,
-  event: WebhookEvent,
+  rawBody: string,
   webhookId: string,
 ): Promise<'SUCCESS' | 'FAILURE'> {
   const fields = Object.fromEntries(
@@ -270,9 +277,10 @@ export async function verifyWebhookSignature(
   );
   if (Object.values(fields).some((value) => !value)) return 'FAILURE';
 
+  const envelope = JSON.stringify({ ...fields, webhook_id: webhookId });
   const { verification_status } = await post<{ verification_status: string }>(
     '/v1/notifications/verify-webhook-signature',
-    { ...fields, webhook_id: webhookId, webhook_event: event },
+    `${envelope.slice(0, -1)},"webhook_event":${rawBody}}`,
   );
   return verification_status === 'SUCCESS' ? 'SUCCESS' : 'FAILURE';
 }

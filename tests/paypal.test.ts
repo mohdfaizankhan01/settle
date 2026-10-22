@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
-import { PayPalApiError, verifyWebhookSignature, type WebhookEvent } from '../lib/paypal';
+import { PayPalApiError, verifyWebhookSignature } from '../lib/paypal';
 
 // PayPal is mocked by replacing fetch: the token call, then the verify call.
 
@@ -16,7 +16,8 @@ function mockPayPal(verifyResponse: () => Response) {
   }) as typeof fetch;
 }
 
-const event: WebhookEvent = { id: 'WH-1', event_type: 'PAYMENT.CAPTURE.COMPLETED', resource: { id: 'CAP-1' } };
+// Formatting JSON.parse + JSON.stringify would change: 1.0, an escaped é, and spacing.
+const event = '{"id": "WH-1", "event_type": "PAYMENT.CAPTURE.COMPLETED", "resource": {"id": "CAP-1", "amount": 1.0, "note": "caf\\u00e9"}}';
 
 const signedHeaders = () =>
   new Headers({
@@ -46,15 +47,17 @@ test('sends every transmission header, the webhook ID and the event to verify-we
   assert.equal(verify.init.method, 'POST');
   const headers = verify.init.headers as Record<string, string>;
   assert.match(headers['PayPal-Request-Id'], /^[0-9a-f-]{36}$/);
-  assert.deepEqual(JSON.parse(verify.init.body as string), {
+  const sent = verify.init.body as string;
+  assert.deepEqual(JSON.parse(sent), {
     auth_algo: 'SHA256withRSA',
     cert_url: 'https://api.sandbox.paypal.com/v1/notifications/certs/CERT-1',
     transmission_id: 'tx-1',
     transmission_sig: 'sig-1',
     transmission_time: '2026-10-18T12:00:00Z',
     webhook_id: 'WEBHOOK1',
-    webhook_event: event,
+    webhook_event: JSON.parse(event),
   });
+  assert.ok(sent.endsWith(`"webhook_event":${event}}`), 'the event bytes are sent exactly as received');
 });
 
 test('a FAILURE from PayPal is FAILURE', async () => {
@@ -86,4 +89,19 @@ test('a PayPal error throws with its debug ID, retrying with the same request ID
     .map((c) => (c.init.headers as Record<string, string>)['PayPal-Request-Id']);
   assert.equal(requestIds.length, 4);
   assert.equal(new Set(requestIds).size, 1);
+});
+
+test('a 401 refreshes the token once without using up a 5xx retry', async () => {
+  let verifyCalls = 0;
+  mockPayPal(() => {
+    verifyCalls++;
+    if (verifyCalls === 1) return new Response('{}', { status: 401 });
+    if (verifyCalls <= 4) return new Response('{}', { status: 503 });
+    return Response.json({ verification_status: 'SUCCESS' });
+  });
+
+  assert.equal(await verifyWebhookSignature(signedHeaders(), event, 'WEBHOOK1'), 'SUCCESS');
+  assert.equal(verifyCalls, 5);
+  const firstVerify = calls.findIndex((c) => c.url.endsWith('/verify-webhook-signature'));
+  assert.ok(calls[firstVerify + 1].url.endsWith('/v1/oauth2/token'), 'a new token is fetched after the 401');
 });
