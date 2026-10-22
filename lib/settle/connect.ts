@@ -40,6 +40,9 @@ export async function finishConnect(trackingId: string, deps: ConnectDeps): Prom
   const pp = deps.paypal ?? paypal;
   const link = await deps.store.getSellerLink(trackingId);
   if (!link) throw new DealError('unknown onboarding link', 404);
+  // Only the seller's latest attempt counts; links from earlier attempts are dead.
+  const deal = await deps.store.getDeal(link.dealId);
+  if (!deal || deal.value.connect?.trackingId !== trackingId) throw new DealError('this onboarding link was replaced by a newer one', 404);
   const seller = await pp.sellerByTrackingId(trackingId);
   if (!seller) return { dealId: link.dealId, connected: false, reason: 'PayPal has not finished connecting this account yet.' };
   const missing = [

@@ -68,3 +68,12 @@ test('an unknown tracking ID is refused', async () => {
   const { deps } = setup(ok);
   await assert.rejects(finishConnect('made-up', deps), /unknown onboarding link/);
 });
+
+test('an earlier onboarding link no longer sets the payee', async () => {
+  const { store, referrals, deps } = setup(ok);
+  const { deal, keys } = await newDeal(store);
+  await startConnect(deal.id, keys.seller, deps);
+  await startConnect(deal.id, keys.seller, deps);
+  await assert.rejects(finishConnect(referrals[0].trackingId, deps), /replaced/);
+  assert.equal((await finishConnect(referrals[1].trackingId, deps)).connected, true);
+});

@@ -142,3 +142,11 @@ test('PayPal unreachable on the fresh GET fails closed', async () => {
   };
   await assert.rejects(captureCheckout(dealId, keys.buyer, orderId, co), /nothing was captured/);
 });
+
+test('the payee cannot change once payment has started', async () => {
+  const { dealId, keys, co, pp } = await lockedDeal();
+  const { orderId } = await startCheckout(dealId, keys.buyer, co);
+  pp.approve(orderId);
+  await captureCheckout(dealId, keys.buyer, orderId, co);
+  await assert.rejects(setPayee(dealId, 'ATTACKER', { store: co.store }), /cannot change after payment/);
+});

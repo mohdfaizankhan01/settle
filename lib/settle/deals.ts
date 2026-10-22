@@ -150,6 +150,8 @@ export async function setPayee(dealId: string, merchantId: string, deps: Deps): 
     const stored = await deps.store.getDeal(dealId);
     if (!stored) throw new DealError('no such deal', 404);
     if (stored.value.payeeMerchantId === merchantId) return stored;
+    // Once a payment is under way the payee is fixed.
+    if (stored.value.order && stored.value.order.status !== 'CREATED') throw new DealError('the payee cannot change after payment started', 409);
     const next = { ...stored.value, payeeMerchantId: merchantId, cardVersion: stored.value.cardVersion + 1, confirmations: [] };
     try {
       const saved = await deps.store.updateDeal(dealId, stored.version, next);
