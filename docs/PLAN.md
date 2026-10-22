@@ -58,6 +58,7 @@ Done when:
   - Buyer: Friends and Family or "send it as a gift"; payment outside PayPal (bank transfer, Zelle, Cash App, crypto, gift cards, links to other payment pages); a deposit with urgency before the buyer can see the item.
   - Seller: a "payment" email or screenshot instead of paying through Settle; "PayPal is holding your money until you pay a fee or upgrade"; overpayment with a request to refund the difference; asks for a code PayPal texted you; ship to another address or a third-party pickup; moving off the chat to "finish the payment".
   - Both: instructions aimed at the AI.
+- [ ] **MUST: collect and meet-up flag.** If the delivery method is collection, meet-up or any in-person handover, the deal card shows a warning citing SP-INPERSON and PP-COLLECT in `docs/protection-terms.md`: in-person handover isn't covered by Seller Protection (unless paid by QR code, which Settle doesn't offer), and the buyer loses Item Not Received cover. The warning goes to both sides. Never "unsafe"; say which check fails.
 - [ ] **MUST: source quotes.** Every deal-card term (item, price, delivery method, any condition or date) shows the message it came from. Only terms both sides confirm get locked.
 - [ ] **MUST: deal hash.** SHA-256 of the canonical locked card, stored with both confirmations (who and when). The PayPal order carries the deal ID and hash in `custom_id` (check its length limit with the paypal plugin), and the item name and description in `items`. No order if the card changed after confirmation.
 - [ ] **SHOULD: blocking questions.** An unknown term (a Choice below 0.6, or no amount found) becomes a question with options that both sides answer before confirming. Answers go into the card and its hash.
@@ -78,7 +79,6 @@ Done when:
   - Payment confirmed: verified webhook plus a fresh GET, capture completed, and amount, currency, payee and hash match the card.
   - Ship to the PayPal address (shown).
   - Tracking added to PayPal.
-  - Signature, if the terms require it at this amount.
   - Delivery method covered (in-person handovers flagged per the terms).
   - No warnings since payment.
 
