@@ -59,7 +59,7 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
         .slice(0, 4)
         .map((id) => {
           const t = priceTokens.find((x) => x.id === id)!;
-          return { id, label: `${formatMoney(t.amount!, currency)} (message ${t.messageId})` };
+          return { id, label: `${formatMoney(t.amount!, currency)} (message ${t.messageId.slice(1)})` };
         }),
       answers: {},
     });
@@ -112,7 +112,7 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
           .slice(0, 3)
           .map((id) => {
             const t = dateTokens.find((x) => x.id === id)!;
-            return { id, label: `${t.raw} (message ${t.messageId})` };
+            return { id, label: `${t.raw} (message ${t.messageId.slice(1)})` };
           }),
         { id: NONE, label: 'No date agreed' },
       ],

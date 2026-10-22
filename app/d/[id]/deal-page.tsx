@@ -158,6 +158,11 @@ export function DealPage({ dealId }: { dealId: string }) {
 
         <aside className="order-1 space-y-8 lg:order-2">
           <Warnings view={view} />
+          {view.check.status === 'failed' && (
+            <button disabled={busy} onClick={() => act('/recheck')} className="rounded-full border border-pp-border bg-pp-surface px-5 py-2 font-semibold disabled:opacity-40">
+              {busy ? 'Checking…' : 'Run the check again'}
+            </button>
+          )}
           <Chat view={view} />
         </aside>
       </div>
@@ -182,7 +187,7 @@ function sourceText(s: SourceView | null) {
 function Card({ view }: { view: DealView }) {
   return (
     <section aria-label="Deal card" className="relative rounded-lg border border-pp-border bg-pp-surface shadow-[0_1px_0_var(--pp-border),0_12px_24px_-16px_rgba(0,28,100,0.25)]">
-      <dl className="divide-y divide-pp-gridline">
+      <dl className="divide-y divide-pp-border/60">
         {view.terms.map((t) => {
           const src = sourceText(t.source);
           return (

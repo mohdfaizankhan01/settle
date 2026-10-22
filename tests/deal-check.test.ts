@@ -108,3 +108,14 @@ test('an answer naming an inherited property such as "toString" is not a valid o
   const result = await dealCheck(redacted, mock(answers({ delivery: pick('toString') })));
   assert.equal(result.run.status, 'failed');
 });
+
+test('no TYPESAFE_API_KEY fails closed instead of throwing', async () => {
+  const saved = process.env.TYPESAFE_API_KEY;
+  delete process.env.TYPESAFE_API_KEY;
+  try {
+    const result = await dealCheck(redacted);
+    assert.equal(result.run.status, 'failed');
+  } finally {
+    if (saved !== undefined) process.env.TYPESAFE_API_KEY = saved;
+  }
+});

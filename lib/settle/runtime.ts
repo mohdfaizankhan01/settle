@@ -26,16 +26,21 @@ export function publicHost(request: Request): string {
 /** The caller's link key. It lives in the page's URL fragment, so it never reaches server logs. */
 export const linkKey = (request: Request) => request.headers.get('x-settle-key');
 
-/** At most `limit` calls per `windowMs` per client address and bucket. In memory, per instance. */
+/**
+ * At most `limit` calls per `windowMs` per client address and bucket, and 10 × `limit` in total,
+ * in memory per instance. The address is the rightmost X-Forwarded-For entry: the one Render's
+ * proxy appends. Entries to its left come from the client and can be forged.
+ */
 export function rateLimited(request: Request, bucket: string, limit: number, windowMs = 60 * 60 * 1000): boolean {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local';
-  const key = `${bucket}:${ip}`;
+  const ip = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'local';
   const hits = (g.settleHits ??= new Map<string, number[]>());
   const cutoff = Date.now() - windowMs;
-  const recent = (hits.get(key) ?? []).filter((t) => t > cutoff);
-  if (recent.length >= limit) return true;
-  recent.push(Date.now());
-  hits.set(key, recent);
+  const recent = (key: string) => (hits.get(key) ?? []).filter((t) => t > cutoff);
+  const mine = recent(`${bucket}:${ip}`);
+  const all = recent(`${bucket}:*`);
+  if (mine.length >= limit || all.length >= limit * 10) return true;
+  hits.set(`${bucket}:${ip}`, [...mine, Date.now()]);
+  hits.set(`${bucket}:*`, [...all, Date.now()]);
   return false;
 }
 

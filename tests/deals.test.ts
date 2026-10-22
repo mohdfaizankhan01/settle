@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { AskJev } from '../lib/jev/deal-check';
 import { buildCard, cardHash, isLocked } from '../lib/settle/card';
 import { verifyChain } from '../lib/settle/receipts';
-import { answerQuestion, confirmCard, createDeal, DealError, enterTerm, roleFor, setPayee, type Deps } from '../lib/settle/deals';
+import { answerQuestion, confirmCard, createDeal, DealError, enterTerm, recheckDeal, roleFor, setPayee, type Deps } from '../lib/settle/deals';
 import { SIGNALS } from '../lib/settle/signals';
 import { MemoryDealStore } from '../lib/settle/store';
 
@@ -65,7 +65,7 @@ test('an unsure price becomes a question; matching answers set it, differing one
   const { d, deal, keys } = await setup(jev({ price: { choice: 'PRICE_2', confidence: 0.4, probabilities: { PRICE_1: 0.35, PRICE_2: 0.4 } } }));
   assert.equal(deal.card.price, undefined);
   const q = deal.questions[0];
-  assert.deepEqual(q.options.map((o) => o.label), ['£350.00 (message m2)', '£300.00 (message m1)']);
+  assert.deepEqual(q.options.map((o) => o.label), ['£350.00 (message 2)', '£300.00 (message 1)']);
 
   await answerQuestion(deal.id, keys.buyer, 'q_price', 'PRICE_1', d);
   let stored = await answerQuestion(deal.id, keys.seller, 'q_price', 'PRICE_2', d);
@@ -138,4 +138,20 @@ test('buildCard: a delivery pick citing a message that does not exist becomes a 
   const { card, questions } = buildCard(messages, [], { delivery: p('post'), deliveryMessage: p('m42') }, 'UK');
   assert.equal(card.delivery, undefined);
   assert.equal(questions[0].id, 'q_delivery');
+});
+
+test('a failed check can be run again, rebuilding the card; a check that ran cannot', async () => {
+  let up = false;
+  const flaky: AskJev = async (req) => {
+    if (!up) throw new Error('down');
+    return jev()(req);
+  };
+  const { d, deal, keys } = await setup(flaky);
+  assert.equal(deal.check.status, 'failed');
+  up = true;
+  const stored = await recheckDeal(deal.id, keys.buyer, d);
+  assert.equal(stored.value.check.status, 'ran');
+  assert.equal(stored.value.card.price?.display, '£350.00');
+  await assert.rejects(recheckDeal(deal.id, keys.buyer, d), /already ran/);
+  assert.equal((await d.store.listReceipts(deal.id)).at(-1)?.kind, 'deal.rechecked');
 });

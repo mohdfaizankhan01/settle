@@ -20,10 +20,12 @@ export type AskJev = (request: {
   questions: Questions;
 }) => Promise<{ model: string; answers: Record<string, unknown> }>;
 
+let client: TypeSafeClient | undefined;
+
+// The client is built on first use, inside dealCheck's try, so a missing key fails closed.
 export function defaultAskJev(): AskJev {
-  const client = new TypeSafeClient({ timeout: 20_000 });
   return (request) =>
-    client.systemOne({
+    (client ??= new TypeSafeClient({ timeout: 20_000 })).systemOne({
       state: request.state as never,
       questions: request.questions,
       model: process.env.JEV_MODEL || undefined,

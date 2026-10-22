@@ -181,3 +181,42 @@ export async function confirmCard(dealId: string, key: string | null, seenHash: 
   });
   return stored;
 }
+
+/**
+ * Runs the warning check again after it failed (Jev down, no key). The card is rebuilt from the
+ * chat, so terms typed in or answered earlier are cleared; nobody can have confirmed yet, because
+ * a failed check blocks confirming.
+ */
+export async function recheckDeal(dealId: string, key: string | null, deps: Deps) {
+  const first = await load(deps, dealId, key);
+  if (first.stored.value.check.status === 'ran') throw new DealError('the check already ran for this deal', 409);
+  const deal = first.stored.value;
+  const redacted = redactChat(deal.messages);
+  const check = await dealCheck(redacted, deps.ask ?? defaultAskJev(), deps.now);
+  const { card, questions } = buildCard(deal.messages, redacted.tokens, check.picks, deal.country);
+  const { stored, role } = await mutate(deps, dealId, key, (current) => {
+    if (current.check.status === 'ran') throw new DealError('the check already ran for this deal', 409);
+    return {
+      ...current,
+      tokens: redacted.tokens,
+      check: check.run,
+      warnings: [...check.warnings, ...ruleWarnings(redacted.messages), ...termWarnings(card)],
+      card,
+      questions,
+      cardVersion: current.cardVersion + 1,
+      confirmations: [],
+    };
+  });
+  await deps.store.addReceipt({
+    dealId,
+    kind: 'deal.rechecked',
+    at: now(deps),
+    data: {
+      by: role,
+      check: stored.value.check.status,
+      warnings: stored.value.warnings.map((w) => ({ signal: w.signalId, by: w.by, message: w.messageId ?? null, p: w.probability ?? null })),
+      cardHash: cardHash(stored.value),
+    },
+  });
+  return stored;
+}
