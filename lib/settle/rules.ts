@@ -14,7 +14,7 @@ const RULES: Rule[] = [
   { id: 'off-paypal-words', signal: 'off_paypal', re: /\b(?:zelle|cash\s?app|venmo|bank\s+transfer|wire\s+transfer|western\s+union|moneygram|bitcoin|btc|usdt|crypto|ethereum|gift\s?cards?|steam\s+card|apple\s+card|google\s+play\s+card|revolut|wise\s+transfer)\b/i },
   { id: 'off-paypal-details', signal: 'off_paypal', re: /\[(?:IBAN|SORTCODE|WALLET)\]|\[LINK_\d+ \(not PayPal\)\]/ },
   { id: 'code-words', signal: 'code_request', re: /\b(?:send|give|tell|share|forward)\b[^.?!]{0,40}\b(?:code|pin|otp)\b/i },
-  { id: 'ai-words', signal: 'ai_instructions', re: /\b(?:ignore\s+(?:all\s+|any\s+|your\s+|the\s+)?(?:previous\s+|prior\s+)?instructions|system\s*prompt|system\s*:|as\s+an\s+ai|mark\s+(?:this|the)\s+(?:deal\s+)?(?:as\s+)?safe|you\s+are\s+(?:an?\s+)?(?:ai|assistant|bot))\b/i },
+  { id: 'ai-words', signal: 'ai_instructions', re: /\bsystem\s*:|\b(?:ignore\s+(?:all\s+|any\s+|your\s+|the\s+)?(?:previous\s+|prior\s+)?instructions|system\s*prompt|as\s+an\s+ai|mark\s+(?:this|the)\s+(?:deal\s+)?(?:as\s+)?safe|you\s+are\s+(?:an?\s+)?(?:ai|assistant|bot))\b/i },
 ];
 
 export function ruleWarnings(messages: readonly RedactedMessage[]): Warning[] {
