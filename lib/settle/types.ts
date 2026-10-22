@@ -12,7 +12,11 @@ export type Delivery = 'post' | 'courier' | 'collect' | 'meetup' | 'digital';
 export type TermKey = 'item' | 'price' | 'delivery' | 'shipBy';
 
 /** Where a term came from: the message it was read from, or a question both sides answered. */
-export type TermSource = { kind: 'message'; messageId: string } | { kind: 'answer'; questionId: string };
+export type TermSource =
+  | { kind: 'message'; messageId: string }
+  | { kind: 'answer'; questionId: string }
+  // Typed in by the seller when the chat didn't settle it; the buyer still has to confirm.
+  | { kind: 'entered'; by: Role };
 
 export type Term<V> = {
   value: V;
@@ -37,6 +41,8 @@ export type Question = {
   prompt: string;
   options: { id: string; label: string }[];
   answers: Partial<Record<Role, string>>;
+  /** The option both sides picked. Resolved questions stay on the record. */
+  resolved?: string;
 };
 
 export type Warning = {

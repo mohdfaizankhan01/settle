@@ -191,3 +191,18 @@ export const signalById = (id: string) => SIGNALS.find((s) => s.id === id);
 
 /** Is a warning for this signal meant for `role` to see? */
 export const shownTo = (audience: Role | 'both', role: Role) => audience === 'both' || audience === role;
+
+/** Warnings that come from a card term rather than a message (PLAN M2 MUST: collect and meet-up flag). */
+export const TERM_SIGNALS = {
+  in_person: {
+    id: 'in_person',
+    audience: 'both' as const,
+    title: 'In-person handover',
+    cites: ['SP-INPERSON', 'PP-COLLECT'],
+    advice: {
+      means:
+        'Items handed over in person are not eligible for PayPal Seller Protection (unless paid by PayPal QR code in person, which Settle doesn\'t use), and the buyer can\'t make an Item Not Received claim for an item collected in person.',
+      todo: 'Seller: the "delivery method covered" check will fail for this deal. Buyer: check the item before you pay, or agree tracked delivery instead.',
+    },
+  },
+};
