@@ -31,26 +31,28 @@ Only the base app from the old Phase 0 exists. Old roadmap items 1 to 7 are not 
 
 ## Prerequisite: Jev module (blocks M2)
 
-- [ ] **Decision needed:** recover `settle-jev` (the zip or the folder) and move it in as the old Phase 0 planned, or rebuild `redact`, `dealCheck`, `shipGate`, `disputePlan`, `receipts`, `policy` and the eval harness from scratch. Rebuilding costs about 1.5 to 2 days, taken from M2.
-- [ ] Needs approval to add: `@typesafe-ai/sdk`, `tsx`, and a `test` script (`tsx --test tests/*.test.ts`).
+- [x] **Decided 2026-10-18: rebuild in M2** (DECISIONS #9). Was: recover `settle-jev` (the zip or the folder) and move it in as the old Phase 0 planned, or rebuild `redact`, `dealCheck`, `shipGate`, `disputePlan`, `receipts`, `policy` and the eval harness from scratch. Rebuilding costs about 1.5 to 2 days, taken from M2.
+- [x] `tsx` and the `test` script added 2026-10-18; `@typesafe-ai/sdk` still needs approval in M2. Was: needs approval to add `@typesafe-ai/sdk`, `tsx`, and a `test` script (`tsx --test tests/*.test.ts`).
 
-## M1: Spikes and early deploy (MUST, Oct 19 to 21)
+## M1: Spikes and early deploy (MUST, Oct 19 to 21) — closed 2026-10-22
 
 Time-box: half a day per spike. Every request, status code, PayPal debug ID and conclusion goes in `docs/SPIKES.md`, and each spike ends with a proposed decision for `DECISIONS.md`.
 
-- [ ] **D1, whose account gets paid.** With our app's sandbox credentials, create and capture an order whose `payee` is a second sandbox business account. For that order, try: GET order, capture, add tracking, refund, and list or respond to its disputes. Check whether our webhook receives its capture and dispute events. Then check whether Partner Referrals onboarding (third-party permissions) works in the sandbox for our app.
+- [x] **D1, whose account gets paid.** Done 2026-10-21, accepted: the seller's own account via Partner Referrals; see SPIKES.md. With our app's sandbox credentials, create and capture an order whose `payee` is a second sandbox business account. For that order, try: GET order, capture, add tracking, refund, and list or respond to its disputes. Check whether our webhook receives its capture and dispute events. Then check whether Partner Referrals onboarding (third-party permissions) works in the sandbox for our app.
   - Tracking, refunds and disputes work for the seller's account, or onboarding works → pay the seller's own account.
   - Otherwise → in the demo the seller is our app's own sandbox business account, any payee code stays behind a flag, and the README says production needs PayPal's multiparty onboarding.
-- [ ] **D2, disputes in the sandbox.** Find a repeatable way to open a dispute on a captured payment: the sandbox buyer's "Report a problem", and the sandbox-only chargeback simulation (endpoint confirmed with the paypal plugin). Record which actions the dispute's links offer, how long until the seller can respond, and whether provide-evidence accepts a PDF.
+- [x] **D2, disputes in the sandbox.** Done 2026-10-22, accepted: disputes through the API with seller approval; buyer opens demo disputes in the Resolution Center. PDF evidence upload not tested yet (M4). Find a repeatable way to open a dispute on a captured payment: the sandbox buyer's "Report a problem", and the sandbox-only chargeback simulation (endpoint confirmed with the paypal plugin). Record which actions the dispute's links offer, how long until the seller can respond, and whether provide-evidence accepts a PDF.
 - [x] **D3, protection terms.** Done 2026-10-18; see `docs/protection-terms.md` and SPIKES.md. Finding: no signature threshold in the current terms. From PayPal's official pages only, write `docs/protection-terms.md`. One row per checkable requirement, with the clause, URL and date retrieved: ship to the transaction address, proof of shipment and delivery, signature thresholds, in-person handover, excluded items. Also Purchase Protection basics (checkout, Goods and Services vs Friends and Family). US and UK kept separate where they differ. Nothing from memory; if a page won't load, ask the user to paste it.
-- [ ] **Early deploy.** Deploy the current build to Render (render plugin), register the webhook URL in the sandbox app, and confirm a verified webhook arrives. Report the free-tier limits that could break judging (instance sleep, webhooks to a sleeping service, Postgres expiry) and the cheapest fix for each.
+- [x] **Early deploy.** Done 2026-10-21: https://settle-ulya.onrender.com, verified webhooks received; free-tier limits in SPIKES.md. Deploy the current build to Render (render plugin), register the webhook URL in the sandbox app, and confirm a verified webhook arrives. Report the free-tier limits that could break judging (instance sleep, webhooks to a sleeping service, Postgres expiry) and the cheapest fix for each.
 
 Code: `lib/paypal.ts` gains a POST helper and keeps its GET helper, token cache and retries, and responses keep `paypal-debug-id`. New: orders, capture, tracking, refund, disputes and verify-webhook-signature functions; `app/api/paypal/webhook/route.ts`; `render.yaml`; spike scripts in `scripts/spikes/`. Deploy without an OpenAI key, so the unauthenticated `/api/ai/responses` returns 503.
 
+M1 code status (2026-10-22): done: POST helper, debug IDs, verify-webhook-signature, the webhook route, `render.yaml`, and production 404s for the dev pages and `/api/ai` (stricter than the planned 503). **Moved to M3**, where checkout is built: the orders, capture, tracking, refund and disputes functions in `lib/paypal.ts`. The spike scripts stayed outside the repo (they log full API bodies, which hold buyer names and addresses); the requests and results are in SPIKES.md.
+
 Done when:
-- [ ] `docs/SPIKES.md` has evidence (requests, status codes, debug IDs) for D1, D2 and D3.
-- [ ] `docs/DECISIONS.md` has D1 to D3.
-- [ ] The deployed app verifies a real sandbox webhook (verify-webhook-signature returns `SUCCESS`, logged with event ID).
+- [x] `docs/SPIKES.md` has evidence (requests, status codes, debug IDs) for D1, D2 and D3.
+- [x] `docs/DECISIONS.md` has D1 to D3.
+- [x] The deployed app verifies a real sandbox webhook (verify-webhook-signature returns `SUCCESS`, logged with event ID).
 
 ## M2: Deal card (Oct 21 to 25)
 
