@@ -1,55 +1,59 @@
-# Settle
+# Settle Link
 
-Safer buying and selling with strangers from social chats. Paste an Instagram, Facebook Marketplace or WhatsApp chat; Settle checks it for scam signs, turns it into a deal card both sides confirm, takes payment through PayPal, and says "safe to ship" only after PayPal confirms the money.
+**Nobody has to go first.** Strangers who agree a deal in a DM hit a standoff: the buyer won't pay first and the seller won't ship first. Scammers use that from both sides. Settle Link turns the chat into one deal link both sides confirm. The buyer pays through PayPal checkout, the PayPal order carries the agreed terms, the seller ships only once PayPal confirms the payment, and the record is on file if a dispute comes.
 
-Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). See [docs/PLAN.md](docs/PLAN.md) for the roadmap.
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). Everything runs on the PayPal sandbox: no real money moves.
 
 Started from PayPal's [AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate) (Next.js, AG Grid, AG Studio, plain-fetch PayPal client). Its notes are kept below under "Boilerplate reference". Licensed under [MIT](LICENSE).
 
 ## Problem
 
-Social sellers and buyers in the US and UK trade with strangers in Instagram DMs, Facebook Marketplace and WhatsApp. There is no checkout, no record of what was agreed, and scams are common: fake payment screenshots, "send it first" pressure, overpayment tricks, off-platform payment links. Sellers ship before money has really arrived; buyers pay for items that never come.
+Casual buyers and sellers in the US and UK trade with strangers on Instagram, Facebook Marketplace and WhatsApp. Fake sellers push Friends and Family or a bank transfer, where PayPal's Purchase Protection doesn't apply. Fake buyers send a "payment received" screenshot or ask to ship to another address, which can cost the seller Seller Protection. PayPal's protections cover both sides, but only when the deal runs through PayPal checkout, on clear terms, and the seller ships the protected way.
+
+_TODO: sourced figures (FTC, UK Finance), checked against the primary reports._
 
 ## Solution
 
-_TODO: one-paragraph pitch and screenshots._
+_TODO: screenshots._
 
-1. **Deal check.** Paste the chat. Settle flags scam signs ("for the buyer" / "for the seller") and turns the chat into a deal card (item, price, delivery) that both sides confirm by link.
-2. **Pay with PayPal.** The buyer pays on the deal page. The order is created on the server from the locked deal card, never from the browser.
-3. **Ship gate.** Settle shows "Safe to ship" only after a verified PayPal webhook and a fresh order lookup confirm the money. Anything else is Hold or Review.
-4. **Disputes.** If the buyer opens a PayPal dispute, Settle drafts a response with the evidence it holds. The seller approves before anything is sent.
+1. **Deal link.** Either side pastes the chat. Settle Link reads the terms (item, price, delivery, ship-by date), shows the message each came from, and asks both sides anything it isn't sure of. It shows PayPal's fee and both sides agree who pays it. Both confirm; the card is locked by its SHA-256 hash. Either side can decline with a reason, which the other side sees first.
+2. **Warnings for both sides.** Friends and Family requests, payment outside PayPal, fake payment proof, "ship it to my cousin", instructions aimed at the AI, and more. The AI explains warnings; it never approves a payment or a shipment.
+3. **Pay with PayPal.** The server creates the order from the locked card (total, items, and `<dealId>:<hash>` in `custom_id`), never from the browser. The money goes to the seller's own PayPal account. Capture happens only after a fresh read of the order matches the card.
+4. **Ship gate** _(in progress)_. Payment counts as confirmed only after a verified PayPal webhook and a fresh order read. Anything else is Hold or Review.
+5. **Disputes** _(planned)_. Evidence comes from the record; the seller approves the exact request before it is sent.
 
 ## How it works
 
 _TODO: architecture diagram._
 
-- **Jev + code rules** check the redacted chat for warning signs. Prices, dates and links are parsed in code, not by AI. Jev can only add caution; it never approves shipping.
-- **PayPal** (sandbox): Orders v2, Log in with PayPal, webhooks with `verify-webhook-signature`, order tracking, Disputes API. All calls run on the server (`lib/paypal.ts`).
-- **Fail closed**: any error means Hold or Review. The UI says "no warning signs found", never "safe deal".
-- **Receipts**: every decision writes a receipt, shown in the AG Studio dashboard.
+- **Redaction first**: names, emails, phone numbers, addresses and bank details are removed before any model sees the chat. Prices, dates and links become tokens whose values stay in code.
+- **Warning check**: narrow yes/no questions per warning plus keyword rules. Fail closed: if the check can't run, nobody can confirm the card.
+- **PayPal** (sandbox): Orders v2, JS SDK v6, Partner Referrals (seller onboarding), webhooks with `verify-webhook-signature`, order tracking, Disputes API. All calls run on the server (`lib/paypal.ts`).
+- **Wording**: the UI says "no warning signs found", never "safe". Settle Link says which checks pass; PayPal decides eligibility. Every check cites `docs/protection-terms.md`; fees cite `docs/fees.md`.
+- **Receipts**: every decision writes a receipt into a hash chain.
 
 ## Setup and run (for judges)
 
 _TODO: live demo URL and sandbox test buyer login._
 
-Requires Node.js 22 (`nvm use` reads `.nvmrc`) and a PayPal sandbox REST app.
+Requires Node.js 22 (`nvm use` reads `.nvmrc`) and a PayPal sandbox REST app of type Platform.
 
 ```bash
 git clone <repo-url> settle && cd settle
 nvm use
 npm install
 cp env.example .env.local   # fill in PAYPAL_CLIENT_ID, PAYPAL_SECRET and the others
-npm run dev                 # http://localhost:3000
-npm test                    # unit tests, Jev and PayPal mocked
+npm run dev                 # http://localhost:3000, then open /check
+npm test                    # unit tests, the AI check and PayPal mocked
 ```
 
 _TODO: webhook setup for local runs, seed data, demo walkthrough._
 
 ## Tools used
 
-- **PayPal APIs**: Orders v2, JS SDK v6, Log in with PayPal, Webhooks, Disputes (sandbox).
-- **Jev** (TypeSafe decision model) for chat warning signs.
-- **AG Grid and AG Studio** for the deals, warnings and receipts dashboard.
+- **PayPal APIs**: Orders v2, JS SDK v6, Partner Referrals, Webhooks, Disputes (sandbox).
+- **AI**: the warning check (see How it works).
+- **AG Grid and AG Studio** for the deals, warnings and receipts dashboard (planned).
 - **Render** for hosting and Postgres.
 - Built with Claude Code; plugins listed under Team setup.
 

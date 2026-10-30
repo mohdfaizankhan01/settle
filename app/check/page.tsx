@@ -57,7 +57,7 @@ export default function CheckPage() {
     <Shell>
       <h1 className="text-[28px] font-semibold text-pp-navy">Nobody has to go first</h1>
       <p className="mt-2 max-w-prose text-pp-muted">
-        Paste the chat where you agreed the deal, as the buyer or the seller. Settle turns it into one link you both confirm. The buyer
+        Paste the chat where you agreed the deal, as the buyer or the seller. Settle Link turns it into one link you both confirm. The buyer
         pays through PayPal checkout, the seller ships once PayPal confirms the payment, and PayPal&apos;s protections stay in place
         for both of you.
       </p>
@@ -88,7 +88,7 @@ export default function CheckPage() {
             </div>
           </fieldset>
         )}
-        {chat.trim() && speakers.length < 2 && <p className="text-sm text-pp-warning">Settle needs two people in the chat, each line starting with their name.</p>}
+        {chat.trim() && speakers.length < 2 && <p className="text-sm text-pp-warning">Settle Link needs two people in the chat, each line starting with their name.</p>}
 
         <label className="block">
           <span className="font-semibold">Seller&apos;s PayPal country</span>

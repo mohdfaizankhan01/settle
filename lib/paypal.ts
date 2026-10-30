@@ -445,7 +445,7 @@ export async function createOrder(o: OrderRequest, requestId: string): Promise<W
       payment_source: {
         paypal: {
           experience_context: {
-            brand_name: 'Settle',
+            brand_name: 'Settle Link',
             user_action: 'PAY_NOW',
             shipping_preference: o.physical ? 'GET_FROM_FILE' : 'NO_SHIPPING',
             return_url: o.returnUrl,

@@ -60,7 +60,7 @@ export async function startCheckout(dealId: string, key: string | null, deps: Ch
       items: [
         {
           name: clip(item!.value, 127),
-          description: clip(`Settle deal ${deal.id}. Delivery: ${delivery!.display}.${deal.card.shipBy ? ` Ship by ${deal.card.shipBy.display}.` : ''}`, 127),
+          description: clip(`Settle Link deal ${deal.id}. Delivery: ${delivery!.display}.${deal.card.shipBy ? ` Ship by ${deal.card.shipBy.display}.` : ''}`, 127),
           amount: { currency_code, value: price!.value.amount },
         },
         ...feeLine,

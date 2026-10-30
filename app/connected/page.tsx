@@ -1,6 +1,6 @@
 import { Shell } from '@/app/components/shell';
 
-export const metadata = { title: 'PayPal connection · Settle' };
+export const metadata = { title: 'PayPal connection' };
 
 const TEXT: Record<string, { title: string; body: string }> = {
   connected: { title: 'Your PayPal account is connected', body: 'Close this tab and go back to your deal page. The buyer will pay your PayPal account directly.' },

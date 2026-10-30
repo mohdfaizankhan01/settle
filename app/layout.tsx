@@ -9,10 +9,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s · PayPal × AG Grid",
-    default: "PayPal × AG Grid",
+    template: "%s · Settle Link",
+    default: "Settle Link",
   },
-  description: "PayPal sandbox data in AG Grid and AG Studio",
+  description: "One deal link both sides confirm, paid through PayPal checkout",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

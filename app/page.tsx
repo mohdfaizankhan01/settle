@@ -31,7 +31,7 @@ export default async function Home() {
   if (!devPagesEnabled()) {
     return (
       <main className="mx-auto w-full max-w-3xl p-16 font-paypal text-pp-ink">
-        <h1 className="text-[28px] font-semibold text-pp-navy">Settle</h1>
+        <h1 className="text-[28px] font-semibold text-pp-navy">Settle Link</h1>
         <p className="mt-4 text-pp-muted">
           Hackathon build in progress. Everything here runs on the PayPal sandbox: no real money moves.
         </p>
