@@ -27,7 +27,7 @@ _TODO: screenshots._
 _TODO: architecture diagram._
 
 - **Redaction first**: names, emails, phone numbers, addresses and bank details are removed before any model sees the chat. Prices, dates and links become tokens whose values stay in code.
-- **Warning check**: Settle Link's own small model, one classifier per warning signal over word and character patterns of the redacted chat (`lib/model`), plus keyword rules. It runs on our server, so no chat text goes to an AI provider. Trained on hand-written messages (`data/train-messages.jsonl`), thresholds picked by cross-validation, and tested on 73 separate chats it never trains on (`npm run eval`, results in `data/eval/`). Fail closed: if the check can't run, nobody can confirm the card.
+- **Warning check**: Settle Link's own small model, plus keyword rules. Each redacted message becomes a MiniLM sentence embedding (quantized, run on our server with transformers.js), and one logistic-regression classifier per warning gives a probability (`lib/model`). No chat text goes to an AI provider. Trained on hand-written messages (`data/train-messages.jsonl`), thresholds picked by cross-validation on those messages, and tested on 73 separate chats it never trains on (`npm run eval`, results in `data/eval/`). A lighter model on word and character patterns is kept for comparison (`SETTLE_MODEL=a`). Fail closed: if the check can't run, nobody can confirm the card.
 - **PayPal** (sandbox): Orders v2, JS SDK v6, Partner Referrals (seller onboarding), webhooks with `verify-webhook-signature`, order tracking, Disputes API. All calls run on the server (`lib/paypal.ts`).
 - **Wording**: the UI says "no warning signs found", never "safe". Settle Link says which checks pass; PayPal decides eligibility. Every check cites `docs/protection-terms.md`; fees cite `docs/fees.md`.
 - **Receipts**: every decision writes a receipt into a hash chain.
@@ -42,6 +42,7 @@ Requires Node.js 22 (`nvm use` reads `.nvmrc`) and a PayPal sandbox REST app of 
 git clone <repo-url> settle && cd settle
 nvm use
 npm install
+npm run model:fetch         # once: downloads the 24 MB MiniLM model into ./models
 cp env.example .env.local   # fill in PAYPAL_CLIENT_ID, PAYPAL_SECRET and the others
 npm run dev                 # http://localhost:3000, then open /check
 npm test                    # unit tests, the AI check and PayPal mocked

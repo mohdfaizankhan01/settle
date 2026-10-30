@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import modelFile from '../data/model/settle-model.json';
+import modelA from '../data/model/settle-model-a.json';
+import modelB from '../data/model/settle-model-b.json';
 import { loadChats } from '../lib/eval/chats';
 import { normalise } from '../lib/model/features';
 import { engineFor } from '../lib/model/engine';
@@ -15,11 +16,11 @@ import { SIGNALS } from '../lib/settle/signals';
 // Settle's own model. These check the training/test split and the engine's behaviour, not
 // accuracy (that's `npm run eval`).
 
-const file = modelFile as unknown as ModelFile;
+const files = [modelA, modelB] as unknown as ModelFile[];
 const trainRaw = readFileSync('data/train-messages.jsonl', 'utf8');
 
-test('the committed model was trained on the committed training data', () => {
-  assert.equal(file.trainedOn.sha256, createHash('sha256').update(trainRaw).digest('hex'), 'run npm run model:train');
+test('both committed models were trained on the committed training data', () => {
+  for (const f of files) assert.equal(f.trainedOn.sha256, createHash('sha256').update(trainRaw).digest('hex'), `${f.name}: run npm run model:train`);
 });
 
 test('no test-chat message appears in the training data', () => {
@@ -31,8 +32,9 @@ test('no test-chat message appears in the training data', () => {
   }
 });
 
-test('every signal has a cross-validated threshold', () => {
-  for (const s of SIGNALS) assert.ok(localThresholds()[s.id] > 0 && localThresholds()[s.id] < 1, s.id);
+test('every signal has a cross-validated threshold in both models', () => {
+  for (const f of files) for (const s of SIGNALS) assert.ok(f.thresholds[s.id] >= 0.1 && f.thresholds[s.id] < 1, `${f.name} ${s.id}`);
+  assert.deepEqual(localThresholds(), files[1].thresholds, 'model B is the default');
 });
 
 const chat = (text: string) =>

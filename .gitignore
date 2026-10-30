@@ -48,3 +48,6 @@ docs/PLAN.md
 docs/DECISIONS.md
 docs/problem-statement.md
 docs/competitor-scan.md
+
+# Downloaded model files (fetched at build time)
+/models/

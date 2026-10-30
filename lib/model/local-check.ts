@@ -1,32 +1,47 @@
-// The local engine: Settle's own model scores every redacted message for every signal; a chat's
-// score for a signal is the highest score among messages from the side the signal is about, and
-// that message is the evidence. Terms come from code (terms.ts). Same result shape as Jev's
-// dealCheck and the same fail-closed rule.
+// The local engine: Settle Link's own model scores every redacted message for every signal; a
+// chat's score for a signal is the highest score among messages from the side the signal is
+// about, and that message is the evidence. Terms come from code (terms.ts). Same result shape as
+// Jev's dealCheck and the same fail-closed rule. SETTLE_MODEL=a picks the hashed-pattern model;
+// the default is b (MiniLM embeddings).
 
-import modelFile from '../../data/model/settle-model.json';
+import modelA from '../../data/model/settle-model-a.json';
+import modelB from '../../data/model/settle-model-b.json';
 import { warningsFrom, type DealCheckResult } from '../jev/deal-check';
 import type { Redacted } from '../settle/redact';
 import { SIGNALS } from '../settle/signals';
-import { decodeModel, scoreMessage, type ModelFile, type SignalModel } from './model';
+import { embedTexts } from './embed';
+import { featurise, type SparseVector } from './features';
+import { decodeModel, hasWords, scoreFeatures, type ModelFile, type SignalModel } from './model';
 import { localTermPicks } from './terms';
 
-let model: SignalModel | undefined;
-export const LOCAL_MODEL_NAME = (modelFile as unknown as ModelFile).name;
+const FILES = { a: modelA as unknown as ModelFile, b: modelB as unknown as ModelFile };
+const decoded: Partial<Record<keyof typeof FILES, SignalModel>> = {};
 
+export const activeModel = (): keyof typeof FILES => (process.env.SETTLE_MODEL === 'a' ? 'a' : 'b');
+export const localModelFile = () => FILES[activeModel()];
 /** Thresholds chosen by cross-validation on the training messages (never the test chats). */
-export const localThresholds = () => (modelFile as unknown as ModelFile).thresholds;
+export const localThresholds = () => localModelFile().thresholds;
 
-export function localScores(redacted: Redacted) {
-  model ??= decodeModel(modelFile as unknown as ModelFile);
+async function vectors(texts: string[]): Promise<SparseVector[]> {
+  return activeModel() === 'a' ? texts.map(featurise) : embedTexts(texts);
+}
+
+export async function localScores(redacted: Redacted) {
+  const key = activeModel();
+  const model = (decoded[key] ??= decodeModel(FILES[key]));
+  const xs = await vectors(redacted.messages.map((m) => m.text));
+  const perMessage = redacted.messages.map((m, i) => ({
+    m,
+    s: hasWords(m.text) ? scoreFeatures(model, xs[i]) : ({} as Record<string, number>),
+  }));
   const scores: Record<string, number> = {};
   const evidence: Record<string, string | undefined> = {};
-  const perMessage = redacted.messages.map((m) => ({ m, s: scoreMessage(model!, m.text) }));
   for (const signal of SIGNALS) {
     let best = 0;
     let at: string | undefined;
     for (const { m, s } of perMessage) {
       if (signal.from !== 'either' && m.role !== signal.from) continue;
-      if (s[signal.id] > best) {
+      if ((s[signal.id] ?? 0) > best) {
         best = s[signal.id];
         at = m.id;
       }
@@ -39,9 +54,9 @@ export function localScores(redacted: Redacted) {
 
 export async function localCheck(redacted: Redacted, now = () => new Date()): Promise<DealCheckResult> {
   try {
-    const { scores, evidence } = localScores(redacted);
+    const { scores, evidence } = await localScores(redacted);
     return {
-      run: { status: 'ran', at: now().toISOString(), model: LOCAL_MODEL_NAME },
+      run: { status: 'ran', at: now().toISOString(), model: localModelFile().name },
       warnings: warningsFrom(scores, evidence, redacted, 'model', localThresholds()),
       picks: localTermPicks(redacted),
       scores,

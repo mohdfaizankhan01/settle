@@ -1,24 +1,26 @@
-// Settle's own warning model: one logistic-regression classifier per signal over hashed text
-// features. Trained by `npm run model:train` on data/train-messages.jsonl (never on the test
-// chats) and stored in data/model/settle-model.json. Runs in-process: no chat text leaves the
-// server, no API key, no cost.
+// Settle Link's own warning model: one logistic-regression classifier per signal. Two feature
+// sets: A, hashed word and character patterns (features.ts); B, MiniLM sentence embeddings
+// (embed.ts), the default since it cross-validated far better (mean F1 0.81 vs 0.44 on the
+// training messages). Trained by `npm run model:train` on data/train-messages.jsonl, never on the
+// test chats. Runs in-process: no chat text leaves the server, no API key, no cost.
 
-import { DIMS, featurise, type SparseVector } from './features';
+import type { SparseVector } from './features';
 
+export type FeatureSet = 'hashed-ngrams' | 'minilm-l6-q8';
 export type Weights = { bias: number; w: Float32Array };
 export type SignalModel = Record<string, Weights>;
 
-/** File format: int16-quantised weights per signal, base64. */
+/** File format: int16-quantised weights per signal (own scale each), base64. */
 export type ModelFile = {
   name: string;
+  features: FeatureSet;
   dims: number;
-  scale: number;
   trainedOn: { messages: number; sha256: string };
   /** Warning threshold per signal, from cross-validation on the training messages. */
   thresholds: Record<string, number>;
   /** Out-of-fold message-level results behind those thresholds. */
   cv: Record<string, { f1: number; precision: number; recall: number }>;
-  signals: Record<string, { bias: number; weights: string }>;
+  signals: Record<string, { bias: number; scale: number; weights: string }>;
 };
 
 export const sigmoid = (z: number) => 1 / (1 + Math.exp(-z));
@@ -30,39 +32,34 @@ export function scoreVector(m: Weights, x: SparseVector): number {
 }
 
 export function encodeModel(
-  name: string,
+  meta: Pick<ModelFile, 'name' | 'features' | 'dims' | 'trainedOn' | 'thresholds' | 'cv'>,
   model: SignalModel,
-  trainedOn: ModelFile['trainedOn'],
-  thresholds: ModelFile['thresholds'],
-  cv: ModelFile['cv'],
 ): ModelFile {
-  const scale = 4096;
   const signals: ModelFile['signals'] = {};
   for (const [id, m] of Object.entries(model)) {
-    const q = new Int16Array(DIMS);
-    for (let i = 0; i < DIMS; i++) q[i] = Math.max(-32767, Math.min(32767, Math.round(m.w[i] * scale)));
-    signals[id] = { bias: Math.round(m.bias * 1e4) / 1e4, weights: Buffer.from(q.buffer).toString('base64') };
+    const max = m.w.reduce((a, v) => Math.max(a, Math.abs(v)), 1e-9);
+    const scale = Math.floor(32767 / max);
+    const q = Int16Array.from(m.w, (v) => Math.round(v * scale));
+    signals[id] = { bias: Math.round(m.bias * 1e4) / 1e4, scale, weights: Buffer.from(q.buffer).toString('base64') };
   }
-  return { name, dims: DIMS, scale, trainedOn, thresholds, cv, signals };
+  return { ...meta, signals };
 }
 
 export function decodeModel(file: ModelFile): SignalModel {
-  if (file.dims !== DIMS) throw new Error(`model has ${file.dims} dims, code expects ${DIMS}`);
   const out: SignalModel = {};
   for (const [id, s] of Object.entries(file.signals)) {
     const buf = Buffer.from(s.weights, 'base64');
     const q = new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2);
-    const w = new Float32Array(DIMS);
-    for (let i = 0; i < DIMS; i++) w[i] = q[i] / file.scale;
-    out[id] = { bias: s.bias, w };
+    if (q.length !== file.dims) throw new Error(`${id}: ${q.length} weights, expected ${file.dims}`);
+    out[id] = { bias: s.bias, w: Float32Array.from(q, (v) => v / s.scale) };
   }
   return out;
 }
 
-/** Probability per signal for one message. */
-export function scoreMessage(model: SignalModel, text: string): Record<string, number> {
-  const x = featurise(text);
-  // A message with no words ("?", an emoji) carries no evidence for any signal.
-  if (!/[a-z0-9]/i.test(text)) return Object.fromEntries(Object.keys(model).map((id) => [id, 0]));
+/** A message with no words ("?", an emoji) carries no evidence for any signal. */
+export const hasWords = (text: string) => /[a-z0-9]/i.test(text);
+
+/** Probability per signal for one already-featurised message. */
+export function scoreFeatures(model: SignalModel, x: SparseVector): Record<string, number> {
   return Object.fromEntries(Object.entries(model).map(([id, m]) => [id, scoreVector(m, x)]));
 }

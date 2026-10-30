@@ -7,7 +7,7 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { dealCheck, defaultAskJev, type AskJev, type DealCheckResult } from '../lib/jev/deal-check';
-import { localCheck, localThresholds } from '../lib/model/local-check';
+import { localCheck, localModelFile, localThresholds } from '../lib/model/local-check';
 import { loadChats, type EvalChat } from '../lib/eval/chats';
 import { parseChat } from '../lib/settle/chat';
 import { signalThreshold, TERM_MIN_CONFIDENCE } from '../lib/settle/policy';
@@ -123,6 +123,7 @@ async function main() {
   const results = {
     note: 'Synthetic chats written for Settle; not a benchmark. Each chat is a negative for every signal it does not list. The local model never trains on these chats.',
     engine,
+    localModel: engine === 'local' ? localModelFile().name : null,
     ranAt: new Date().toISOString(),
     model: ran[0]?.model ?? null,
     chats: chats.length,
@@ -136,7 +137,7 @@ async function main() {
     signals,
     rows,
   };
-  const out = join(process.cwd(), 'data', 'eval', `results-${engine}.json`);
+  const out = join(process.cwd(), 'data', 'eval', `results-${engine === 'local' ? localModelFile().name : 'typesafe'}.json`);
   writeFileSync(out, `${JSON.stringify(results, null, 2)}\n`);
   for (const [id, s] of Object.entries(signals)) {
     const f = (x: number | null) => (x === null ? ' n/a' : x.toFixed(2));
