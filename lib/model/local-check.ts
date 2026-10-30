@@ -26,14 +26,35 @@ async function vectors(texts: string[]): Promise<SparseVector[]> {
   return activeModel() === 'a' ? texts.map(featurise) : embedTexts(texts);
 }
 
+/**
+ * Model B embeds whole sentences, and averaging dilutes a risky clause inside an ordinary message
+ * ("yes £350 posted, pay me as a present so no fees"). So each message is also scored clause by
+ * clause, and the message gets the highest score. Clauses split on sentence punctuation, commas
+ * and joining words; very short pieces are dropped.
+ */
+export function clauses(text: string): string[] {
+  const parts = text
+    .split(/[.!?;\n]+|,|\s(?:and|but|so|then|also|plus)\s/i)
+    .map((p) => p.trim())
+    .filter((p) => p.split(/\s+/).length >= 3);
+  return [...new Set([text, ...parts])];
+}
+
 export async function localScores(redacted: Redacted) {
   const key = activeModel();
   const model = (decoded[key] ??= decodeModel(FILES[key]));
-  const xs = await vectors(redacted.messages.map((m) => m.text));
-  const perMessage = redacted.messages.map((m, i) => ({
-    m,
-    s: hasWords(m.text) ? scoreFeatures(model, xs[i]) : ({} as Record<string, number>),
-  }));
+  const pieces = redacted.messages.map((m) => (key === 'b' ? clauses(m.text) : [m.text]));
+  const xs = await vectors(pieces.flat());
+  let at = 0;
+  const perMessage = redacted.messages.map((m, i) => {
+    const s: Record<string, number> = {};
+    for (const _ of pieces[i]) {
+      const piece = scoreFeatures(model, xs[at++]);
+      if (!hasWords(m.text)) continue;
+      for (const [id, p] of Object.entries(piece)) s[id] = Math.max(s[id] ?? 0, p);
+    }
+    return { m, s };
+  });
   const scores: Record<string, number> = {};
   const evidence: Record<string, string | undefined> = {};
   for (const signal of SIGNALS) {
