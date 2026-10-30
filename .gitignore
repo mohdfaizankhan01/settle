@@ -42,3 +42,9 @@ next-env.d.ts
 
 # Playwright MCP screenshots and logs
 .playwright-mcp/
+
+# Planning notes stay local (not published)
+docs/PLAN.md
+docs/DECISIONS.md
+docs/problem-statement.md
+docs/competitor-scan.md
