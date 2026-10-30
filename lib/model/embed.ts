@@ -35,6 +35,12 @@ export async function embedTexts(texts: string[]): Promise<SparseVector[]> {
     extractor = undefined;
     throw error;
   });
-  const out = await (await extractor)(texts, { pooling: 'mean', normalize: true });
-  return (out.tolist() as number[][]).map(dense);
+  const run = await extractor;
+  const vectors: SparseVector[] = [];
+  // Fixed-size batches keep memory flat however many pieces a chat has.
+  for (let i = 0; i < texts.length; i += 32) {
+    const out = await run(texts.slice(i, i + 32), { pooling: 'mean', normalize: true });
+    vectors.push(...(out.tolist() as number[][]).map(dense));
+  }
+  return vectors;
 }

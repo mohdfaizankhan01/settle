@@ -7,7 +7,7 @@ import modelB from '../data/model/settle-model-b.json';
 import { loadChats } from '../lib/eval/chats';
 import { normalise } from '../lib/model/features';
 import { engineFor } from '../lib/model/engine';
-import { localCheck, localThresholds } from '../lib/model/local-check';
+import { clauses, localCheck, localThresholds, MAX_CLAUSES_PER_MESSAGE, MAX_PIECE_CHARS } from '../lib/model/local-check';
 import type { ModelFile } from '../lib/model/model';
 import { parseChat } from '../lib/settle/chat';
 import { redactChat } from '../lib/settle/redact';
@@ -57,4 +57,16 @@ test('the local model is the default engine; a mocked Jev is used when injected'
   delete process.env.JEV_PROVIDER;
   assert.equal(engineFor({}), localCheck);
   assert.notEqual(engineFor({ ask: async () => ({ model: 'x', answers: {} }) }), localCheck);
+});
+
+test('clause splitting is bounded per message and per piece', () => {
+  const long = Array.from({ length: 50 }, (_, i) => `this is clause number ${i}`).join(', ');
+  const parts = clauses(long);
+  assert.ok(parts.length <= MAX_CLAUSES_PER_MESSAGE + 1);
+  assert.ok(parts.every((p) => p.length <= MAX_PIECE_CHARS));
+});
+
+test('a risky clause inside an ordinary message is still flagged', async () => {
+  const r = await localCheck(chat('Sam: is the PS5 still for sale?\nAlex: yes £350 posted, send it as a gift so no fees\nSam: ok'));
+  assert.ok(r.warnings.some((w) => w.signalId === 'ff_payment'));
 });

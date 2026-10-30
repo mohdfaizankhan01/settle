@@ -2,13 +2,13 @@
   "note": "Synthetic chats written for Settle; not a benchmark. Each chat is a negative for every signal it does not list. The local model never trains on these chats.",
   "engine": "local",
   "localModel": "settle-link-b",
-  "ranAt": "2026-10-30T20:54:18.089Z",
+  "ranAt": "2026-10-30T20:58:08.378Z",
   "model": "settle-link-b",
   "chats": 73,
   "failedChecks": [],
   "latencyMs": {
-    "p50": 18,
-    "p95": 67
+    "p50": 19,
+    "p95": 65
   },
   "tokens": {
     "input": 0,
@@ -51,7 +51,7 @@
         ],
         "misses": []
       },
-      "brier": 0.020889369895753795,
+      "brier": 0.02088937146208641,
       "rulesOnly": {
         "tp": 4,
         "fp": 2,
@@ -137,7 +137,7 @@
           "off-2"
         ]
       },
-      "brier": 0.025450802825547177,
+      "brier": 0.02545080545662559,
       "rulesOnly": {
         "tp": 4,
         "fp": 0,
@@ -215,7 +215,7 @@
         ],
         "misses": []
       },
-      "brier": 0.01622441219174857,
+      "brier": 0.01622440865049009,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
@@ -295,7 +295,7 @@
         ],
         "misses": []
       },
-      "brier": 0.011532161152355653,
+      "brier": 0.011532161152446334,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
@@ -373,7 +373,7 @@
         "falsePositives": [],
         "misses": []
       },
-      "brier": 0.008325810051671184,
+      "brier": 0.008325810021077924,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
@@ -452,7 +452,7 @@
         ],
         "misses": []
       },
-      "brier": 0.004948978252238693,
+      "brier": 0.004948969163626479,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
@@ -530,7 +530,7 @@
         "falsePositives": [],
         "misses": []
       },
-      "brier": 0.006186564016645346,
+      "brier": 0.006186564054106619,
       "rulesOnly": {
         "tp": 1,
         "fp": 0,
@@ -613,7 +613,7 @@
           "ship-2"
         ]
       },
-      "brier": 0.04601860956522177,
+      "brier": 0.04601860954537145,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
@@ -701,7 +701,7 @@
           "move-3"
         ]
       },
-      "brier": 0.013353970261542805,
+      "brier": 0.013353999963843394,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
@@ -782,7 +782,7 @@
         ],
         "misses": []
       },
-      "brier": 0.010029573125559755,
+      "brier": 0.010157539178115075,
       "rulesOnly": {
         "tp": 3,
         "fp": 0,
@@ -851,7 +851,7 @@
     {
       "id": "ai-1",
       "ok": true,
-      "ms": 18,
+      "ms": 15,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00007386219553616826,
@@ -882,7 +882,7 @@
     {
       "id": "ai-2",
       "ok": true,
-      "ms": 17,
+      "ms": 14,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00022186332076280977,
@@ -913,7 +913,7 @@
     {
       "id": "ai-3",
       "ok": true,
-      "ms": 16,
+      "ms": 13,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00010508834714137948,
@@ -942,19 +942,19 @@
     {
       "id": "ai-4",
       "ok": true,
-      "ms": 16,
+      "ms": 12,
       "model": "settle-link-b",
       "scores": {
-        "ff_payment": 0.0005399439471349508,
-        "off_paypal": 0.0005340631994380023,
-        "deposit_pressure": 0.0009828846027430122,
-        "fake_payment_proof": 0.000006480174068584899,
-        "fee_to_release": 0.00007676520393506361,
-        "overpayment_refund": 0.0013512041738197229,
-        "code_request": 0.00009961987791931706,
-        "ship_elsewhere": 0.00007188035711798172,
-        "move_off_chat": 0.002820647849078876,
-        "ai_instructions": 0.2567509671205581
+        "ff_payment": 0.0006370884922814159,
+        "off_paypal": 0.0006908633911974705,
+        "deposit_pressure": 0.0008411600759441411,
+        "fake_payment_proof": 0.000006972260691984599,
+        "fee_to_release": 0.00006049453229841997,
+        "overpayment_refund": 0.0010780927732482104,
+        "code_request": 0.00011251130188156206,
+        "ship_elsewhere": 0.00006097304993928665,
+        "move_off_chat": 0.0031818740125178313,
+        "ai_instructions": 0.2504930642664045
       },
       "rules": [
         "ai_instructions"
@@ -973,7 +973,7 @@
     {
       "id": "clean-1",
       "ok": true,
-      "ms": 16,
+      "ms": 25,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.002349083111215942,
@@ -1002,7 +1002,7 @@
     {
       "id": "clean-2",
       "ok": true,
-      "ms": 15,
+      "ms": 24,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.007368972558973093,
@@ -1031,7 +1031,7 @@
     {
       "id": "clean-3",
       "ok": true,
-      "ms": 15,
+      "ms": 23,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0037745687811015006,
@@ -1060,7 +1060,7 @@
     {
       "id": "clean-4",
       "ok": true,
-      "ms": 19,
+      "ms": 22,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0005552959762286691,
@@ -1118,7 +1118,7 @@
     {
       "id": "clean-6",
       "ok": true,
-      "ms": 21,
+      "ms": 18,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.001165208245029117,
@@ -1178,7 +1178,7 @@
     {
       "id": "code-2",
       "ok": true,
-      "ms": 20,
+      "ms": 22,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00031703542774296736,
@@ -1207,7 +1207,7 @@
     {
       "id": "code-3",
       "ok": true,
-      "ms": 18,
+      "ms": 19,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0008087081898625648,
@@ -1236,7 +1236,7 @@
     {
       "id": "dep-1",
       "ok": true,
-      "ms": 23,
+      "ms": 29,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0006044590528973694,
@@ -1265,7 +1265,7 @@
     {
       "id": "dep-2",
       "ok": true,
-      "ms": 29,
+      "ms": 31,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.1036130956345567,
@@ -1294,7 +1294,7 @@
     {
       "id": "dep-3",
       "ok": true,
-      "ms": 31,
+      "ms": 29,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0011577254758880324,
@@ -1323,7 +1323,7 @@
     {
       "id": "dig-1",
       "ok": true,
-      "ms": 17,
+      "ms": 24,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.001674147861553665,
@@ -1381,7 +1381,7 @@
     {
       "id": "fee-2",
       "ok": true,
-      "ms": 19,
+      "ms": 21,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00004147968650172315,
@@ -1410,7 +1410,7 @@
     {
       "id": "fee-3",
       "ok": true,
-      "ms": 22,
+      "ms": 21,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0020149768816979633,
@@ -1439,7 +1439,7 @@
     {
       "id": "ff-1",
       "ok": true,
-      "ms": 67,
+      "ms": 65,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.7372861643647782,
@@ -1470,7 +1470,7 @@
     {
       "id": "ff-2",
       "ok": true,
-      "ms": 75,
+      "ms": 70,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.9095076832277103,
@@ -1501,7 +1501,7 @@
     {
       "id": "ff-3",
       "ok": true,
-      "ms": 79,
+      "ms": 74,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.7640152003580627,
@@ -1532,7 +1532,7 @@
     {
       "id": "ff-4",
       "ok": true,
-      "ms": 85,
+      "ms": 82,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.3942494550955251,
@@ -1563,7 +1563,7 @@
     {
       "id": "meet-1",
       "ok": true,
-      "ms": 16,
+      "ms": 17,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.011123793510324624,
@@ -1592,7 +1592,7 @@
     {
       "id": "meet-2",
       "ok": true,
-      "ms": 16,
+      "ms": 19,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.000535206833362138,
@@ -1621,7 +1621,7 @@
     {
       "id": "move-1",
       "ok": true,
-      "ms": 18,
+      "ms": 17,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0004922246900819678,
@@ -1708,7 +1708,7 @@
     {
       "id": "neg-ai-1",
       "ok": true,
-      "ms": 17,
+      "ms": 10,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0011988658991234943,
@@ -1737,7 +1737,7 @@
     {
       "id": "neg-ai-2",
       "ok": true,
-      "ms": 15,
+      "ms": 11,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00008762565054569208,
@@ -1766,7 +1766,7 @@
     {
       "id": "neg-ai-3",
       "ok": true,
-      "ms": 13,
+      "ms": 11,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00351800048764214,
@@ -1795,7 +1795,7 @@
     {
       "id": "neg-code-1",
       "ok": true,
-      "ms": 12,
+      "ms": 15,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0006001959614343605,
@@ -1824,7 +1824,7 @@
     {
       "id": "neg-code-2",
       "ok": true,
-      "ms": 11,
+      "ms": 12,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.000156877813840596,
@@ -1882,7 +1882,7 @@
     {
       "id": "neg-dep-1",
       "ok": true,
-      "ms": 17,
+      "ms": 18,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0005566348021056973,
@@ -1911,7 +1911,7 @@
     {
       "id": "neg-dep-2",
       "ok": true,
-      "ms": 19,
+      "ms": 22,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.004767606360968163,
@@ -1940,7 +1940,7 @@
     {
       "id": "neg-dep-3",
       "ok": true,
-      "ms": 20,
+      "ms": 23,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0035623573131716903,
@@ -1969,7 +1969,7 @@
     {
       "id": "neg-fee-1",
       "ok": true,
-      "ms": 16,
+      "ms": 21,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.02339408983976485,
@@ -1998,7 +1998,7 @@
     {
       "id": "neg-fee-2",
       "ok": true,
-      "ms": 16,
+      "ms": 20,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0009483201728933637,
@@ -2027,7 +2027,7 @@
     {
       "id": "neg-fee-3",
       "ok": true,
-      "ms": 15,
+      "ms": 19,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00030257026132740974,
@@ -2056,7 +2056,7 @@
     {
       "id": "neg-ff-1",
       "ok": true,
-      "ms": 22,
+      "ms": 18,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.9890976822630757,
@@ -2118,7 +2118,7 @@
     {
       "id": "neg-ff-3",
       "ok": true,
-      "ms": 18,
+      "ms": 20,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.12121295035795743,
@@ -2147,7 +2147,7 @@
     {
       "id": "neg-move-1",
       "ok": true,
-      "ms": 12,
+      "ms": 11,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0004449442820299425,
@@ -2176,7 +2176,7 @@
     {
       "id": "neg-move-2",
       "ok": true,
-      "ms": 16,
+      "ms": 12,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0010116647707276135,
@@ -2205,7 +2205,7 @@
     {
       "id": "neg-move-3",
       "ok": true,
-      "ms": 16,
+      "ms": 10,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0009257132975111929,
@@ -2234,7 +2234,7 @@
     {
       "id": "neg-off-1",
       "ok": true,
-      "ms": 16,
+      "ms": 19,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.002179231548081274,
@@ -2263,7 +2263,7 @@
     {
       "id": "neg-off-2",
       "ok": true,
-      "ms": 17,
+      "ms": 20,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0037267161492834083,
@@ -2292,7 +2292,7 @@
     {
       "id": "neg-off-3",
       "ok": true,
-      "ms": 17,
+      "ms": 18,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0044363929670653115,
@@ -2321,7 +2321,7 @@
     {
       "id": "neg-over-1",
       "ok": true,
-      "ms": 16,
+      "ms": 19,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.004439268753953869,
@@ -2350,7 +2350,7 @@
     {
       "id": "neg-over-2",
       "ok": true,
-      "ms": 16,
+      "ms": 19,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.010657409800726216,
@@ -2379,7 +2379,7 @@
     {
       "id": "neg-over-3",
       "ok": true,
-      "ms": 14,
+      "ms": 18,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.006260386197001003,
@@ -2408,7 +2408,7 @@
     {
       "id": "neg-proof-1",
       "ok": true,
-      "ms": 21,
+      "ms": 23,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.000961744112745699,
@@ -2437,7 +2437,7 @@
     {
       "id": "neg-proof-2",
       "ok": true,
-      "ms": 23,
+      "ms": 25,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00008934465229521032,
@@ -2466,7 +2466,7 @@
     {
       "id": "neg-proof-3",
       "ok": true,
-      "ms": 20,
+      "ms": 22,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00005020576318472204,
@@ -2495,7 +2495,7 @@
     {
       "id": "neg-ship-1",
       "ok": true,
-      "ms": 10,
+      "ms": 9,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00027514054723881486,
@@ -2582,7 +2582,7 @@
     {
       "id": "off-1",
       "ok": true,
-      "ms": 25,
+      "ms": 27,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0011171584415349556,
@@ -2613,7 +2613,7 @@
     {
       "id": "off-2",
       "ok": true,
-      "ms": 22,
+      "ms": 28,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0013596510145287048,
@@ -2644,7 +2644,7 @@
     {
       "id": "off-3",
       "ok": true,
-      "ms": 25,
+      "ms": 35,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.003665963241331818,
@@ -2675,7 +2675,7 @@
     {
       "id": "off-4",
       "ok": true,
-      "ms": 25,
+      "ms": 33,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0033838300224576594,
@@ -2706,7 +2706,7 @@
     {
       "id": "over-1",
       "ok": true,
-      "ms": 22,
+      "ms": 20,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.000248848283413236,
@@ -2735,7 +2735,7 @@
     {
       "id": "over-2",
       "ok": true,
-      "ms": 21,
+      "ms": 19,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0011428481843618794,
@@ -2764,7 +2764,7 @@
     {
       "id": "over-3",
       "ok": true,
-      "ms": 21,
+      "ms": 19,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0001682439154731784,
@@ -2793,7 +2793,7 @@
     {
       "id": "proof-1",
       "ok": true,
-      "ms": 30,
+      "ms": 29,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0020710321607884954,
@@ -2822,7 +2822,7 @@
     {
       "id": "proof-2",
       "ok": true,
-      "ms": 30,
+      "ms": 29,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0003765606889103482,
@@ -2880,7 +2880,7 @@
     {
       "id": "ship-1",
       "ok": true,
-      "ms": 20,
+      "ms": 21,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.067722734864252,
@@ -2909,7 +2909,7 @@
     {
       "id": "ship-2",
       "ok": true,
-      "ms": 18,
+      "ms": 17,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.0013439934673673852,
@@ -2967,7 +2967,7 @@
     {
       "id": "ship-4",
       "ok": true,
-      "ms": 18,
+      "ms": 17,
       "model": "settle-link-b",
       "scores": {
         "ff_payment": 0.00046831077344544256,

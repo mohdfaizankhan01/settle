@@ -32,25 +32,35 @@ async function vectors(texts: string[]): Promise<SparseVector[]> {
  * clause, and the message gets the highest score. Clauses split on sentence punctuation, commas
  * and joining words; very short pieces are dropped.
  */
+// Bounds on model work per chat, so one pasted chat can't make the server embed thousands of pieces.
+export const MAX_CLAUSES_PER_MESSAGE = 8;
+export const MAX_PIECES_PER_CHAT = 400;
+export const MAX_PIECE_CHARS = 1000;
+
 export function clauses(text: string): string[] {
   const parts = text
     .split(/[.!?;\n]+|,|\s(?:and|but|so|then|also|plus)\s/i)
     .map((p) => p.trim())
     .filter((p) => p.split(/\s+/).length >= 3);
-  return [...new Set([text, ...parts])];
+  return [...new Set([text, ...parts])].slice(0, MAX_CLAUSES_PER_MESSAGE + 1).map((p) => p.slice(0, MAX_PIECE_CHARS));
 }
 
 export async function localScores(redacted: Redacted) {
   const key = activeModel();
   const model = (decoded[key] ??= decodeModel(FILES[key]));
-  const pieces = redacted.messages.map((m) => (key === 'b' ? clauses(m.text) : [m.text]));
+  let budget = MAX_PIECES_PER_CHAT;
+  const pieces = redacted.messages.map((m) => {
+    if (!hasWords(m.text) || budget <= 0) return [];
+    const p = (key === 'b' ? clauses(m.text) : [m.text]).slice(0, budget);
+    budget -= p.length;
+    return p;
+  });
   const xs = await vectors(pieces.flat());
   let at = 0;
   const perMessage = redacted.messages.map((m, i) => {
     const s: Record<string, number> = {};
-    for (const _ of pieces[i]) {
+    for (let n = 0; n < pieces[i].length; n++) {
       const piece = scoreFeatures(model, xs[at++]);
-      if (!hasWords(m.text)) continue;
       for (const [id, p] of Object.entries(piece)) s[id] = Math.max(s[id] ?? 0, p);
     }
     return { m, s };
