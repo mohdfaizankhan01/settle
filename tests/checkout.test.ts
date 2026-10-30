@@ -4,7 +4,7 @@ import type { AskJev } from '../lib/jev/deal-check';
 import type { Order, OrderRequest } from '../lib/paypal';
 import { cardHash } from '../lib/settle/card';
 import { captureCheckout, customIdFor, startCheckout, type PayPalDeps } from '../lib/settle/checkout';
-import { confirmCard, createDeal, setPayee, type Deps } from '../lib/settle/deals';
+import { answerQuestion, confirmCard, createDeal, declineDeal, setPayee, withdrawDecline, type Deps } from '../lib/settle/deals';
 import { SIGNALS } from '../lib/settle/signals';
 import { MemoryDealStore } from '../lib/settle/store';
 
@@ -49,10 +49,12 @@ function fakePayPal() {
   return { pp, calls, orders };
 }
 
-async function lockedDeal() {
+async function lockedDeal(feePayer: 'seller' | 'buyer' = 'seller') {
   const store = new MemoryDealStore();
   const deps: Deps = { store, ask, now: () => new Date('2026-10-22T12:00:00Z') };
   const { deal, keys } = await createDeal({ chat: 'Sam: is the PS5 £350?\nAlex: yes, I post it tracked\nSam: deal', sellerName: 'Alex', country: 'UK' }, deps);
+  await answerQuestion(deal.id, keys.seller, 'q_fee', feePayer, deps);
+  await answerQuestion(deal.id, keys.buyer, 'q_fee', feePayer, deps);
   const stored = await setPayee(deal.id, 'SELLER1', deps);
   await confirmCard(deal.id, keys.seller, cardHash(stored.value), deps);
   await confirmCard(deal.id, keys.buyer, cardHash(stored.value), deps);
@@ -70,8 +72,9 @@ test('the order is built from the locked card and carries dealId:hash in custom_
   assert.ok(req.customId.length <= 127);
   assert.deepEqual(req.amount, { currency_code: 'GBP', value: '350.00' });
   assert.equal(req.payeeMerchantId, 'SELLER1');
-  assert.equal(req.item.physical, true);
-  assert.match(req.item.name, /PS5/);
+  assert.equal(req.physical, true);
+  assert.equal(req.items.length, 1);
+  assert.match(req.items[0].name, /PS5/);
 });
 
 test('only the buyer can start checkout, and only on a locked card', async () => {
@@ -149,4 +152,39 @@ test('the payee cannot change once payment has started', async () => {
   pp.approve(orderId);
   await captureCheckout(dealId, keys.buyer, orderId, co);
   await assert.rejects(setPayee(dealId, 'ATTACKER', { store: co.store }), /cannot change after payment/);
+});
+
+test('when the buyer covers the fee, the order total and a fee line come from code', async () => {
+  const { dealId, keys, co, orders } = await lockedDeal('buyer');
+  const { orderId } = await startCheckout(dealId, keys.buyer, co);
+  const req = orders.get(orderId)!.req;
+  // £350 at 2.9% + £0.30 (docs/fees.md FEE-UK), grossed up so the seller still gets £350.
+  assert.deepEqual(req.amount, { currency_code: 'GBP', value: '360.76' });
+  assert.deepEqual(req.items.map((i) => i.amount.value), ['350.00', '10.76']);
+});
+
+test('the seller paying for their own deal is not captured', async () => {
+  const { dealId, keys, co, pp } = await lockedDeal();
+  const { orderId } = await startCheckout(dealId, keys.buyer, co);
+  pp.approve(orderId);
+  const get = pp.getOrder;
+  pp.getOrder = async (id, m) => {
+    const r = await get(id, m);
+    return { ...r, data: { ...r.data, payer: { payer_id: 'SELLER1' } } };
+  };
+  await assert.rejects(captureCheckout(dealId, keys.buyer, orderId, co), /payer is the seller/);
+});
+
+test('a decline blocks paying until it is withdrawn; the other side sees it first', async () => {
+  const { dealId, keys, co, deps } = await lockedDeal();
+  await declineDeal(dealId, keys.seller, 'wants_ff', deps);
+  await assert.rejects(startCheckout(dealId, keys.buyer, co), /confirm the card/);
+  const deal = (await co.store.getDeal(dealId))!.value;
+  const { dealView } = await import('../lib/settle/view');
+  const view = dealView(deal, 'buyer');
+  assert.equal(view.warnings[0].signalId, 'declined');
+  assert.deepEqual(view.warnings[0].cites, ['PP-FF', 'SP-FF']);
+  await assert.rejects(declineDeal(dealId, keys.buyer, 'made-up', deps), /unknown reason/);
+  await withdrawDecline(dealId, keys.seller, deps);
+  assert.equal((await co.store.getDeal(dealId))!.value.declines?.length, 0);
 });

@@ -389,13 +389,17 @@ export async function sellerByTrackingId(trackingId: string): Promise<SellerStat
 
 // --- Orders (checkout) --------------------------------------------------------
 
+export type OrderItem = { name: string; description: string; amount: Money };
+
 export type OrderRequest = {
   dealId: string;
   /** `<dealId>:<card hash>`: ties the order to the exact card both sides confirmed. */
   customId: string;
   payeeMerchantId: string;
+  /** The total; must equal the sum of `items`. */
   amount: Money;
-  item: { name: string; description: string; physical: boolean };
+  items: OrderItem[];
+  physical: boolean;
   returnUrl: string;
   cancelUrl: string;
 };
@@ -403,6 +407,7 @@ export type OrderRequest = {
 export type Order = {
   id: string;
   status: string;
+  payer?: { payer_id?: string };
   purchase_units?: {
     reference_id?: string;
     custom_id?: string;
@@ -428,15 +433,13 @@ export async function createOrder(o: OrderRequest, requestId: string): Promise<W
           custom_id: o.customId,
           payee: { merchant_id: o.payeeMerchantId },
           amount: { ...o.amount, breakdown: { item_total: o.amount } },
-          items: [
-            {
-              name: o.item.name,
-              description: o.item.description,
-              quantity: '1',
-              unit_amount: o.amount,
-              category: o.item.physical ? 'PHYSICAL_GOODS' : 'DIGITAL_GOODS',
-            },
-          ],
+          items: o.items.map((i) => ({
+            name: i.name,
+            description: i.description,
+            quantity: '1',
+            unit_amount: i.amount,
+            category: o.physical ? 'PHYSICAL_GOODS' : 'DIGITAL_GOODS',
+          })),
         },
       ],
       payment_source: {
@@ -444,7 +447,7 @@ export async function createOrder(o: OrderRequest, requestId: string): Promise<W
           experience_context: {
             brand_name: 'Settle',
             user_action: 'PAY_NOW',
-            shipping_preference: o.item.physical ? 'GET_FROM_FILE' : 'NO_SHIPPING',
+            shipping_preference: o.physical ? 'GET_FROM_FILE' : 'NO_SHIPPING',
             return_url: o.returnUrl,
             cancel_url: o.cancelUrl,
           },

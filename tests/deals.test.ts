@@ -50,7 +50,8 @@ test('a pasted chat gives a card whose terms point at their source messages', as
   assert.deepEqual(deal.card.delivery?.source, { kind: 'message', messageId: 'm2' });
   assert.equal(deal.card.shipBy?.value, '12/11');
   assert.equal(deal.card.item?.source.kind, 'message');
-  assert.deepEqual(deal.questions, []);
+  // Who pays the fee is never read from the chat: it's always a question.
+  assert.deepEqual(deal.questions.map((q) => q.id), ['q_fee']);
 });
 
 test('each link key maps to its side; only key hashes are stored', async () => {
@@ -96,6 +97,8 @@ test('both confirmations lock the card; any later change unlocks it and old conf
   const { d, deal, keys } = await setup();
   await assert.rejects(confirmCard(deal.id, keys.buyer, cardHash(deal), d), /not connected their PayPal/);
 
+  await answerQuestion(deal.id, keys.seller, 'q_fee', 'seller', d);
+  await answerQuestion(deal.id, keys.buyer, 'q_fee', 'seller', d);
   let stored = await setPayee(deal.id, 'MERCHANT1', d);
   const hash = cardHash(stored.value);
   await confirmCard(deal.id, keys.seller, hash, d);
@@ -112,7 +115,7 @@ test('both confirmations lock the card; any later change unlocks it and old conf
   const receipts = await d.store.listReceipts(deal.id);
   assert.deepEqual(
     receipts.map((r) => r.kind),
-    ['deal.checked', 'payee.connected', 'card.confirmed', 'card.confirmed', 'payee.connected'],
+    ['deal.checked', 'question.answered', 'question.answered', 'payee.connected', 'card.confirmed', 'card.confirmed', 'payee.connected'],
   );
   assert.equal(verifyChain(receipts).ok, true);
 });

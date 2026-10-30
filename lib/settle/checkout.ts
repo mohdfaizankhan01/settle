@@ -5,7 +5,7 @@
 // as confirming payment: that still needs a verified webhook plus a fresh GET (M3).
 
 import * as paypal from '../paypal';
-import { cardHash, isLocked } from './card';
+import { cardHash, isLocked, moneyOf } from './card';
 import { roleFor, DealError } from './deals';
 import { StaleWriteError, type DealStore } from './store';
 import type { Deal } from './types';
@@ -46,17 +46,26 @@ export async function startCheckout(dealId: string, key: string | null, deps: Ch
   if (deal.order && deal.order.cardHash === hash && deal.order.status === 'CREATED') return { orderId: deal.order.id };
 
   const { item, price, delivery } = deal.card;
+  const money = moneyOf(deal)!;
+  const currency_code = price!.value.currency;
+  const feeLine = deal.card.feePayer!.value === 'buyer'
+    ? [{ name: "PayPal's fee, paid by the buyer", description: 'Estimate from PayPal\'s published rate (docs/fees.md)', amount: { currency_code, value: money.fee } }]
+    : [];
   const order = await pp.createOrder(
     {
       dealId: deal.id,
       customId: customIdFor(deal),
       payeeMerchantId: deal.payeeMerchantId!,
-      amount: { currency_code: price!.value.currency, value: price!.value.amount },
-      item: {
-        name: clip(item!.value, 127),
-        description: clip(`Settle deal ${deal.id}. Delivery: ${delivery!.display}.${deal.card.shipBy ? ` Ship by ${deal.card.shipBy.display}.` : ''}`, 127),
-        physical: delivery!.value !== 'digital',
-      },
+      amount: { currency_code, value: money.total },
+      items: [
+        {
+          name: clip(item!.value, 127),
+          description: clip(`Settle deal ${deal.id}. Delivery: ${delivery!.display}.${deal.card.shipBy ? ` Ship by ${deal.card.shipBy.display}.` : ''}`, 127),
+          amount: { currency_code, value: price!.value.amount },
+        },
+        ...feeLine,
+      ],
+      physical: delivery!.value !== 'digital',
       returnUrl: `${deps.publicHost}/d/${deal.id}`,
       cancelUrl: `${deps.publicHost}/d/${deal.id}`,
     },
@@ -75,7 +84,7 @@ export async function startCheckout(dealId: string, key: string | null, deps: Ch
     dealId,
     kind: 'order.created',
     at: now(deps),
-    data: { orderId: order.data.id, cardHash: hash, amount: price!.value.amount, currency: price!.value.currency, payee: deal.payeeMerchantId!, debugId: order.debugId ?? null },
+    data: { orderId: order.data.id, cardHash: hash, amount: money.total, currency: currency_code, feePayer: deal.card.feePayer!.value, payee: deal.payeeMerchantId!, debugId: order.debugId ?? null },
   });
   return { orderId: order.data.id };
 }
@@ -84,12 +93,15 @@ export async function startCheckout(dealId: string, key: string | null, deps: Ch
 export function orderMismatches(deal: Deal, order: paypal.Order): string[] {
   const unit = order.purchase_units?.[0];
   const price = deal.card.price?.value;
+  const total = moneyOf(deal)?.total;
   const out: string[] = [];
   if (order.purchase_units?.length !== 1) out.push('order must have exactly one purchase unit');
   if (unit?.custom_id !== customIdFor(deal)) out.push('custom_id does not match the confirmed card');
   if (unit?.amount?.currency_code !== price?.currency) out.push('currency does not match the card');
-  if (unit?.amount?.value !== price?.amount) out.push('amount does not match the card');
+  if (unit?.amount?.value !== total) out.push('amount does not match the card');
   if (unit?.payee?.merchant_id !== deal.payeeMerchantId) out.push('payee is not the connected seller');
+  // Nobody pays themselves: a seller "buying" their own deal would fake a paid record.
+  if (order.payer?.payer_id && order.payer.payer_id === deal.payeeMerchantId) out.push('the payer is the seller');
   return out;
 }
 

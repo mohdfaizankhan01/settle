@@ -145,6 +145,7 @@ export function DealPage({ dealId }: { dealId: string }) {
           )}
 
           <Confirm view={view} busy={busy} act={act} />
+          <Decline view={view} busy={busy} act={act} />
 
           {me === 'buyer' && view.checkout && !view.payBlocker && <PayButton dealId={dealId} getKey={() => keyRef.current ?? ''} checkout={view.checkout} onDone={() => load(keyRef.current ?? '')} onError={setError} />}
           {view.order && (
@@ -210,6 +211,25 @@ function Card({ view }: { view: DealView }) {
           );
         })}
       </dl>
+      {view.money && (
+        <div className="grid gap-1 border-t border-pp-border/60 px-6 py-4 text-sm sm:grid-cols-3">
+          <p>
+            <span className="block text-pp-muted">Buyer pays</span>
+            <span className="text-lg font-semibold tabular-nums text-pp-navy">{view.money.total}</span>
+          </p>
+          <p>
+            <span className="block text-pp-muted">PayPal&apos;s fee, about</span>
+            <span className="font-semibold tabular-nums">{view.money.fee}</span>
+          </p>
+          <p>
+            <span className="block text-pp-muted">Seller gets, about</span>
+            <span className="font-semibold tabular-nums">{view.money.sellerGets}</span>
+          </p>
+          <p className="text-xs text-pp-muted sm:col-span-3">
+            Estimated from PayPal&apos;s published rate ({(view.money.rate.bp / 100).toFixed(2)}% plus a fixed fee, {view.money.rate.cite} in docs/fees.md). PayPal&apos;s own figure on the payment is the real one.
+          </p>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-lg border-t border-dashed border-pp-border bg-pp-canvas px-6 py-3 text-sm">
         <span className="min-w-0 text-pp-muted">
           Fingerprint <span className="break-all font-mono text-xs text-pp-ink" title={view.cardHash}>{view.cardHash.slice(0, 16)}…</span>
@@ -307,6 +327,7 @@ function Warnings({ view }: { view: DealView }) {
       {view.check.status === 'ran' && view.warnings.length === 0 && (
         <p className="mt-1 text-sm text-pp-muted">That&apos;s not a guarantee. Pay and get paid only through this page, and PayPal decides on any claim.</p>
       )}
+      <p className="mt-2 text-xs text-pp-muted">{view.explainNote}</p>
       <ul className="mt-4 space-y-4">
         {view.warnings.map((w) => (
           <li key={w.signalId} className="rounded-md border-l-4 border-pp-warning bg-pp-surface p-4">
@@ -315,7 +336,11 @@ function Warnings({ view }: { view: DealView }) {
             <p className="mt-2 text-sm">{w.means}</p>
             <p className="mt-1 text-sm font-semibold">{w.todo}</p>
             <p className="mt-2 text-xs text-pp-muted">
-              {w.found.map((f) => (f.by === 'jev' ? `Jev ${Math.round((f.probability ?? 0) * 100)}%` : f.by.startsWith('rule') ? `keyword “${f.matched}”` : 'from the card')).join(', ')}
+              {w.found
+                .map((f) =>
+                  f.by === 'jev' ? `Jev ${Math.round((f.probability ?? 0) * 100)}%` : f.by.startsWith('rule') ? `keyword “${f.matched}”` : f.by === 'decline' ? 'their decline' : 'from the card',
+                )
+                .join(', ')}
               {w.cites.length > 0 && ` · PayPal terms: ${w.cites.join(', ')}`}
             </p>
           </li>
@@ -341,6 +366,47 @@ function Chat({ view }: { view: DealView }) {
           </li>
         ))}
       </ol>
+    </section>
+  );
+}
+
+function Decline({ view, busy, act }: { view: DealView; busy: boolean; act: (p: string, b?: unknown) => Promise<unknown> }) {
+  const [open, setOpen] = useState(false);
+  if (view.order && view.order.status !== 'CREATED') return null;
+  if (view.myDecline) {
+    return (
+      <section className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
+        <p>
+          You declined this deal: {view.declineReasons[view.myDecline as keyof typeof view.declineReasons].toLowerCase()}. The other side can see this.
+        </p>
+        <button disabled={busy} onClick={() => act('/decline', { withdraw: true })} className="mt-2 rounded-full border border-pp-border px-4 py-1.5 font-semibold">
+          Withdraw my decline
+        </button>
+      </section>
+    );
+  }
+  return (
+    <section className="text-sm">
+      {!open ? (
+        <button onClick={() => setOpen(true)} className="text-pp-muted underline underline-offset-2 hover:text-pp-ink">
+          Decline this deal
+        </button>
+      ) : (
+        <div className="rounded-md border border-pp-border bg-pp-surface p-4">
+          <p className="font-semibold">Why are you declining?</p>
+          <p className="mt-1 text-pp-muted">The other side sees your reason. Nothing is paid.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {Object.entries(view.declineReasons).map(([id, label]) => (
+              <button key={id} disabled={busy} onClick={() => act('/decline', { reason: id })} className="rounded-full border border-pp-border px-4 py-1.5 hover:border-pp-danger">
+                {label}
+              </button>
+            ))}
+            <button onClick={() => setOpen(false)} className="px-2 text-pp-muted underline">
+              Keep the deal
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

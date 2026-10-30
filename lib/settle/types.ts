@@ -1,6 +1,7 @@
 // The deal record: one document per deal that follows it from chat to dispute (DECISIONS #4).
 
 import type { ChatMessage, Role } from './chat';
+import type { FeePayer } from './fees';
 import type { Token } from './redact';
 
 export type Country = 'US' | 'UK';
@@ -9,7 +10,7 @@ export const CURRENCY_OF: Record<Country, Currency> = { US: 'USD', UK: 'GBP' };
 
 export type Delivery = 'post' | 'courier' | 'collect' | 'meetup' | 'digital';
 
-export type TermKey = 'item' | 'price' | 'delivery' | 'shipBy';
+export type TermKey = 'item' | 'price' | 'delivery' | 'shipBy' | 'feePayer';
 
 /** Where a term came from: the message it was read from, or a question both sides answered. */
 export type TermSource =
@@ -32,6 +33,8 @@ export type DealCard = {
   price?: Term<{ amount: string; currency: Currency }>;
   delivery?: Term<Delivery>;
   shipBy?: Term<string>;
+  /** Who pays PayPal's fee (docs/fees.md). Always settled by both sides answering. */
+  feePayer?: Term<FeePayer>;
 };
 
 /** A term Settle couldn't settle on: both sides pick an option before confirming. */
@@ -65,6 +68,11 @@ export type CheckRun =
   // Fail closed: the card must say the check didn't run, never "no warning signs found".
   | { status: 'failed'; at: string; reason: string };
 
+export type DeclineReason = 'wants_ff' | 'wants_other_payment' | 'terms_wrong' | 'other';
+
+/** One side said no to the deal link. Shown to the other side as the top warning. */
+export type Decline = { role: Role; at: string; reason: DeclineReason };
+
 export type Confirmation = { role: Role; at: string; cardHash: string };
 
 export type PaymentOrder = { id: string; cardHash: string; createdAt: string; status: string; debugId?: string };
@@ -82,6 +90,8 @@ export type Deal = {
   /** Bumped on every card change; confirmations for an older card no longer count. */
   cardVersion: number;
   confirmations: Confirmation[];
+  /** Declines still standing. Missing on deals created before Oct 30. */
+  declines?: Decline[];
   /** SHA-256 of each side's link key. The keys themselves are never stored. */
   keyHashes: Record<Role, string>;
   /** The seller's PayPal merchant ID once they connect (D1, DECISIONS #12). Part of the locked card. */

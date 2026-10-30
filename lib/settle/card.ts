@@ -8,6 +8,7 @@ import type { ChatMessage } from './chat';
 import { hashJson } from './canonical';
 import { TERM_MIN_CONFIDENCE } from './policy';
 import type { Token } from './redact';
+import { moneyFor, type Money } from './fees';
 import { TERM_SIGNALS } from './signals';
 import { CURRENCY_OF, type Country, type Currency, type Deal, type DealCard, type Delivery, type Question, type Warning } from './types';
 
@@ -120,6 +121,18 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
     });
   }
 
+  // Who pays PayPal's fee: never read from the chat, always both sides' answer (docs/fees.md).
+  questions.push({
+    id: 'q_fee',
+    term: 'feePayer',
+    prompt: "Who pays PayPal's fee?",
+    options: [
+      { id: 'seller', label: 'The seller (taken from what they receive)' },
+      { id: 'buyer', label: 'The buyer (added to the total)' },
+    ],
+    answers: {},
+  });
+
   // Item: the message that names it, quoted.
   const itemPick = picks.itemMessage;
   const itemMessage = sure(itemPick) ? messages.find((m) => m.id === itemPick.id) : undefined;
@@ -143,6 +156,9 @@ export function applyAnswer(card: DealCard, question: Question, optionId: string
   } else if (question.term === 'delivery') {
     if (!Object.hasOwn(DELIVERY_LABELS, optionId)) throw new Error('unknown delivery option');
     next.delivery = { value: optionId as Delivery, display: DELIVERY_LABELS[optionId as Delivery], source };
+  } else if (question.term === 'feePayer') {
+    if (optionId !== 'seller' && optionId !== 'buyer') throw new Error('unknown fee option');
+    next.feePayer = { value: optionId, display: optionId === 'seller' ? 'The seller' : 'The buyer', source };
   } else if (question.term === 'shipBy') {
     if (optionId === NONE) delete next.shipBy;
     else {
@@ -171,16 +187,24 @@ export function blockers(deal: Deal): string[] {
   if (!deal.card.item) out.push('The item is not set.');
   if (!deal.card.price) out.push('The price is not set.');
   if (!deal.card.delivery) out.push('The delivery method is not set.');
+  if (!deal.card.feePayer) out.push("Who pays PayPal's fee is not settled.");
+  for (const d of deal.declines ?? []) out.push(`The ${d.role} declined this deal.`);
   for (const q of deal.questions) if (!q.resolved) out.push(`Open question: ${q.prompt}`);
   if (!deal.payeeMerchantId) out.push('The seller has not connected their PayPal account.');
   return out;
 }
 
+/** Total the buyer pays, estimated fee and what the seller gets, once price and fee payer are set. */
+export function moneyOf(deal: Deal): Money | undefined {
+  const { price, feePayer } = deal.card;
+  return price && feePayer ? moneyFor(price.value.amount, feePayer.value, deal.country) : undefined;
+}
+
 /** The exact data both sides confirm. Display text and model confidence are left out on purpose. */
 export function lockedCard(deal: Deal) {
-  const { item, price, delivery, shipBy } = deal.card;
+  const { item, price, delivery, shipBy, feePayer } = deal.card;
   return {
-    v: 1,
+    v: 2,
     dealId: deal.id,
     country: deal.country,
     payeeMerchantId: deal.payeeMerchantId ?? null,
@@ -188,6 +212,9 @@ export function lockedCard(deal: Deal) {
     price: price ? { value: price.value, source: price.source } : null,
     delivery: delivery ? { value: delivery.value, source: delivery.source } : null,
     shipBy: shipBy ? { value: shipBy.value, source: shipBy.source } : null,
+    feePayer: feePayer ? { value: feePayer.value, source: feePayer.source } : null,
+    // The total the buyer will pay is part of what both confirm.
+    total: moneyOf(deal)?.total ?? null,
   };
 }
 

@@ -11,7 +11,7 @@ import { parseChat, type Role } from './chat';
 import { redactChat } from './redact';
 import { ruleWarnings } from './rules';
 import { StaleWriteError, type DealStore, type Stored } from './store';
-import { CURRENCY_OF, type Country, type Deal, type DealCard } from './types';
+import { CURRENCY_OF, type Country, type Deal, type DealCard, type DeclineReason } from './types';
 
 export type Deps = { store: DealStore; ask?: AskJev; now?: () => Date };
 
@@ -218,5 +218,38 @@ export async function recheckDeal(dealId: string, key: string | null, deps: Deps
       cardHash: cardHash(stored.value),
     },
   });
+  return stored;
+}
+
+export const DECLINE_REASONS: Record<DeclineReason, string> = {
+  wants_ff: 'They want to be paid as Friends and Family instead',
+  wants_other_payment: 'They want to pay or be paid outside PayPal',
+  terms_wrong: 'The terms on the card are wrong',
+  other: 'Another reason',
+};
+
+/** One side says no to the deal link. Blocks confirming and paying; the other side sees why. */
+export async function declineDeal(dealId: string, key: string | null, reason: string, deps: Deps) {
+  if (!Object.hasOwn(DECLINE_REASONS, reason)) throw new DealError('unknown reason');
+  const at = now(deps);
+  const { stored, role } = await mutate(deps, dealId, key, (deal, role) => {
+    if (deal.order && deal.order.status !== 'CREATED') throw new DealError('payment already started; use PayPal to sort out problems', 409);
+    return {
+      ...deal,
+      confirmations: [],
+      declines: [...(deal.declines ?? []).filter((d) => d.role !== role), { role, at, reason: reason as DeclineReason }],
+    };
+  });
+  await deps.store.addReceipt({ dealId, kind: 'deal.declined', at, data: { by: role, reason, cardHash: cardHash(stored.value) } });
+  return stored;
+}
+
+/** Takes back your own decline. */
+export async function withdrawDecline(dealId: string, key: string | null, deps: Deps) {
+  const { stored, role } = await mutate(deps, dealId, key, (deal, role) => {
+    if (!(deal.declines ?? []).some((d) => d.role === role)) throw new DealError('you have not declined this deal', 409);
+    return { ...deal, declines: (deal.declines ?? []).filter((d) => d.role !== role) };
+  });
+  await deps.store.addReceipt({ dealId, kind: 'deal.decline_withdrawn', at: now(deps), data: { by: role } });
   return stored;
 }

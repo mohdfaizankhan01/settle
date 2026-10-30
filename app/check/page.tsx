@@ -55,10 +55,11 @@ export default function CheckPage() {
 
   return (
     <Shell>
-      <h1 className="text-[28px] font-semibold text-pp-navy">Check a deal before anyone pays</h1>
+      <h1 className="text-[28px] font-semibold text-pp-navy">Nobody has to go first</h1>
       <p className="mt-2 max-w-prose text-pp-muted">
-        Paste the chat where you agreed the sale. Settle reads the terms, shows where each one came from, and warns either side about
-        moves that fall outside PayPal&apos;s protections.
+        Paste the chat where you agreed the deal, as the buyer or the seller. Settle turns it into one link you both confirm. The buyer
+        pays through PayPal checkout, the seller ships once PayPal confirms the payment, and PayPal&apos;s protections stay in place
+        for both of you.
       </p>
       <form onSubmit={submit} className="mt-8 space-y-6">
         <label className="block">
@@ -103,7 +104,7 @@ export default function CheckPage() {
           disabled={busy || !sellerName}
           className="rounded-full bg-pp-blue px-6 py-3 font-semibold text-white hover:bg-pp-blue-dark disabled:opacity-40"
         >
-          {busy ? 'Checking the chat…' : 'Check this chat'}
+          {busy ? 'Reading the chat…' : 'Make the deal link'}
         </button>
       </form>
     </Shell>
