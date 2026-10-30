@@ -11,7 +11,7 @@ import { shownTo, signalById, TERM_SIGNALS } from './signals';
 import { CURRENCY_OF, type Deal, type TermKey, type TermSource } from './types';
 
 export const SIMULATED_NOTE =
-  'PayPal sandbox: no real money moves. The warning check is Jev (TypeSafe) reading a redacted copy of the chat.';
+  "PayPal sandbox: no real money moves. The warning check is Settle Link's own small model, running on our server over a redacted copy of the chat.";
 
 /** Warnings explain; they never decide (problem statement, build change 3). */
 export const EXPLAIN_NOTE =

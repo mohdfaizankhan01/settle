@@ -24,7 +24,7 @@
 
 - PayPal APIs: the paypal plugin (best-practices skill, /paypal:sandbox, /paypal:explain-error, /paypal:doctor), not memory. An expired sandbox token is renewed with /paypal:setup refresh.
 - APIMatic PayPal SDK skills: only if we switch from plain fetch to PayPal's TypeScript Server SDK. Ask me first.
-- Jev: the typesafe skill for question design. Re-run npm run jev:eval after changing any question or threshold.
+- Warning check: Settle's own model (lib/model, `npm run model:train`) is the default; Jev (typesafe skill) only with `JEV_PROVIDER=typesafe`. Re-run `npm run eval` after changing training data, a question or a threshold, and never train on data/test-chats.jsonl.
 - AG Grid and AG Studio: ag-mcp for docs at our exact version. frontend-design for UI work.
 - Next.js: read the docs in node_modules/next/dist/docs before writing Next.js code, as AGENTS.md says.
 - Deploys, logs and render.yaml: the render plugin.

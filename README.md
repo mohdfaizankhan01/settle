@@ -27,7 +27,7 @@ _TODO: screenshots._
 _TODO: architecture diagram._
 
 - **Redaction first**: names, emails, phone numbers, addresses and bank details are removed before any model sees the chat. Prices, dates and links become tokens whose values stay in code.
-- **Warning check**: narrow yes/no questions per warning plus keyword rules. Fail closed: if the check can't run, nobody can confirm the card.
+- **Warning check**: Settle Link's own small model, one classifier per warning signal over word and character patterns of the redacted chat (`lib/model`), plus keyword rules. It runs on our server, so no chat text goes to an AI provider. Trained on hand-written messages (`data/train-messages.jsonl`), thresholds picked by cross-validation, and tested on 73 separate chats it never trains on (`npm run eval`, results in `data/eval/`). Fail closed: if the check can't run, nobody can confirm the card.
 - **PayPal** (sandbox): Orders v2, JS SDK v6, Partner Referrals (seller onboarding), webhooks with `verify-webhook-signature`, order tracking, Disputes API. All calls run on the server (`lib/paypal.ts`).
 - **Wording**: the UI says "no warning signs found", never "safe". Settle Link says which checks pass; PayPal decides eligibility. Every check cites `docs/protection-terms.md`; fees cite `docs/fees.md`.
 - **Receipts**: every decision writes a receipt into a hash chain.
@@ -52,7 +52,7 @@ _TODO: webhook setup for local runs, seed data, demo walkthrough._
 ## Tools used
 
 - **PayPal APIs**: Orders v2, JS SDK v6, Partner Referrals, Webhooks, Disputes (sandbox).
-- **AI**: the warning check (see How it works).
+- **AI**: Settle Link's own warning model (see How it works). Jev (TypeSafe) is supported behind `JEV_PROVIDER=typesafe`.
 - **AG Grid and AG Studio** for the deals, warnings and receipts dashboard (planned).
 - **Render** for hosting and Postgres.
 - Built with Claude Code; plugins listed under Team setup.

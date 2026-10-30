@@ -139,29 +139,48 @@ const isNoul = (a: unknown): a is NoulAnswer => typeof (a as NoulAnswer)?.noul =
 const toPick = (a: unknown): Pick | undefined =>
   isChoice(a) ? { id: a.choice, confidence: a.confidence, probabilities: { ...a.probabilities } } : undefined;
 
+/**
+ * Turns per-signal scores into warnings, shared by every engine. Evidence that isn't a real
+ * message in this chat is dropped; the warning stays.
+ */
+export function warningsFrom(
+  scores: Record<string, number>,
+  evidence: Record<string, string | undefined>,
+  redacted: Redacted,
+  by: string,
+  thresholds: Record<string, number> = {},
+): Warning[] {
+  const warnings: Warning[] = [];
+  for (const s of SIGNALS) {
+    const p = scores[s.id] ?? 0;
+    if (p < (thresholds[s.id] ?? signalThreshold(s.id))) continue;
+    const at = evidence[s.id];
+    warnings.push({
+      signalId: s.id,
+      audience: s.audience,
+      messageId: at && at !== NONE && redacted.messages.some((m) => m.id === at) ? at : undefined,
+      probability: p,
+      by,
+      cites: s.cites,
+    });
+  }
+  return warnings;
+}
+
 export async function dealCheck(redacted: Redacted, ask: AskJev = defaultAskJev(), now = () => new Date()): Promise<DealCheckResult> {
   const questions = buildQuestions(redacted);
   try {
     const { model, answers } = await ask({ state: buildState(redacted), questions });
-    const warnings: Warning[] = [];
     const scores: Record<string, number> = {};
+    const evidence: Record<string, string | undefined> = {};
     for (const s of SIGNALS) {
       const yes = answers[`sig_${s.id}`];
       // A missing or malformed answer is an error, not a "no".
       if (!isNoul(yes)) throw new Error(`no answer for ${s.id}`);
       scores[s.id] = yes.noul;
-      if (yes.noul < signalThreshold(s.id)) continue;
-      const evidence = toPick(answers[`ev_${s.id}`]);
-      const validMessage = evidence && evidence.id !== NONE && redacted.messages.some((m) => m.id === evidence.id);
-      warnings.push({
-        signalId: s.id,
-        audience: s.audience,
-        messageId: validMessage ? evidence.id : undefined,
-        probability: yes.noul,
-        by: 'jev',
-        cites: s.cites,
-      });
+      evidence[s.id] = toPick(answers[`ev_${s.id}`])?.id;
     }
+    const warnings = warningsFrom(scores, evidence, redacted, 'jev');
     const picks: TermPicks = {};
     for (const key of ['price', 'shipBy', 'delivery', 'itemMessage', 'deliveryMessage'] as const) {
       if (key in questions) {

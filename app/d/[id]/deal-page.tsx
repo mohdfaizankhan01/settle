@@ -338,7 +338,7 @@ function Warnings({ view }: { view: DealView }) {
             <p className="mt-2 text-xs text-pp-muted">
               {w.found
                 .map((f) =>
-                  f.by === 'jev' ? `Jev ${Math.round((f.probability ?? 0) * 100)}%` : f.by.startsWith('rule') ? `keyword “${f.matched}”` : f.by === 'decline' ? 'their decline' : 'from the card',
+                  f.by === 'jev' ? `Jev ${Math.round((f.probability ?? 0) * 100)}%` : f.by === 'model' ? `Settle Link model ${Math.round((f.probability ?? 0) * 100)}%` : f.by.startsWith('rule') ? `keyword “${f.matched}”` : f.by === 'decline' ? 'their decline' : 'from the card',
                 )
                 .join(', ')}
               {w.cites.length > 0 && ` · PayPal terms: ${w.cites.join(', ')}`}

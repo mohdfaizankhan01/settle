@@ -3,7 +3,7 @@
 export function Shell({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   return (
     <div className="min-h-full">
-      <div className="bg-pp-navy px-4 py-2 text-center text-sm text-white">Sandbox demo: no real money moves. PayPal is the sandbox; the warning check is Jev reading a redacted copy of the chat.</div>
+      <div className="bg-pp-navy px-4 py-2 text-center text-sm text-white">Sandbox demo: no real money moves. Payments use PayPal&apos;s sandbox; warnings come from Settle Link&apos;s own small model reading a redacted copy of the chat on our server.</div>
       <main className={`mx-auto w-full ${wide ? 'max-w-6xl' : 'max-w-3xl'} px-4 py-10 font-paypal text-pp-ink sm:py-12`}>{children}</main>
     </div>
   );

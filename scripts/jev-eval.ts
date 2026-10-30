@@ -1,10 +1,13 @@
-// npm run jev:eval — runs the real dealCheck (Jev) over data/test-chats.jsonl and writes
-// per-signal precision and recall, a threshold sweep, term accuracy and latency to
-// data/eval/results.json. Re-run after changing any question or threshold (CLAUDE.md).
+// npm run eval — runs the warning check over the held-out data/test-chats.jsonl and writes
+// per-signal precision and recall (model, keyword rules, both), a threshold sweep, Brier score,
+// term accuracy and latency to data/eval/results-<engine>.json. Engine: Settle's own model by
+// default; `npm run jev:eval` uses TypeSafe Jev (needs TYPESAFE_API_KEY). Re-run after changing
+// any question, training data or threshold (CLAUDE.md).
 
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { dealCheck, defaultAskJev, type AskJev } from '../lib/jev/deal-check';
+import { dealCheck, defaultAskJev, type AskJev, type DealCheckResult } from '../lib/jev/deal-check';
+import { localCheck, localThresholds } from '../lib/model/local-check';
 import { loadChats, type EvalChat } from '../lib/eval/chats';
 import { parseChat } from '../lib/settle/chat';
 import { signalThreshold, TERM_MIN_CONFIDENCE } from '../lib/settle/policy';
@@ -24,17 +27,17 @@ type Row = {
   usage?: { input_tokens: number | null; output_tokens: number | null };
 };
 
-async function runOne(c: EvalChat, base: AskJev): Promise<Row> {
+async function runOne(c: EvalChat, base: AskJev | undefined): Promise<Row> {
   const messages = parseChat(c.chat, c.seller);
   const redacted = redactChat(messages);
   let usage: Row['usage'];
-  const ask: AskJev = async (req) => {
+  const ask: AskJev | undefined = base && (async (req) => {
     const out = (await base(req)) as Awaited<ReturnType<AskJev>> & { usage?: Row['usage'] };
     usage = out.usage;
     return out;
-  };
+  });
   const t = performance.now();
-  const r = await dealCheck(redacted, ask);
+  const r: DealCheckResult = ask ? await dealCheck(redacted, ask) : await localCheck(redacted);
   const ms = Math.round(performance.now() - t);
   const priceToken = redacted.tokens.find((x) => x.id === r.picks.price?.id);
   const sure = (conf?: number) => conf !== undefined && conf >= TERM_MIN_CONFIDENCE;
@@ -71,10 +74,11 @@ function prf(rows: Row[], chats: Map<string, EvalChat>, signal: string, flagged:
 }
 
 async function main() {
-  if (!process.env.TYPESAFE_API_KEY) throw new Error('TYPESAFE_API_KEY is not set (.env.local)');
+  const engine = process.argv.includes('--engine=typesafe') ? 'typesafe' : 'local';
+  if (engine === 'typesafe' && !process.env.TYPESAFE_API_KEY) throw new Error('TYPESAFE_API_KEY is not set (.env.local)');
   const chats = loadChats();
   const byId = new Map(chats.map((c) => [c.id, c]));
-  const ask = defaultAskJev();
+  const ask = engine === 'typesafe' ? defaultAskJev() : undefined;
   const rows: Row[] = [];
   const queue = [...chats];
   await Promise.all(
@@ -91,13 +95,14 @@ async function main() {
 
   const signals = Object.fromEntries(
     SIGNALS.map((s) => {
-      const th = signalThreshold(s.id);
+      const th = engine === 'local' ? localThresholds()[s.id] : signalThreshold(s.id);
       return [
         s.id,
         {
           threshold: th,
           positives: chats.filter((c) => c.positive.includes(s.id)).length,
-          jev: prf(ran, byId, s.id, (r) => (r.scores[s.id] ?? 0) >= th),
+          model: prf(ran, byId, s.id, (r) => (r.scores[s.id] ?? 0) >= th),
+          brier: ran.reduce((sum, r) => sum + ((r.scores[s.id] ?? 0) - (byId.get(r.id)!.positive.includes(s.id) ? 1 : 0)) ** 2, 0) / Math.max(ran.length, 1),
           rulesOnly: prf(ran, byId, s.id, (r) => r.rules.includes(s.id)),
           combined: prf(ran, byId, s.id, (r) => (r.scores[s.id] ?? 0) >= th || r.rules.includes(s.id)),
           sweep: [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9].map((t) => {
@@ -116,7 +121,8 @@ async function main() {
   };
   const ms = ran.map((r) => r.ms).sort((a, b) => a - b);
   const results = {
-    note: 'Synthetic chats written for Settle; not a benchmark. Each chat is a negative for every signal it does not list.',
+    note: 'Synthetic chats written for Settle; not a benchmark. Each chat is a negative for every signal it does not list. The local model never trains on these chats.',
+    engine,
     ranAt: new Date().toISOString(),
     model: ran[0]?.model ?? null,
     chats: chats.length,
@@ -130,11 +136,11 @@ async function main() {
     signals,
     rows,
   };
-  const out = join(process.cwd(), 'data', 'eval', 'results.json');
+  const out = join(process.cwd(), 'data', 'eval', `results-${engine}.json`);
   writeFileSync(out, `${JSON.stringify(results, null, 2)}\n`);
   for (const [id, s] of Object.entries(signals)) {
     const f = (x: number | null) => (x === null ? ' n/a' : x.toFixed(2));
-    console.log(`${id.padEnd(20)} jev P ${f(s.jev.precision)} R ${f(s.jev.recall)} | combined P ${f(s.combined.precision)} R ${f(s.combined.recall)}`);
+    console.log(`${id.padEnd(20)} model P ${f(s.model.precision)} R ${f(s.model.recall)} | rules P ${f(s.rulesOnly.precision)} R ${f(s.rulesOnly.recall)} | both P ${f(s.combined.precision)} R ${f(s.combined.recall)} | brier ${s.brier.toFixed(3)}`);
   }
   console.log(`price ${results.terms.price.correct}/${results.terms.price.labelled}, delivery ${results.terms.delivery.correct}/${results.terms.delivery.labelled}, failed ${results.failedChecks.length}, p50 ${results.latencyMs.p50} ms`);
   console.log(`wrote ${out}`);

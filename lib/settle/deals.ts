@@ -4,7 +4,8 @@
 // change to the card bumps its version and clears confirmations.
 
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { dealCheck, defaultAskJev, type AskJev } from '../jev/deal-check';
+import type { AskJev } from '../jev/deal-check';
+import { engineFor, type CheckEngine } from '../model/engine';
 import { applyAnswer, blockers, buildCard, cardHash, formatMoney, isLocked, termWarnings } from './card';
 import { sha256Hex } from './canonical';
 import { parseChat, type Role } from './chat';
@@ -13,7 +14,7 @@ import { ruleWarnings } from './rules';
 import { StaleWriteError, type DealStore, type Stored } from './store';
 import { CURRENCY_OF, type Country, type Deal, type DealCard, type DeclineReason } from './types';
 
-export type Deps = { store: DealStore; ask?: AskJev; now?: () => Date };
+export type Deps = { store: DealStore; ask?: AskJev; engine?: CheckEngine; now?: () => Date };
 
 export class DealError extends Error {
   constructor(
@@ -66,7 +67,7 @@ export type NewDeal = { chat: string; sellerName: string; country: Country };
 export async function createDeal(input: NewDeal, deps: Deps) {
   const messages = parseChat(input.chat, input.sellerName);
   const redacted = redactChat(messages);
-  const check = await dealCheck(redacted, deps.ask ?? defaultAskJev(), deps.now);
+  const check = await engineFor(deps)(redacted, deps.now);
   const { card, questions } = buildCard(messages, redacted.tokens, check.picks, input.country);
   const keys = { seller: newKey(), buyer: newKey() };
   const deal: Deal = {
@@ -192,7 +193,7 @@ export async function recheckDeal(dealId: string, key: string | null, deps: Deps
   if (first.stored.value.check.status === 'ran') throw new DealError('the check already ran for this deal', 409);
   const deal = first.stored.value;
   const redacted = redactChat(deal.messages);
-  const check = await dealCheck(redacted, deps.ask ?? defaultAskJev(), deps.now);
+  const check = await engineFor(deps)(redacted, deps.now);
   const { card, questions } = buildCard(deal.messages, redacted.tokens, check.picks, deal.country);
   const { stored, role } = await mutate(deps, dealId, key, (current) => {
     if (current.check.status === 'ran') throw new DealError('the check already ran for this deal', 409);

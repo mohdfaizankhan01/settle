@@ -1,0 +1,57 @@
+// The local engine: Settle's own model scores every redacted message for every signal; a chat's
+// score for a signal is the highest score among messages from the side the signal is about, and
+// that message is the evidence. Terms come from code (terms.ts). Same result shape as Jev's
+// dealCheck and the same fail-closed rule.
+
+import modelFile from '../../data/model/settle-model.json';
+import { warningsFrom, type DealCheckResult } from '../jev/deal-check';
+import type { Redacted } from '../settle/redact';
+import { SIGNALS } from '../settle/signals';
+import { decodeModel, scoreMessage, type ModelFile, type SignalModel } from './model';
+import { localTermPicks } from './terms';
+
+let model: SignalModel | undefined;
+export const LOCAL_MODEL_NAME = (modelFile as unknown as ModelFile).name;
+
+/** Thresholds chosen by cross-validation on the training messages (never the test chats). */
+export const localThresholds = () => (modelFile as unknown as ModelFile).thresholds;
+
+export function localScores(redacted: Redacted) {
+  model ??= decodeModel(modelFile as unknown as ModelFile);
+  const scores: Record<string, number> = {};
+  const evidence: Record<string, string | undefined> = {};
+  const perMessage = redacted.messages.map((m) => ({ m, s: scoreMessage(model!, m.text) }));
+  for (const signal of SIGNALS) {
+    let best = 0;
+    let at: string | undefined;
+    for (const { m, s } of perMessage) {
+      if (signal.from !== 'either' && m.role !== signal.from) continue;
+      if (s[signal.id] > best) {
+        best = s[signal.id];
+        at = m.id;
+      }
+    }
+    scores[signal.id] = best;
+    evidence[signal.id] = at;
+  }
+  return { scores, evidence };
+}
+
+export async function localCheck(redacted: Redacted, now = () => new Date()): Promise<DealCheckResult> {
+  try {
+    const { scores, evidence } = localScores(redacted);
+    return {
+      run: { status: 'ran', at: now().toISOString(), model: LOCAL_MODEL_NAME },
+      warnings: warningsFrom(scores, evidence, redacted, 'model', localThresholds()),
+      picks: localTermPicks(redacted),
+      scores,
+    };
+  } catch (error) {
+    return {
+      run: { status: 'failed', at: now().toISOString(), reason: error instanceof Error ? `${error.name}: ${error.message}`.slice(0, 200) : 'unknown error' },
+      warnings: [],
+      picks: {},
+      scores: {},
+    };
+  }
+}
