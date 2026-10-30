@@ -54,7 +54,8 @@ _TODO: webhook setup for local runs, seed data, demo walkthrough._
 
 - **PayPal APIs**: Orders v2, JS SDK v6, Partner Referrals, Webhooks, Disputes (sandbox).
 - **AI**: Settle Link's own warning model (see How it works). Jev (TypeSafe) is supported behind `JEV_PROVIDER=typesafe`.
-- **AG Grid and AG Studio** for the deals, warnings and receipts dashboard (planned).
+- **Bryntum Scheduler** for the seller's deal timeline: payment, ship-by window and dispute deadlines (planned).
+- **APIMatic context plugin for PayPal** in Claude Code while building the PayPal integration (from M3 on).
 - **Render** for hosting and Postgres.
 - Built with Claude Code; plugins listed under Team setup.
 
@@ -76,10 +77,9 @@ claude plugin install playwright@claude-plugins-official --scope project
 claude plugin install code-review@claude-plugins-official --scope project
 claude mcp add --scope project ag-mcp -- npx ag-mcp   # already in .mcp.json; skip if present
 npx context-plugins install paypal --targets claude -y  # APIMatic PayPal SDK skills (installs at user scope)
-claude plugin disable paypal@context-plugins            # keep it off for now (see below)
 ```
 
-The APIMatic PayPal SDK skills add about 5k tokens to every session and only help if we use PayPal's TypeScript Server SDK. We use plain `fetch` in `lib/paypal.ts`, so keep the plugin disabled until we switch (`claude plugin enable paypal@context-plugins`). It installs at user scope, so disabling it affects all your projects.
+The APIMatic context plugin for PayPal is **enabled** from M3 on (sponsor decision, Oct 30): it gives Claude Code PayPal API context while we build tracking, capture and disputes. It adds about 5k tokens to every session and installs at user scope, so `claude plugin disable paypal@context-plugins` turns it off for all your projects.
 
 Then:
 
