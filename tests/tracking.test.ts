@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { PaypalClient } from 'paypal';
 import { PayPalApiError } from '../lib/paypal';
-import { applyVerifiedEvent } from '../lib/settle/payment';
+import { applyVerifiedEvent, maybeRefreshOnLoad } from '../lib/settle/payment';
 import { shipGate } from '../lib/settle/ship-gate';
 import { addTracking } from '../lib/settle/shipping';
-import { paidSetup } from './helpers/paid-deal';
+import { paidSetup, tick } from './helpers/paid-deal';
 
 // The SDK client is real; its fetch is fake (the SDK's own test seam). The first request a fresh
 // client makes is the OAuth token POST. The fresh GET afterwards is the mocked plain-fetch getOrder.
@@ -61,7 +61,7 @@ test('adding tracking sends exactly the fields the sheet requires, as the seller
   assert.equal(deal.shipping!.tracking!.debugId, 'dbg-track');
   assert.equal(shipGate(deal).checks.find((c) => c.id === 'tracking')!.status, 'pass');
   const r = (await t.store.listReceipts(t.dealId)).findLast((x) => x.kind === 'tracking.added')!;
-  assert.equal(r.data.via, 'paypal-server-sdk');
+  assert.equal(r.data.via, 'apimatic-paypal-sdk');
   assert.equal(r.data.seenOnOrder, true);
 });
 
@@ -145,4 +145,46 @@ test('a second number after tracking was sent is refused without calling PayPal'
   await addTracking(t.dealId, t.keys.seller, { carrier: 'ROYAL_MAIL', number: 'AB123456789GB' }, { ...t.pdeps, sdk });
   await assert.rejects(addTracking(t.dealId, t.keys.seller, { carrier: 'ROYAL_MAIL', number: 'ZZ999999999GB' }, { ...t.pdeps, sdk }), /already added/);
   assert.equal(calls.length, 1);
+});
+
+test('retry after an unknown result with the tracker still missing sends again (no stale-version 409)', async () => {
+  const t = await paid();
+  let fail = true;
+  const { sdk, calls } = sdkOver(() => {
+    if (fail) throw new Error('ECONNRESET');
+    showTracker(t, 'AB123456789GB');
+    return Response.json(orderJson);
+  });
+  await assert.rejects(addTracking(t.dealId, t.keys.seller, { carrier: 'ROYAL_MAIL', number: 'AB123456789GB' }, { ...t.pdeps, sdk }), /didn't answer/);
+  fail = false;
+  const deal = (await addTracking(t.dealId, t.keys.seller, { carrier: 'ROYAL_MAIL', number: 'AB123456789GB' }, { ...t.pdeps, sdk })).value;
+  assert.equal(calls.length, 2);
+  assert.equal(deal.shipping!.tracking!.state, 'sent');
+});
+
+test('a throw outside the SDK answer releases the claim', async () => {
+  const t = await paid();
+  const sdk = { orders: { createOrderTracking: () => { throw new TypeError('boom'); } } } as unknown as PaypalClient;
+  await assert.rejects(addTracking(t.dealId, t.keys.seller, { carrier: 'ROYAL_MAIL', number: 'AB123456789GB' }, { ...t.pdeps, sdk }), TypeError);
+  assert.equal((await t.get()).shipping?.tracking, undefined);
+});
+
+test('a stale "sending" claim from a call that died does not block forever', async () => {
+  const t = await paid();
+  const s = (await t.store.getDeal(t.dealId))!;
+  await t.store.updateDeal(t.dealId, s.version, { ...s.value, shipping: { tracking: { carrier: 'ROYAL_MAIL', number: 'AB123456789GB', state: 'sending', at: s.value.createdAt } } });
+  tick(3 * 60_000);
+  const { sdk } = sdkOver(() => Response.json(orderJson));
+  const deal = (await addTracking(t.dealId, t.keys.seller, { carrier: 'ROYAL_MAIL', number: 'AB123456789GB' }, { ...t.pdeps, sdk })).value;
+  assert.equal(deal.shipping!.tracking!.state, 'sent');
+});
+
+test('tracking sent but not yet on the order is re-read on page load until PayPal shows it', async () => {
+  const t = await paid();
+  const { sdk } = sdkOver(() => Response.json(orderJson));
+  await addTracking(t.dealId, t.keys.seller, { carrier: 'ROYAL_MAIL', number: 'AB123456789GB' }, { ...t.pdeps, sdk });
+  showTracker(t, 'AB123456789GB');
+  tick(61_000);
+  const deal = await maybeRefreshOnLoad(await t.get(), t.pdeps);
+  assert.equal(shipGate(deal).checks.find((c) => c.id === 'tracking')!.status, 'pass');
 });

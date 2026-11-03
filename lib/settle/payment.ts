@@ -1,6 +1,5 @@
 // Payment confirmation (PLAN M3). A deal is paid only when both hold:
-//   1. PayPal told us its capture completed: a verified PAYMENT.CAPTURE.COMPLETED webhook, or,
-//      when that delivery was missed, the same event in PayPal's own webhook event log.
+//   1. A verified PAYMENT.CAPTURE.COMPLETED webhook (verify-webhook-signature) for its capture.
 //   2. A fresh GET of the order, as the seller, shows that capture COMPLETED and the order still
 //      matches the locked card: amount, currency, payee and dealId:hash.
 // A webhook is only ever a trigger: what the deal records comes from the fresh GET. Client
@@ -8,11 +7,11 @@
 
 import * as paypal from '../paypal';
 import { orderMismatches } from './checkout';
-import { isPaid, syncGate } from './ship-gate';
-import { StaleWriteError, type DealStore } from './store';
+import { isPaid, syncGate, trackerShown } from './ship-gate';
+import { updateWithRetry, type DealStore } from './store';
 import type { Deal, OrderRead, Payment, ShipTo } from './types';
 
-export type PaymentPayPal = Pick<typeof paypal, 'getOrder' | 'webhookEventsFor'>;
+export type PaymentPayPal = Pick<typeof paypal, 'getOrder'>;
 export type PaymentDeps = { store: DealStore; paypal?: PaymentPayPal; now?: () => Date };
 
 const CAPTURE_COMPLETED = 'PAYMENT.CAPTURE.COMPLETED';
@@ -65,7 +64,7 @@ export type Trigger =
 
 const summary = (p: Payment | undefined, paid: boolean) => {
   const r = p?.read;
-  return JSON.stringify([paid, !!p?.webhook, r?.ok, r?.ok && r.orderStatus, r?.ok && r.captureStatus, r?.ok && r.mismatches]);
+  return JSON.stringify([paid, !!p?.webhook, r?.ok, r?.ok && r.orderStatus, r?.ok && r.captureStatus, r?.ok && r.mismatches, r?.ok && r.trackers, !!p?.failed]);
 };
 
 /**
@@ -81,56 +80,37 @@ export async function refreshPayment(dealId: string, trigger: Trigger, deps: Pay
   if (!deal.order || !deal.payeeMerchantId) throw new Error('deal has no order');
   const at = nowOf(deps).toISOString();
 
-  let read: OrderRead;
+  let read: OrderRead | undefined;
+  let failed: Payment['failed'];
   let failure: unknown;
   try {
     const fresh = await pp.getOrder(deal.order.id, deal.payeeMerchantId);
     read = readOrder(deal, fresh.data, at, fresh.debugId);
   } catch (error) {
     failure = error;
-    read = { ok: false, at, reason: 'could not read the order from PayPal', debugId: debugIdOf(error) };
+    failed = { at, debugId: debugIdOf(error) };
   }
 
-  let webhook = deal.payment?.webhook;
+  // Only a verified capture webhook naming the capture this GET shows confirms payment.
   let ignored: string | undefined;
-  if (read.ok && read.captureId && !webhook) {
-    if (trigger.kind === 'webhook' && trigger.eventType === CAPTURE_COMPLETED) {
-      if (trigger.captureId === read.captureId) webhook = { eventId: trigger.eventId, captureId: read.captureId, at, via: 'webhook' };
-      else ignored = 'event is for another capture';
-    } else if (trigger.kind === 'page') {
-      // The delivery to our webhook may have been missed: ask PayPal's event log.
-      try {
-        const since = new Date(Date.parse(deal.order.createdAt) - 60 * 60 * 1000);
-        const events = await pp.webhookEventsFor(read.captureId, CAPTURE_COMPLETED, since);
-        const event = events.data.find((e) => e.event_type === CAPTURE_COMPLETED && (e.resource as { id?: string } | undefined)?.id === read.captureId);
-        if (event) webhook = { eventId: event.id, captureId: read.captureId, at, via: 'event-log' };
-      } catch {
-        // No event log answer: stays unconfirmed until a webhook arrives or the next load.
-      }
-    }
+  let webhook = deal.payment?.webhook;
+  if (read?.ok && read.captureId && !webhook && trigger.kind === 'webhook' && trigger.eventType === CAPTURE_COMPLETED) {
+    if (trigger.captureId === read.captureId) webhook = { eventId: trigger.eventId, captureId: read.captureId, at };
+    else ignored = 'event is for another capture';
   }
 
-  const payment: Payment = { webhook, read };
-  let saved: Deal | undefined;
-  let before: Payment | undefined;
-  for (let attempt = 0; ; attempt++) {
-    const latest = attempt === 0 ? first : (await deps.store.getDeal(dealId))!;
-    before = latest.value.payment;
-    // Never drop a confirmation already recorded by a concurrent run.
-    const merged: Payment = { webhook: latest.value.payment?.webhook ?? payment.webhook, read };
-    const next: Deal = {
-      ...latest.value,
-      payment: merged,
-      order: { ...latest.value.order!, status: read.ok ? read.orderStatus : latest.value.order!.status },
+  const { before: prev, after: saved } = await updateWithRetry(deps.store, dealId, (latest) => {
+    const old = latest.payment;
+    // A failed read keeps the last good one beside the failure; with none, the failure is the read.
+    const nextRead: OrderRead | undefined = read ?? (old?.read?.ok ? old.read : { ok: false, at, reason: 'could not read the order from PayPal', debugId: failed?.debugId });
+    return {
+      ...latest,
+      // Never drop a confirmation already recorded by a concurrent run.
+      payment: { webhook: old?.webhook ?? webhook, read: nextRead, ...(read ? {} : old?.read?.ok ? { failed } : {}) },
+      order: { ...latest.order!, status: read?.ok ? read.orderStatus : latest.order!.status },
     };
-    try {
-      await deps.store.updateDeal(dealId, latest.version, next);
-      saved = next;
-      break;
-    } catch (error) {
-      if (!(error instanceof StaleWriteError) || attempt >= 2) throw error;
-    }
-  }
+  });
+  const before = prev.payment;
 
   const paid = isPaid(saved);
   if (summary(before, isPaid({ ...saved, payment: before })) !== summary(saved.payment, paid) || ignored) {
@@ -142,16 +122,15 @@ export async function refreshPayment(dealId: string, trigger: Trigger, deps: Pay
         trigger: trigger.kind,
         eventId: trigger.kind === 'webhook' ? trigger.eventId : null,
         eventType: trigger.kind === 'webhook' ? trigger.eventType : null,
-        webhookVia: saved.payment?.webhook?.via ?? null,
         ignored: ignored ?? null,
         orderId: deal.order.id,
-        readOk: read.ok,
-        orderStatus: read.ok ? read.orderStatus : null,
-        captureId: read.ok ? (read.captureId ?? null) : null,
-        captureStatus: read.ok ? (read.captureStatus ?? null) : null,
-        mismatches: read.ok ? read.mismatches : [],
+        readOk: !!read?.ok,
+        orderStatus: read?.ok ? read.orderStatus : null,
+        captureId: read?.ok ? (read.captureId ?? null) : null,
+        captureStatus: read?.ok ? (read.captureStatus ?? null) : null,
+        mismatches: read?.ok ? read.mismatches : [],
         paid,
-        debugId: read.debugId ?? null,
+        debugId: read?.debugId ?? failed?.debugId ?? null,
       },
     });
   }
@@ -191,16 +170,25 @@ export async function applyVerifiedEvent(event: paypal.WebhookEvent, deps: Payme
   return result;
 }
 
-/**
- * The missed-webhook fallback: on a deal page load, if a capture was requested but payment isn't
- * confirmed, re-read PayPal at most once a minute per deal. Same rules as the webhook path.
- */
 export { isPaid };
 
+/** Paid deals are re-read less often: enough to catch a refund or a tracker PayPal shows late. */
+export const PAID_INTERVAL_MS = 5 * 60_000;
+
+/**
+ * The missed-webhook fallback, run on a deal page load. Unpaid deals with an order (including one
+ * still marked CREATED, whose capture answer may have been lost) are re-read at most once a
+ * minute; paid deals every five minutes, or every minute while sent tracking isn't on the order.
+ * A re-read never confirms payment by itself: that still needs the verified webhook.
+ */
 export async function maybeRefreshOnLoad(deal: Deal, deps: PaymentDeps): Promise<Deal> {
-  if (!deal.order || deal.order.status === 'CREATED' || isPaid(deal)) return deal;
-  const last = deal.payment?.read?.at;
-  if (last && nowOf(deps).getTime() - Date.parse(last) < FALLBACK_INTERVAL_MS) return deal;
+  if (!deal.order || !deal.payeeMerchantId) return deal;
+  const p = deal.payment;
+  const last = Math.max(p?.read ? Date.parse(p.read.at) : 0, p?.failed ? Date.parse(p.failed.at) : 0);
+  const t = deal.shipping?.tracking;
+  const waitingForTracker = !!t && t.state !== 'sending' && !trackerShown(deal, t.number);
+  const interval = isPaid(deal) && !waitingForTracker ? PAID_INTERVAL_MS : FALLBACK_INTERVAL_MS;
+  if (last && nowOf(deps).getTime() - last < interval) return deal;
   try {
     return await refreshPayment(deal.id, { kind: 'page' }, deps);
   } catch {

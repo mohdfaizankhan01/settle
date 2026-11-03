@@ -8,7 +8,7 @@ import { formatMoney, moneyOf } from './card';
 import { DealError, roleFor } from './deals';
 import { refreshPayment, type PaymentDeps } from './payment';
 import { redactChat } from './redact';
-import { isPaid } from './ship-gate';
+import { isPaid, readFailedLast } from './ship-gate';
 import type { Deal } from './types';
 
 export const MAX_PASTE_CHARS = 4000;
@@ -58,7 +58,8 @@ export async function paidCheck(dealId: string, key: string | null, text: string
 
   let deal = stored.value;
   let reached = true;
-  if (deal.order && deal.order.status !== 'CREATED' && !isPaid(deal)) {
+  // Always a fresh read, paid or not: a refund may have come after the last one.
+  if (deal.order && deal.payeeMerchantId) {
     try {
       deal = await refreshPayment(dealId, { kind: 'page' }, deps);
     } catch {
@@ -71,21 +72,24 @@ export async function paidCheck(dealId: string, key: string | null, text: string
   const money = total ? formatMoney(total, deal.card.price!.value.currency) : 'the agreed amount';
   let verdict: PaidVerdict;
   let answer: string;
-  if (isPaid(deal)) {
-    verdict = 'paid';
-    answer = `PayPal confirms this deal's payment of ${money} completed (capture ${deal.payment!.webhook!.captureId}).`;
-  } else if (!reached || (read && !read.ok)) {
+  if (!reached || readFailedLast(deal) || (read && !read.ok)) {
     verdict = 'cant_check';
     answer = "Couldn't reach PayPal just now, so Settle can't say either way. Don't ship until it can.";
+  } else if (isPaid(deal)) {
+    verdict = 'paid';
+    answer = `PayPal confirms this deal's payment of ${money} completed (capture ${deal.payment!.webhook!.captureId}).`;
   } else if (!deal.order || deal.order.status === 'CREATED') {
     verdict = 'not_paid';
     answer = "PayPal has no payment for this deal: the buyer hasn't paid through this deal's checkout.";
   } else if (read?.ok && read.mismatches.length > 0) {
     verdict = 'not_paid';
     answer = `PayPal's order doesn't match the card you both confirmed (${read.mismatches.join('; ')}), so it doesn't count as this deal's payment.`;
+  } else if (read?.ok && read.captureStatus === 'COMPLETED') {
+    verdict = 'not_paid';
+    answer = "PayPal's order shows the capture completed, but PayPal's verified payment notification hasn't arrived yet. Wait for it before shipping.";
   } else {
     verdict = 'not_paid';
-    answer = `PayPal doesn't show this deal's payment as completed yet${read?.ok ? ` (status ${read.captureStatus ?? read.orderStatus})` : ''}.`;
+    answer = `PayPal doesn't show this deal's payment as completed${read?.ok ? ` (status ${read.captureStatus ?? read.orderStatus})` : ''}.`;
   }
 
   const captureId = isPaid(deal) ? deal.payment!.webhook!.captureId : undefined;

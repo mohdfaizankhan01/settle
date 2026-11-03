@@ -102,9 +102,12 @@ export type OrderRead =
   | { ok: false; at: string; reason: string; debugId?: string };
 
 export type Payment = {
-  /** The verified PAYMENT.CAPTURE.COMPLETED event for this deal's capture. */
-  webhook?: { eventId: string; captureId: string; at: string; via: 'webhook' | 'event-log' };
+  /** The verified PAYMENT.CAPTURE.COMPLETED event for this deal's capture (CLAUDE.md: the only confirmation). */
+  webhook?: { eventId: string; captureId: string; at: string };
+  /** The latest successful read, or the failure if no read has succeeded yet. */
   read?: OrderRead;
+  /** A read that failed after a good one. Newer than `read` means "can't check" right now. */
+  failed?: { at: string; debugId?: string };
 };
 
 /** What the seller did to ship: the postcode typed from the label, and tracking sent to PayPal. */

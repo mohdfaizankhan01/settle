@@ -62,17 +62,12 @@ export async function paidSetup(ask: AskJev = askWith()) {
     }],
   };
   const calls: string[] = [];
-  const log: WebhookEvent[] = [];
   let failGet = false;
   const pp: PaymentPayPal = {
     async getOrder(id, seller) {
       calls.push(`get ${id} as ${seller}`);
       if (failGet) throw new PayPalApiError(503, '/v2/checkout/orders', 'down', 'dbg-down');
       return { data: structuredClone(order), debugId: 'dbg-get' };
-    },
-    async webhookEventsFor(captureId) {
-      calls.push(`events ${captureId}`);
-      return { data: log.filter((e) => (e.resource as { id: string }).id === captureId) };
     },
   };
   const event = (id: string, captureId = 'CAP-1', type = 'PAYMENT.CAPTURE.COMPLETED'): WebhookEvent => ({
@@ -81,6 +76,6 @@ export async function paidSetup(ask: AskJev = askWith()) {
     resource: { id: captureId, status: 'COMPLETED', custom_id: customIdFor(locked), supplementary_data: { related_ids: { order_id: 'ORDER-1' } } },
   });
   const get = async () => (await store.getDeal(deal.id))!.value;
-  return { store, keys, deps, dealId: deal.id, order, pp, calls, log, event, get, failGet: (v: boolean) => void (failGet = v), pdeps: { store, paypal: pp, now } };
+  return { store, keys, deps, dealId: deal.id, order, pp, calls, event, get, failGet: (v: boolean) => void (failGet = v), pdeps: { store, paypal: pp, now } };
 }
 

@@ -42,6 +42,18 @@ export function isPaid(deal: Deal): boolean {
   );
 }
 
+/** The latest attempt to read the order failed (a good read may still be on file). */
+export const readFailedLast = (deal: Deal) => {
+  const p = deal.payment;
+  return !!p?.failed && (!p.read || Date.parse(p.failed.at) >= Date.parse(p.read.at));
+};
+
+/** PayPal shows this tracking number on the order's capture (tracker ID `<captureId>-<number>`). */
+export function trackerShown(deal: Deal, number: string): boolean {
+  const read = deal.payment?.read;
+  return !!read?.ok && !!read.captureId && (read.trackers ?? []).includes(`${read.captureId}-${number}`);
+}
+
 /** Signals after payment that mean "don't ship yet"; any other warning means "look first". */
 const HOLD_SIGNALS = new Set(['ship_elsewhere', 'fake_payment_proof', 'overpayment_refund', 'code_request']);
 
@@ -57,9 +69,11 @@ function paymentCheck(deal: Deal): GateCheck {
   const base = { id: 'payment' as const, label: 'Payment confirmed by PayPal', cites: ['SP-RELEASE', ...(deal.country === 'UK' ? ['SP-SINGLE'] : [])], blocks: 'HOLD' as const };
   const read = deal.payment?.read;
   const proof = read?.debugId ? `Fresh GET of order ${deal.order?.id} (PayPal debug ID ${read.debugId})` : undefined;
+  if (readFailedLast(deal)) {
+    return { ...base, status: 'cant_check', detail: "The last read of the payment from PayPal failed. This is not the same as unpaid; Settle reads it again on the next page load." };
+  }
   if (isPaid(deal)) {
-    const via = deal.payment!.webhook!.via === 'webhook' ? 'a verified webhook' : "PayPal's webhook event log";
-    return { ...base, status: 'pass', detail: `Capture ${deal.payment!.webhook!.captureId} completed, confirmed by ${via} and a fresh read of the order, which matches the card.`, proof };
+    return { ...base, status: 'pass', detail: `Capture ${deal.payment!.webhook!.captureId} completed, confirmed by a verified PayPal webhook and a fresh read of the order, which matches the card.`, proof };
   }
   if (!deal.order || deal.order.status === 'CREATED') return { ...base, status: 'not_yet', detail: 'The buyer has not paid yet.' };
   if (!read) return { ...base, status: 'not_yet', detail: 'Waiting for PayPal to confirm the payment.' };
@@ -94,7 +108,9 @@ function addressCheck(deal: Deal): GateCheck {
     return { ...base, status: read && !read.ok ? 'cant_check' : 'not_yet', detail: 'No PayPal shipping address yet; it comes with the confirmed payment.' };
   }
   const paypalCode = normalPostcode(shipTo.postalCode, deal.country);
-  const later = deal.tokens.filter((t) => ids.has(t.messageId) && (t.kind === 'POSTCODE' || t.kind === 'ZIP'));
+  // Only the buyer's messages: the seller mentioning their own postcode is not a new address.
+  const fromBuyer = new Set(deal.messages.filter((m) => m.added && m.role === 'buyer').map((m) => m.id));
+  const later = deal.tokens.filter((t) => fromBuyer.has(t.messageId) && (t.kind === 'POSTCODE' || t.kind === 'ZIP'));
   const other = later.find((t) => normalPostcode(t.raw, deal.country) !== paypalCode);
   if (other) {
     return { ...base, status: 'fail', detail: `Message ${other.messageId} after payment gives postcode ${other.raw}, but PayPal's address is ${shipTo.postalCode}.`, proof: `Message ${other.messageId}` };
@@ -113,10 +129,8 @@ function trackingCheck(deal: Deal): GateCheck {
   const t = deal.shipping?.tracking;
   if (!t) return { ...base, status: 'not_yet', detail: 'Add the tracking number after you post it. PayPal needs proof of shipment and delivery.' };
   const read = deal.payment?.read;
-  const captureId = read?.ok ? read.captureId : undefined;
-  const shown = read?.ok && (read.trackers ?? []).some((id) => id === `${captureId}-${t.number}` || id.endsWith(`-${t.number}`));
-  if (shown) return { ...base, status: 'pass', detail: `PayPal shows tracking ${t.number} (${t.carrier}) on the order.`, proof: `Fresh GET of order ${deal.order?.id}` };
-  if (read && !read.ok) return { ...base, status: 'cant_check', detail: `Couldn't reach PayPal to see tracking ${t.number} on the order.` };
+  if (trackerShown(deal, t.number)) return { ...base, status: 'pass', detail: `PayPal shows tracking ${t.number} (${t.carrier}) on the order.`, proof: `Fresh GET of order ${deal.order?.id}` };
+  if ((read && !read.ok) || readFailedLast(deal)) return { ...base, status: 'cant_check', detail: `Couldn't reach PayPal to see tracking ${t.number} on the order.` };
   if (t.state === 'unknown') return { ...base, status: 'cant_check', detail: `PayPal didn't answer when tracking ${t.number} was sent, and it isn't on the order yet. Try adding it again.` };
   return { ...base, status: 'not_yet', detail: `Tracking ${t.number} was sent to PayPal; waiting to see it on the order.`, proof: t.debugId ? `PayPal debug ID ${t.debugId}` : undefined };
 }

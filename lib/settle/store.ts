@@ -36,6 +36,24 @@ export interface DealStore {
 
 const clone = <T>(v: T): T => structuredClone(v);
 
+/**
+ * Read-modify-write on one deal, retried when another write got there first. `change` gets the
+ * latest deal and returns the next one.
+ */
+export async function updateWithRetry(store: DealStore, id: string, change: (deal: Deal) => Deal, attempts = 3): Promise<{ before: Deal; after: Deal }> {
+  for (let attempt = 1; ; attempt++) {
+    const stored = await store.getDeal(id);
+    if (!stored) throw new Error('no such deal');
+    const after = change(structuredClone(stored.value));
+    try {
+      await store.updateDeal(id, stored.version, after);
+      return { before: stored.value, after };
+    } catch (error) {
+      if (!(error instanceof StaleWriteError) || attempt >= attempts) throw error;
+    }
+  }
+}
+
 export class MemoryDealStore implements DealStore {
   private deals = new Map<string, Stored<Deal>>();
   private receipts = new Map<string, Receipt[]>();

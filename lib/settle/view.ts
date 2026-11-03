@@ -8,7 +8,7 @@ import type { Role } from './chat';
 import { payBlocker } from './checkout';
 import { DECLINE_REASONS } from './deals';
 import { FEE_RATES } from './fees';
-import { isPaid, shipGate } from './ship-gate';
+import { isPaid, readFailedLast, shipGate } from './ship-gate';
 import { shownTo, signalById, TERM_SIGNALS } from './signals';
 import { CURRENCY_OF, type Deal, type TermKey, type TermSource } from './types';
 
@@ -150,16 +150,20 @@ export function dealView(deal: Deal, role: Role) {
 
 function afterPaymentView(deal: Deal, role: Role) {
   const read = deal.payment?.read;
-  const paid = isPaid(deal);
+  const paid = isPaid(deal) && !readFailedLast(deal);
   const c = CURRENCY_OF[deal.country];
   const estimate = moneyOf(deal)?.fee;
-  const payment = paid
+  const payment = readFailedLast(deal)
+    ? { state: 'cant_check' as const, text: "Couldn't reach PayPal on the last check. That isn't the same as unpaid; Settle tries again when the page reloads." }
+    : paid
     ? { state: 'paid' as const, text: 'PayPal confirmed the payment: a verified PayPal notification and a fresh read of the order both match the card.' }
     : read && !read.ok
       ? { state: 'cant_check' as const, text: "Couldn't reach PayPal to check the payment. That isn't the same as unpaid; Settle tries again when the page reloads." }
       : read?.ok && (read.mismatches.length > 0 || (read.captureStatus && read.captureStatus !== 'COMPLETED'))
         ? { state: 'problem' as const, text: read.mismatches.length > 0 ? `The PayPal order doesn't match the card: ${read.mismatches.join('; ')}.` : `PayPal shows the payment as ${read.captureStatus}.` }
-        : { state: 'waiting' as const, text: "Waiting for PayPal's payment notification. The seller shouldn't ship until PayPal confirms it." };
+        : read?.ok && read.captureStatus === 'COMPLETED'
+          ? { state: 'waiting' as const, text: "PayPal's order shows the payment completed. Waiting for PayPal's verified payment notification before it counts; the seller shouldn't ship until then." }
+          : { state: 'waiting' as const, text: "Waiting for PayPal's payment notification. The seller shouldn't ship until PayPal confirms it." };
   const seller = role === 'seller';
   return {
     payment,

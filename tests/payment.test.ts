@@ -14,7 +14,6 @@ test('a verified capture webhook plus a matching fresh GET confirms payment', as
   assert.equal(isPaid(deal), true);
   assert.deepEqual(t.calls, ['get ORDER-1 as SELLER1']);
   assert.equal(deal.order!.status, 'COMPLETED');
-  assert.equal(deal.payment!.webhook!.via, 'webhook');
   const read = deal.payment!.read!;
   assert.ok(read.ok);
   assert.equal(read.fee, '10.80');
@@ -90,35 +89,61 @@ test('an event for a deal Settle does not have, or a non-capture event, changes 
   assert.deepEqual(t.calls, []);
 });
 
-test('missed webhook: a page load reads PayPal and its event log, and confirms only if the event is there', async () => {
+test('missed webhook: a page load re-reads PayPal and shows it, but only a verified webhook confirms payment', async () => {
   const t = await paidSetup();
   let deal = await maybeRefreshOnLoad(await t.get(), t.pdeps);
-  assert.equal(isPaid(deal), false, 'no event in the log yet');
-  assert.deepEqual(t.calls, ['get ORDER-1 as SELLER1', 'events CAP-1']);
+  assert.deepEqual(t.calls, ['get ORDER-1 as SELLER1']);
+  assert.equal(deal.order!.status, 'COMPLETED', 'the page shows what PayPal holds');
+  assert.equal(isPaid(deal), false, 'no verified webhook yet (CLAUDE.md)');
 
   // Rate-limited: a reload within a minute doesn't call PayPal.
   await maybeRefreshOnLoad(deal, t.pdeps);
-  assert.equal(t.calls.length, 2);
+  assert.equal(t.calls.length, 1);
 
-  t.log.push(t.event('WH-1'));
-  tick(61_000);
-  deal = await maybeRefreshOnLoad(await t.get(), t.pdeps);
+  // PayPal's retry of the webhook arrives and is verified.
+  await applyVerifiedEvent(t.event('WH-1'), t.pdeps);
+  deal = await t.get();
   assert.equal(isPaid(deal), true);
-  assert.equal(deal.payment!.webhook!.via, 'event-log');
 
-  // Once paid, page loads stop calling PayPal.
+  // Paid deals are re-read every five minutes, not every minute.
   tick(61_000);
   await maybeRefreshOnLoad(deal, t.pdeps);
-  assert.equal(t.calls.length, 4);
+  assert.equal(t.calls.length, 2);
+  tick(5 * 60_000);
+  t.order.purchase_units![0].payments!.captures![0].status = 'REFUNDED';
+  deal = await maybeRefreshOnLoad(await t.get(), t.pdeps);
+  assert.equal(t.calls.length, 3);
+  assert.equal(isPaid(deal), false, 'a refund whose webhook was missed is caught on load');
 });
 
-test('the page fallback does nothing before capture, and survives PayPal being down', async () => {
+test('a lost capture answer: an order still marked CREATED is re-read on load', async () => {
   const t = await paidSetup();
-  const d = await t.get();
-  await maybeRefreshOnLoad({ ...d, order: { ...d.order!, status: 'CREATED' } }, t.pdeps);
-  assert.deepEqual(t.calls, []);
+  const s = (await t.store.getDeal(t.dealId))!;
+  await t.store.updateDeal(t.dealId, s.version, { ...s.value, order: { ...s.value.order!, status: 'CREATED' } });
+  const deal = await maybeRefreshOnLoad(await t.get(), t.pdeps);
+  assert.equal(t.calls.length, 1);
+  assert.equal(deal.order!.status, 'COMPLETED');
+});
+
+test('PayPal down on load: the last good read stays, the failure is recorded beside it', async () => {
+  const t = await paidSetup();
+  await applyVerifiedEvent(t.event('WH-1'), t.pdeps);
   t.failGet(true);
-  const after = await maybeRefreshOnLoad(d, t.pdeps);
+  tick(6 * 60_000);
+  const after = await maybeRefreshOnLoad(await t.get(), t.pdeps);
+  assert.equal(after.payment!.read!.ok, true);
+  assert.ok(after.payment!.failed);
+  // PayPal back: the failure clears.
+  t.failGet(false);
+  tick(5 * 60_000);
+  const back = await maybeRefreshOnLoad(await t.get(), t.pdeps);
+  assert.equal(back.payment!.failed, undefined);
+});
+
+test('PayPal down with no good read yet: the read is the failure', async () => {
+  const t = await paidSetup();
+  t.failGet(true);
+  const after = await maybeRefreshOnLoad(await t.get(), t.pdeps);
   assert.equal(isPaid(after), false);
   assert.equal(after.payment!.read!.ok, false);
 });

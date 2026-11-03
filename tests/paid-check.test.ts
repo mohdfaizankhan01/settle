@@ -53,3 +53,11 @@ test('only the seller can run it, and the paste is bounded', async () => {
   await assert.rejects(paidCheck(t.dealId, t.keys.buyer, 'x', t.pdeps), /only the seller/);
   await assert.rejects(paidCheck(t.dealId, t.keys.seller, 'x'.repeat(5000), t.pdeps), /at most/);
 });
+
+test('a paid deal is re-read every time: a refund since then answers not paid', async () => {
+  const t = await paidSetup();
+  await applyVerifiedEvent(t.event('WH-1'), t.pdeps);
+  t.order.purchase_units![0].payments!.captures![0].status = 'REFUNDED';
+  const r = await paidCheck(t.dealId, t.keys.seller, '', t.pdeps);
+  assert.equal(r.verdict, 'not_paid');
+});
