@@ -7,12 +7,13 @@
 
 import * as paypal from '../paypal';
 import { orderMismatches } from './checkout';
+import { dealOfDisputeEvent, refreshDispute, type DisputePayPal } from './disputes';
 import { isPaid, syncGate, trackerShown } from './ship-gate';
 import { updateWithRetry, type DealStore } from './store';
 import type { Deal, OrderRead, Payment, ShipTo } from './types';
 
 export type PaymentPayPal = Pick<typeof paypal, 'getOrder'>;
-export type PaymentDeps = { store: DealStore; paypal?: PaymentPayPal; now?: () => Date };
+export type PaymentDeps = { store: DealStore; paypal?: PaymentPayPal; now?: () => Date; disputes?: DisputePayPal };
 
 const CAPTURE_COMPLETED = 'PAYMENT.CAPTURE.COMPLETED';
 /** The page-load fallback reads PayPal at most this often per deal. */
@@ -155,8 +156,16 @@ export type EventResult = { handled: boolean; dealId?: string; reason?: string }
  */
 export async function applyVerifiedEvent(event: paypal.WebhookEvent, deps: PaymentDeps): Promise<EventResult> {
   if (await deps.store.hasEvent(event.id)) return { handled: false, reason: 'already processed' };
-  let result: EventResult = { handled: false, reason: 'not a capture event' };
-  if (event.event_type.startsWith('PAYMENT.CAPTURE.')) {
+  let result: EventResult = { handled: false, reason: 'not a capture or dispute event' };
+  if (event.event_type.startsWith('CUSTOMER.DISPUTE.')) {
+    const named = dealOfDisputeEvent(event);
+    const stored = named ? await deps.store.getDeal(named.dealId) : undefined;
+    if (!named || !stored?.value.order) result = { handled: false, reason: 'no Settle deal for this dispute' };
+    else {
+      await refreshDispute(named.dealId, named.disputeId, event.event_type, { store: deps.store, paypal: deps.disputes, now: deps.now });
+      result = { handled: true, dealId: named.dealId };
+    }
+  } else if (event.event_type.startsWith('PAYMENT.CAPTURE.')) {
     const dealId = dealIdOfEvent(event);
     const stored = dealId ? await deps.store.getDeal(dealId) : undefined;
     if (!stored?.value.order) result = { handled: false, reason: 'no Settle deal for this capture' };

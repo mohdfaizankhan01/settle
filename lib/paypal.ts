@@ -65,18 +65,22 @@ async function send<T>(
   body?: unknown,
   requestId?: string,
   extraHeaders?: Record<string, string>,
+  // false for writes PayPal may not deduplicate (dispute actions): a 5xx is reported, not re-sent.
+  retry = true,
 ): Promise<WithDebugId<T>> {
   let tokenRefreshed = false;
+  const form = typeof FormData !== 'undefined' && body instanceof FormData;
   for (let attempt = 1; ; attempt++) {
     const res = await fetch(`${BASE_URL}${path}`, {
       method,
       headers: {
         Authorization: `Bearer ${await accessToken()}`,
-        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        // fetch sets the multipart boundary itself for a FormData body.
+        ...(body !== undefined && !form && { 'Content-Type': 'application/json' }),
         ...(requestId && { 'PayPal-Request-Id': requestId }),
         ...extraHeaders,
       },
-      ...(body !== undefined && { body: typeof body === 'string' ? body : JSON.stringify(body) }),
+      ...(body !== undefined && { body: form ? (body as FormData) : typeof body === 'string' ? body : JSON.stringify(body) }),
       cache: 'no-store',
     });
     if (res.ok) return { data: (await res.json()) as T, debugId: res.headers.get('paypal-debug-id') ?? undefined };
@@ -89,7 +93,7 @@ async function send<T>(
       attempt--;
       continue;
     }
-    if ((res.status === 429 || res.status >= 500) && attempt < MAX_ATTEMPTS) {
+    if (retry && (res.status === 429 || res.status >= 500) && attempt < MAX_ATTEMPTS) {
       await new Promise((resolve) => setTimeout(resolve, 2 ** attempt * 250));
       continue;
     }
@@ -484,4 +488,64 @@ export function getOrder(orderId: string, sellerMerchantId: string): Promise<Wit
 /** Captures an approved order. The request ID makes a repeated capture the same request. */
 export function captureOrder(orderId: string, requestId: string): Promise<WithDebugId<Order>> {
   return send<Order>('POST', `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {}, requestId);
+}
+
+// --- Disputes (D2, DECISIONS: only actions in the dispute's own links) ---------------------
+
+export type DisputeLink = { href: string; rel: string; method?: string };
+
+export type Dispute = {
+  dispute_id: string;
+  create_time?: string;
+  update_time?: string;
+  reason?: string;
+  status?: string;
+  dispute_life_cycle_stage?: string;
+  dispute_amount?: Money;
+  seller_response_due_date?: string;
+  dispute_outcome?: { outcome_code?: string };
+  disputed_transactions?: { seller_transaction_id?: string; buyer_transaction_id?: string; custom?: string; seller?: { merchant_id?: string } }[];
+  links?: DisputeLink[];
+};
+
+/** A fresh read of a dispute, as the connected seller. */
+export function getDispute(disputeId: string, sellerMerchantId: string): Promise<WithDebugId<Dispute>> {
+  return send<Dispute>('GET', `/v1/customer/disputes/${encodeURIComponent(disputeId)}`, undefined, undefined, {
+    'PayPal-Auth-Assertion': authAssertion(sellerMerchantId),
+  });
+}
+
+/**
+ * The API path of an action link the dispute itself returned, or undefined if the link is not a
+ * POST to this dispute on PayPal's API host. Settle never builds an action URL on its own.
+ */
+export function actionPath(disputeId: string, link: DisputeLink): string | undefined {
+  let url: URL;
+  try {
+    url = new URL(link.href);
+  } catch {
+    return undefined;
+  }
+  const prefix = `/v1/customer/disputes/${encodeURIComponent(disputeId)}/`;
+  if (url.origin !== BASE_URL || !url.pathname.startsWith(prefix) || url.search || url.hash) return undefined;
+  if (link.method && link.method.toUpperCase() !== 'POST') return undefined;
+  if (!/^[a-z-]+$/.test(url.pathname.slice(prefix.length))) return undefined;
+  return url.pathname;
+}
+
+export type DisputeFile = { name: string; contentType: string; bytes: Uint8Array };
+
+/**
+ * Sends one dispute action as the seller: JSON, or multipart with an `input` JSON part plus file
+ * parts (PayPal's documented form for provide-evidence and provide-supporting-info). Not retried.
+ */
+export function sendDisputeAction(path: string, json: unknown, files: DisputeFile[], sellerMerchantId: string): Promise<WithDebugId<unknown>> {
+  let body: unknown = json;
+  if (files.length > 0) {
+    const form = new FormData();
+    form.append('input', new Blob([JSON.stringify(json)], { type: 'application/json' }));
+    files.forEach((f, i) => form.append(`file${i + 1}`, new Blob([new Uint8Array(f.bytes)], { type: f.contentType }), f.name));
+    body = form;
+  }
+  return send('POST', path, body, crypto.randomUUID(), { 'PayPal-Auth-Assertion': authAssertion(sellerMerchantId) }, false);
 }

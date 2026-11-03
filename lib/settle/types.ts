@@ -125,6 +125,26 @@ export type Shipping = {
   };
 };
 
+/** A PayPal dispute on this deal's payment, as last read from PayPal (M4). */
+export type DisputeRecord = {
+  id: string;
+  /** PayPal's reason, e.g. MERCHANDISE_OR_SERVICE_NOT_RECEIVED. */
+  reason: string;
+  status: string;
+  stage: string;
+  amount?: { value: string; currency: string };
+  createdAt?: string;
+  /** When the seller must respond by (seller_response_due_date). */
+  dueDate?: string;
+  outcome?: string;
+  /** The actions PayPal offers right now: the rels and API paths from the dispute's own links. */
+  actions: { rel: string; path: string }[];
+  readAt: string;
+  debugId?: string;
+  /** A read that failed after a good one. */
+  failed?: { at: string; debugId?: string };
+};
+
 export type Deal = {
   id: string;
   createdAt: string;
@@ -152,6 +172,7 @@ export type Deal = {
   /** Filled in after capture by verified webhooks and fresh GETs of the order (M3). */
   payment?: Payment;
   shipping?: Shipping;
+  disputes?: DisputeRecord[];
   /** The last ship gate decision written to a receipt, so only changes are recorded. */
   gate?: { decision: string; key: string; at: string };
 };
