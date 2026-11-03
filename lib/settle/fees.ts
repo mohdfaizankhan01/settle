@@ -42,5 +42,7 @@ export function moneyFor(price: string, payer: FeePayer, country: Country): Mone
   // below the closed-form estimate finds the smallest total that works.
   let total = Math.max(p, Math.floor(((p + fixedMinor) * 10_000) / (10_000 - bp)) - 2);
   while (total - feeOf(total, country) < p) total++;
-  return { total: fromMinor(total), fee: fromMinor(total - p), sellerGets: fromMinor(total - feeOf(total, country)) };
+  // The seller is quoted the agreed price, so the three figures add up (total = fee + sellerGets).
+  // PayPal's real fee can leave them a cent more; the capture shows the real figure.
+  return { total: fromMinor(total), fee: fromMinor(total - p), sellerGets: fromMinor(p) };
 }

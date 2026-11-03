@@ -25,3 +25,14 @@ test('amounts are strict two-decimal strings', () => {
   assert.equal(fromMinor(5), '0.05');
   assert.throws(() => toMinor('1.5'));
 });
+
+test('when the buyer pays the fee, total = fee + what the seller gets, for every price', () => {
+  for (const country of ['US', 'UK'] as const) {
+    for (let minor = 100; minor <= 200_000; minor += 37) {
+      const m = moneyFor(fromMinor(minor), 'buyer', country);
+      assert.equal(toMinor(m.fee) + toMinor(m.sellerGets), toMinor(m.total), `${country} ${fromMinor(minor)}`);
+      assert.equal(m.sellerGets, fromMinor(minor));
+      assert.ok(toMinor(m.total) - feeOf(toMinor(m.total), country) >= minor, 'the estimated fee still leaves the seller the price');
+    }
+  }
+});

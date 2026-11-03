@@ -193,3 +193,13 @@ test('itemText: a "yes" reply about delivery or the seller is not a description'
   const chat = [m('m1', 'buyer', 'is the PS5 still for sale?'), m('m2', 'seller', 'yes, I post it tracked')];
   assert.deepEqual(itemText(chat, chat[0]), { text: 'PS5', messageId: 'm1' });
 });
+
+test('a chat price of zero or over six digits is not taken as the price', () => {
+  const tok = (id: string, amount: string) => ({ id, kind: 'PRICE' as const, raw: amount, amount, messageId: 'm1' });
+  const messages = [{ id: 'm1', speaker: 'A', role: 'seller' as const, text: 'x' }];
+  const p = (id: string) => ({ id, confidence: 0.9, probabilities: {} });
+  for (const amount of ['0.00', '12345678.00']) {
+    const { card } = buildCard(messages, [tok('PRICE_1', amount)], { price: p('PRICE_1') }, 'US');
+    assert.equal(card.price, undefined, amount);
+  }
+});

@@ -41,7 +41,10 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
   const questions: Question[] = [];
 
   // Price: a PRICE token in the deal's currency, or no currency written (the deal's country sets it).
-  const priceTokens = tokens.filter((t) => t.kind === 'PRICE' && (!t.currency || t.currency === currency));
+  // Same bounds as a price the seller types: above zero, at most six digits (fees.ts limits).
+  const priceTokens = tokens.filter(
+    (t) => t.kind === 'PRICE' && (!t.currency || t.currency === currency) && /^\d{1,6}(?:\.\d{1,2})?$/.test(t.amount ?? '') && Number(t.amount) > 0,
+  );
   const pricePick = picks.price;
   const priceToken = sure(pricePick) ? priceTokens.find((t) => t.id === pricePick.id) : undefined;
   if (priceToken) {
