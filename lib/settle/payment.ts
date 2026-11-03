@@ -52,6 +52,7 @@ export function readOrder(deal: Deal, order: paypal.Order, at: string, debugId?:
     net: b?.net_amount?.value,
     shipTo: shipToOf(order),
     trackers: (order.purchase_units?.[0]?.shipping?.trackers ?? []).map((t) => t.id),
+    items: (order.purchase_units?.[0]?.items ?? []).map((i) => i.name),
     mismatches,
     debugId,
   };

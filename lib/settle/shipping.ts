@@ -151,3 +151,15 @@ export async function addTracking(dealId: string, key: string | null, input: Tra
   if (state === 'unknown') throw new DealError("PayPal didn't answer, and the tracking isn't on the order yet. Try again: Settle checks PayPal before sending it twice.", 409);
   return saved;
 }
+
+/** The seller records that the carrier shows the parcel delivered (proof of delivery, SP-PROOF-DELIV). */
+export async function markDelivered(dealId: string, key: string | null, date: string, deps: ShippingDeps) {
+  const deal = (await sellerDeal(deps.store, dealId, key)).value;
+  if (!deal.shipping?.tracking || deal.shipping.tracking.state !== 'sent') throw new DealError('add tracking to PayPal first', 409);
+  const at = nowOf(deps);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date)) || date > at.slice(0, 10)) throw new DealError('enter the delivery date the carrier shows, not in the future');
+  await updateWithRetry(deps.store, dealId, (d) => ({ ...d, shipping: { ...d.shipping, delivered: { date, at } } }));
+  await deps.store.addReceipt({ dealId, kind: 'shipping.delivered', at, data: { date, by: 'seller', tracking: deal.shipping.tracking.number } });
+  await syncGate(deps.store, dealId, at);
+  return (await deps.store.getDeal(dealId))!;
+}

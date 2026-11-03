@@ -94,6 +94,8 @@ export type OrderRead =
       shipTo?: ShipTo;
       /** Tracker IDs PayPal shows on the order (`<captureId>-<tracking number>`). */
       trackers?: string[];
+      /** Item names on the PayPal order, for not-as-described disputes. */
+      items?: string[];
       /** Why the order doesn't match the card. Empty when it matches. */
       mismatches: string[];
       debugId?: string;
@@ -113,6 +115,8 @@ export type Payment = {
 /** What the seller did to ship: the postcode typed from the label, and tracking sent to PayPal. */
 export type Shipping = {
   labelPostcode?: { value: string; at: string };
+  /** The seller says the carrier shows the parcel delivered on `date`. Settle can't see carriers. */
+  delivered?: { date: string; at: string };
   tracking?: {
     carrier: string;
     /** Carrier name when carrier is OTHER. */
