@@ -1,6 +1,6 @@
 // Receives a PayPal webhook and decides whether it can be trusted. Fail closed: only a
 // SUCCESS from verify-webhook-signature makes an event "verified", and a verified event is
-// still only a hint. Payment is confirmed later by a fresh GET of the order (M3).
+// still only a hint: payment.ts confirms payment with a fresh GET of the order.
 
 import { PayPalApiError, verifyWebhookSignature, type WebhookEvent } from '../paypal';
 
@@ -20,6 +20,8 @@ export type WebhookResult = {
   eventType?: string;
   debugId?: string;
   reason?: string;
+  /** The parsed event, only when verified. */
+  event?: WebhookEvent;
 };
 
 type Deps = {
@@ -48,7 +50,7 @@ export async function handleWebhook(rawBody: string, headers: Headers, deps: Dep
   try {
     const status = await deps.verify(headers, rawBody, deps.webhookId);
     return status === 'SUCCESS'
-      ? { status: 200, outcome: 'verified', ...ids }
+      ? { status: 200, outcome: 'verified', ...ids, event }
       : { status: 400, outcome: 'rejected', ...ids, reason: 'signature verification failed' };
   } catch (error) {
     return {

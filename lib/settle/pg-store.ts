@@ -4,7 +4,7 @@
 
 import postgres, { type JSONValue, type Sql } from 'postgres';
 import { makeReceipt, type Receipt, type ReceiptInput } from './receipts';
-import { StaleWriteError, type DealStore, type SellerLink, type Stored } from './store';
+import { StaleWriteError, type DealStore, type SellerLink, type Stored, type WebhookEventRecord } from './store';
 import type { Deal } from './types';
 
 const SCHEMA = `
@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS receipts (
 CREATE TABLE IF NOT EXISTS seller_links (
   tracking_id text PRIMARY KEY,
   deal_id text NOT NULL REFERENCES deals(id),
+  doc jsonb NOT NULL
+);
+CREATE TABLE IF NOT EXISTS webhook_events (
+  id text PRIMARY KEY,
   doc jsonb NOT NULL
 );`;
 
@@ -99,5 +103,16 @@ export class PgDealStore implements DealStore {
     await this.schema();
     const [row] = await this.sql<{ doc: SellerLink }[]>`SELECT doc FROM seller_links WHERE tracking_id = ${trackingId}`;
     return row?.doc;
+  }
+
+  async hasEvent(id: string) {
+    await this.schema();
+    const rows = await this.sql`SELECT 1 FROM webhook_events WHERE id = ${id}`;
+    return rows.length > 0;
+  }
+
+  async recordEvent(event: WebhookEventRecord) {
+    await this.schema();
+    await this.sql`INSERT INTO webhook_events (id, doc) VALUES (${event.id}, ${json(this.sql, event)}) ON CONFLICT (id) DO NOTHING`;
   }
 }

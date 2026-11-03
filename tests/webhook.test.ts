@@ -14,7 +14,7 @@ const deps = (verify: () => Promise<'SUCCESS' | 'FAILURE'>, webhookId: string | 
 
 test('a SUCCESS verification is verified, with 200', async () => {
   const result = await handleWebhook(body, headers, deps(async () => 'SUCCESS'));
-  assert.deepEqual(result, { status: 200, outcome: 'verified', eventId: 'WH-1', eventType: 'PAYMENT.CAPTURE.COMPLETED' });
+  assert.deepEqual(result, { status: 200, outcome: 'verified', eventId: 'WH-1', eventType: 'PAYMENT.CAPTURE.COMPLETED', event: JSON.parse(body) });
 });
 
 test('a forged or bad signature is rejected, with 400', async () => {

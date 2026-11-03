@@ -10,6 +10,9 @@ export type Stored<T> = { version: number; value: T };
 /** A seller's Partner Referrals onboarding, keyed by our own random tracking ID. */
 export type SellerLink = { trackingId: string; dealId: string; createdAt: string; merchantId?: string };
 
+/** A verified webhook event Settle has processed. Replays of the same ID are ignored. */
+export type WebhookEventRecord = { id: string; type: string; dealId: string | null; at: string };
+
 export class StaleWriteError extends Error {
   constructor() {
     super('the deal changed since it was read');
@@ -26,6 +29,9 @@ export interface DealStore {
   listReceipts(dealId: string): Promise<Receipt[]>;
   saveSellerLink(link: SellerLink): Promise<void>;
   getSellerLink(trackingId: string): Promise<SellerLink | undefined>;
+  hasEvent(id: string): Promise<boolean>;
+  /** Records a processed event; recording the same ID again is a no-op. */
+  recordEvent(event: WebhookEventRecord): Promise<void>;
 }
 
 const clone = <T>(v: T): T => structuredClone(v);
@@ -34,6 +40,7 @@ export class MemoryDealStore implements DealStore {
   private deals = new Map<string, Stored<Deal>>();
   private receipts = new Map<string, Receipt[]>();
   private sellers = new Map<string, SellerLink>();
+  private events = new Map<string, WebhookEventRecord>();
 
   async createDeal(deal: Deal) {
     if (this.deals.has(deal.id)) throw new Error('deal already exists');
@@ -71,5 +78,13 @@ export class MemoryDealStore implements DealStore {
   async getSellerLink(trackingId: string) {
     const link = this.sellers.get(trackingId);
     return link && clone(link);
+  }
+
+  async hasEvent(id: string) {
+    return this.events.has(id);
+  }
+
+  async recordEvent(event: WebhookEventRecord) {
+    if (!this.events.has(event.id)) this.events.set(event.id, clone(event));
   }
 }

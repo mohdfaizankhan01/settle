@@ -77,6 +77,34 @@ export type Confirmation = { role: Role; at: string; cardHash: string };
 
 export type PaymentOrder = { id: string; cardHash: string; createdAt: string; status: string; debugId?: string };
 
+/** The shipping address PayPal holds for the payment (SP-ADDR). Shown to the seller only. */
+export type ShipTo = { name?: string; lines: string[]; postalCode?: string; countryCode?: string };
+
+/** The latest fresh GET of the order, compared with the locked card. */
+export type OrderRead =
+  | {
+      ok: true;
+      at: string;
+      orderStatus: string;
+      captureId?: string;
+      captureStatus?: string;
+      /** PayPal's actual fee and the seller's net, from the capture. */
+      fee?: string;
+      net?: string;
+      shipTo?: ShipTo;
+      /** Why the order doesn't match the card. Empty when it matches. */
+      mismatches: string[];
+      debugId?: string;
+    }
+  // Couldn't reach PayPal: "can't check", never "not paid" and never "paid".
+  | { ok: false; at: string; reason: string; debugId?: string };
+
+export type Payment = {
+  /** The verified PAYMENT.CAPTURE.COMPLETED event for this deal's capture. */
+  webhook?: { eventId: string; captureId: string; at: string; via: 'webhook' | 'event-log' };
+  read?: OrderRead;
+};
+
 export type Deal = {
   id: string;
   createdAt: string;
@@ -99,4 +127,6 @@ export type Deal = {
   /** The seller's latest Partner Referrals attempt for this deal. */
   connect?: { trackingId: string; startedAt: string };
   order?: PaymentOrder;
+  /** Filled in after capture by verified webhooks and fresh GETs of the order (M3). */
+  payment?: Payment;
 };

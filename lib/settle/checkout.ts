@@ -148,7 +148,9 @@ export async function captureCheckout(dealId: string, key: string | null, orderI
   for (let attempt = 0; ; attempt++) {
     const latest = (await deps.store.getDeal(dealId))!;
     try {
-      await deps.store.updateDeal(dealId, latest.version, { ...latest.value, order: { ...latest.value.order!, status, debugId: captured.debugId } });
+      // A verified webhook may already have recorded the payment; don't step its status back.
+      const keep = latest.value.order!.status === 'COMPLETED' ? 'COMPLETED' : status;
+      await deps.store.updateDeal(dealId, latest.version, { ...latest.value, order: { ...latest.value.order!, status: keep, debugId: captured.debugId } });
       break;
     } catch (error) {
       if (!(error instanceof StaleWriteError) || attempt >= 2) throw error;

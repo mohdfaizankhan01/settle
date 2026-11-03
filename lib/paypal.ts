@@ -404,6 +404,22 @@ export type OrderRequest = {
   cancelUrl: string;
 };
 
+export type PayPalAddress = {
+  address_line_1?: string;
+  address_line_2?: string;
+  admin_area_2?: string;
+  admin_area_1?: string;
+  postal_code?: string;
+  country_code?: string;
+};
+
+export type Capture = {
+  id: string;
+  status: string;
+  amount?: Money;
+  seller_receivable_breakdown?: { gross_amount?: Money; paypal_fee?: Money; net_amount?: Money };
+};
+
 export type Order = {
   id: string;
   status: string;
@@ -414,8 +430,8 @@ export type Order = {
     amount?: Money;
     payee?: { merchant_id?: string; email_address?: string };
     items?: { name: string; description?: string; quantity: string; unit_amount: Money }[];
-    shipping?: { address?: Record<string, string> };
-    payments?: { captures?: { id: string; status: string; amount?: Money }[] };
+    shipping?: { name?: { full_name?: string }; address?: PayPalAddress };
+    payments?: { captures?: Capture[] };
   }[];
   links?: { rel: string; href: string }[];
 };
@@ -468,4 +484,17 @@ export function getOrder(orderId: string, sellerMerchantId: string): Promise<Wit
 /** Captures an approved order. The request ID makes a repeated capture the same request. */
 export function captureOrder(orderId: string, requestId: string): Promise<WithDebugId<Order>> {
   return send<Order>('POST', `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {}, requestId);
+}
+
+// --- Webhook event log ----------------------------------------------------------
+
+/**
+ * PayPal's own log of the webhook events it sent to this app, for one capture. Read over our
+ * authenticated API connection, so it is PayPal's word that the event happened: the fallback when
+ * the delivery to our webhook was missed (instance asleep, network).
+ */
+export async function webhookEventsFor(captureId: string, eventType: string, since: Date): Promise<WithDebugId<WebhookEvent[]>> {
+  const q = new URLSearchParams({ transaction_id: captureId, event_type: eventType, start_time: since.toISOString(), page_size: '10' });
+  const res = await send<{ events?: WebhookEvent[] }>('GET', `/v1/notifications/webhooks-events?${q}`);
+  return { data: res.data.events ?? [], debugId: res.debugId };
 }
