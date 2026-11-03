@@ -4,6 +4,7 @@
 
 import { blockers, cardHash, formatMoney, isLocked, moneyOf } from './card';
 import { CARRIERS } from './carriers';
+import { REPLAY_NOTE } from './demo-paypal';
 import { caseFile, REASON_LABELS } from './case-file';
 import { ADVICE_LABEL, disputePlan } from './dispute-plan';
 import type { Receipt } from './receipts';
@@ -99,6 +100,16 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
     country: deal.country,
     currency: CURRENCY_OF[deal.country],
     simulated: SIMULATED_NOTE,
+    // What's real on this screen (PLAN M5 MUST): PayPal live sandbox or replayed, and whether the
+    // warning check ran and which model ran it.
+    realness: {
+      mode: deal.demo ? ('judge' as const) : ('live' as const),
+      paypal: deal.demo ? REPLAY_NOTE : 'PayPal: live calls to the PayPal sandbox. No real money moves.',
+      check:
+        deal.check.status === 'ran'
+          ? `Warning check: ran on ${deal.check.at.slice(0, 10)} with ${deal.check.model?.startsWith('jev') ? 'Jev (TypeSafe)' : `Settle Link's own model (${deal.check.model ?? 'local'})`} plus keyword rules, over a redacted copy of the chat.`
+          : 'Warning check: did not run, so nothing on this card can be confirmed yet.',
+    },
     check:
       deal.check.status === 'ran'
         ? { status: 'ran' as const, label: warnings.length === 0 ? 'No warning signs found' : `${warnings.length} warning${warnings.length > 1 ? 's' : ''} for you` }
@@ -142,7 +153,7 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
     // ID (PayPal shows the payee at checkout anyway) and the total for its eligibility check. The
     // browser never sends an amount or payee back; the server builds the order from the card.
     checkout:
-      role === 'buyer' && isLocked(deal) && deal.payeeMerchantId && moneyOf(deal)
+      role === 'buyer' && !deal.demo && isLocked(deal) && deal.payeeMerchantId && moneyOf(deal)
         ? { clientId: process.env.PAYPAL_CLIENT_ID ?? '', merchantId: deal.payeeMerchantId, amount: moneyOf(deal)!.total, currency: deal.card.price!.value.currency }
         : null,
     // After payment (PLAN M3): what PayPal confirmed, and for the seller, the ship gate.

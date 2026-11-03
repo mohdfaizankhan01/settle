@@ -1,15 +1,23 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Shell } from '@/app/components/shell';
 import type { DealView, SourceView } from '@/lib/settle/view';
 import { PayButton } from './pay-button';
 
 const keyFromHash = () => new URLSearchParams(window.location.hash.slice(1)).get('k') ?? '';
 
-export function DealPage({ dealId }: { dealId: string }) {
+/** The caller's link key, for the few requests made outside `act` (the evidence pack download). */
+const KeyContext = createContext<() => string>(() => '');
+
+/**
+ * `linkKey` comes from judge mode, which shows both sides at once; otherwise the key is read from
+ * the URL fragment. `embedded` drops the page frame for a side-by-side pane.
+ */
+export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string; linkKey?: string; embedded?: boolean }) {
   // Read once on the client; the key never goes into React state or the rendered page.
   const keyRef = useRef<string | null>(null);
+  const Frame = embedded ? EmbeddedFrame : Shell;
   const [view, setView] = useState<DealView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,9 +33,9 @@ export function DealPage({ dealId }: { dealId: string }) {
   );
 
   useEffect(() => {
-    keyRef.current = keyFromHash();
+    keyRef.current = linkKey ?? keyFromHash();
     load(keyRef.current).catch((e: Error) => setError(e.message));
-  }, [load]);
+  }, [load, linkKey]);
 
   // The other side acts on their own page: refresh every 10 s while this tab is visible.
   const busyRef = useRef(false);
@@ -68,9 +76,9 @@ export function DealPage({ dealId }: { dealId: string }) {
 
   if (!view) {
     return (
-      <Shell>
+      <Frame>
         <p className={error ? 'text-pp-danger' : 'text-pp-muted'}>{error ?? 'Loading the deal…'}</p>
-      </Shell>
+      </Frame>
     );
   }
 
@@ -78,8 +86,10 @@ export function DealPage({ dealId }: { dealId: string }) {
   const other = me === 'seller' ? 'buyer' : 'seller';
 
   return (
-    <Shell wide>
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <KeyContext.Provider value={() => keyRef.current ?? ''}>
+    <Frame wide>
+      <Realness view={view} />
+      <header className="mt-4 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[28px] font-semibold text-pp-navy">Deal card</h1>
           <p className="text-pp-muted">
@@ -94,8 +104,8 @@ export function DealPage({ dealId }: { dealId: string }) {
         </p>
       )}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-        <div className="order-2 space-y-8 lg:order-1">
+      <div className={`mt-8 grid gap-8 ${embedded ? '' : 'lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]'}`}>
+        <div className={`order-2 space-y-8 ${embedded ? '' : 'lg:order-1'}`}>
           <Card view={view} />
 
           {view.questions.length > 0 && (
@@ -159,6 +169,11 @@ export function DealPage({ dealId }: { dealId: string }) {
           <Confirm view={view} busy={busy} act={act} />
           <Decline view={view} busy={busy} act={act} />
 
+          {me === 'buyer' && view.realness.mode === 'judge' && view.locked && !view.order && (
+            <p className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
+              Here the buyer would pay with PayPal checkout, for exactly the total on the card. Judge mode never takes a payment; the &ldquo;Paid and ready to ship&rdquo; deal shows what happens next.
+            </p>
+          )}
           {me === 'buyer' && view.checkout && !view.payBlocker && <PayButton dealId={dealId} getKey={() => keyRef.current ?? ''} checkout={view.checkout} onDone={() => load(keyRef.current ?? '')} onError={setError} />}
           {view.order && !view.afterPayment && (
             <section className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
@@ -170,7 +185,7 @@ export function DealPage({ dealId }: { dealId: string }) {
           {view.afterPayment && <AfterPayment view={view} busy={busy} act={act} />}
         </div>
 
-        <aside className="order-1 space-y-8 lg:order-2">
+        <aside className={`order-1 space-y-8 ${embedded ? '' : 'lg:order-2'}`}>
           <Warnings view={view} />
           {view.check.status === 'failed' && (
             <button disabled={busy} onClick={() => act('/recheck')} className="rounded-full border border-pp-border bg-pp-surface px-5 py-2 font-semibold disabled:opacity-40">
@@ -180,7 +195,25 @@ export function DealPage({ dealId }: { dealId: string }) {
           <Chat view={view} />
         </aside>
       </div>
-    </Shell>
+    </Frame>
+    </KeyContext.Provider>
+  );
+}
+
+function EmbeddedFrame({ children }: { children: React.ReactNode; wide?: boolean }) {
+  return <div className="font-paypal text-pp-ink">{children}</div>;
+}
+
+/** What's real on this screen: live sandbox or replayed PayPal, and whether the check ran. */
+function Realness({ view }: { view: DealView }) {
+  const judge = view.realness.mode === 'judge';
+  return (
+    <div className={`rounded-md border px-3 py-2 text-xs ${judge ? 'border-pp-warning/50 bg-[#fff8eb]' : 'border-pp-border bg-pp-surface'}`}>
+      <p>
+        <strong>{judge ? 'Judge mode (demo deal).' : 'Live deal.'}</strong> {view.realness.paypal}
+      </p>
+      <p className="mt-0.5 text-pp-muted">{view.realness.check}</p>
+    </div>
   );
 }
 
@@ -444,7 +477,7 @@ function AfterPayment({ view, busy, act }: { view: DealView; busy: boolean; act:
         <p className={`font-semibold ${tone}`}>{a.payment.text}</p>
         <p className="mt-1 text-pp-muted">
           PayPal order <span className="font-mono">{view.order!.id}</span>
-          {a.checkedAt && `, last read from PayPal ${new Date(a.checkedAt).toLocaleTimeString()}`}. Sandbox: no real money moved.
+          {a.checkedAt && `, last ${view.realness.mode === 'judge' ? 'replayed from the recorded sandbox run' : 'read from PayPal'} ${new Date(a.checkedAt).toLocaleTimeString()}`}. Sandbox: no real money moved.
         </p>
         {a.fee && (
           <p className="mt-1 text-pp-muted">
@@ -454,7 +487,7 @@ function AfterPayment({ view, busy, act }: { view: DealView; busy: boolean; act:
           </p>
         )}
       </section>
-      {a.disputes.map((d) => (view.role === 'seller' ? <DisputePanel key={d.id} d={d} busy={busy} act={act} dealId={view.id} /> : <BuyerDispute key={d.id} d={d} />))}
+      {a.disputes.map((d) => (view.role === 'seller' ? <DisputePanel key={d.id} d={d} busy={busy} act={act} dealId={view.id} judge={view.realness.mode === 'judge'} /> : <BuyerDispute key={d.id} d={d} />))}
       {a.gate && <ShipPanel a={a} gate={a.gate} busy={busy} act={act} />}
       {view.role === 'seller' && <PaidCheckBox busy={busy} act={act} />}
       <AddMessages view={view} busy={busy} act={act} />
@@ -712,7 +745,7 @@ function BuyerDispute({ d }: { d: DisputeView }) {
 
 type Preview = { request: { advice: string; rel: string; url: string; json: unknown; files: { name: string; size: number; sha256: string }[]; hash: string }; recommended: boolean };
 
-function DisputePanel({ d, busy, act, dealId }: { d: DisputeView; busy: boolean; act: Act; dealId: string }) {
+function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: boolean; act: Act; dealId: string; judge: boolean }) {
   const plan = d.plan!;
   const cf = d.caseFile!;
   const resolved = d.status === 'RESOLVED';
@@ -723,10 +756,11 @@ function DisputePanel({ d, busy, act, dealId }: { d: DisputeView; busy: boolean;
   const [withFiles, setWithFiles] = useState(true);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const getKey = useContext(KeyContext);
   const choice = { disputeId: d.id, advice, ...(advice === 'offer' ? { offerAmount: offer } : {}), ...(withFiles ? {} : { withFiles: false }) };
 
   const download = async () => {
-    const key = new URLSearchParams(window.location.hash.slice(1)).get('k') ?? '';
+    const key = getKey();
     setDownloadError(null);
     const res = await fetch(`/api/deals/${dealId}/disputes/pack?d=${encodeURIComponent(d.id)}`, { headers: { 'x-settle-key': key }, cache: 'no-store' });
     if (!res.ok) {
@@ -755,7 +789,7 @@ function DisputePanel({ d, busy, act, dealId }: { d: DisputeView; busy: boolean;
         </p>
         {!resolved && d.dueDate && <p className="mt-1 text-sm font-semibold">Respond by {due(d.dueDate)}.</p>}
         <p className="mt-1 text-xs text-pp-muted">
-          Read from PayPal {new Date(d.readAt).toLocaleTimeString()}
+          {judge ? 'Replayed from the recorded sandbox case' : 'Read from PayPal'} {new Date(d.readAt).toLocaleTimeString()}
           {d.failedAt && '; the last re-read failed, so this may be out of date'}. Sandbox: no real money moves.
         </p>
       </div>

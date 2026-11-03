@@ -66,7 +66,8 @@ export function replayedDispute(deal: Deal): paypal.Dispute {
   const money = moneyOf(deal);
   return {
     dispute_id: d.id,
-    create_time: d.createTime,
+    // In the demo the buyer opens the case after the recorded delivery, as in the story it tells.
+    create_time: deal.shipping?.delivered?.at ?? d.createTime,
     reason: d.reason,
     status: d.status,
     dispute_life_cycle_stage: d.stage,

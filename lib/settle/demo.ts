@@ -102,6 +102,10 @@ export async function demoView(store: DealStore, id: string | undefined) {
   return {
     createdAt: session.createdAt,
     expiresAt: new Date(Date.parse(session.createdAt) + DEMO_TTL_MS).toISOString(),
-    deals: session.deals.map((d) => ({ ...d, ...SCENARIOS.find((s) => s.id === d.scenario)! })).map(({ chat: _chat, seller: _seller, ...rest }) => rest),
+    // Titles and descriptions only: the seeded chats stay on the server.
+    deals: session.deals.map((d) => {
+      const s = SCENARIOS.find((x) => x.id === d.scenario)!;
+      return { ...d, title: s.title, side: s.side, shows: s.shows };
+    }),
   };
 }
