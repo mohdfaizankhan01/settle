@@ -132,3 +132,15 @@ test('gate receipts are written only when the decision or a check changes', asyn
   await setLabelPostcode(t.dealId, t.keys.seller, 'LS1 1AA', t.pdeps);
   assert.equal(await count(), before + 1);
 });
+
+test('a warning on added messages with no evidence message still counts', async () => {
+  const t = await paid();
+  await setLabelPostcode(t.dealId, t.keys.seller, 'LS1 1AA', t.pdeps);
+  const base = askWith(['ship_elsewhere']);
+  const noEvidence: typeof base = async (req) => {
+    const r = await base(req);
+    return { ...r, answers: { ...r.answers, ev_ship_elsewhere: { choice: 'none', confidence: 0.9, probabilities: { none: 0.9 } } } };
+  };
+  const deal = (await addMessages(t.dealId, t.keys.seller, 'Sam: one more thing', { ...t.deps, ask: noEvidence })).value;
+  assert.equal(shipGate(deal).decision, 'HOLD');
+});

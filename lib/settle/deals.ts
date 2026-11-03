@@ -291,9 +291,12 @@ export async function addMessages(dealId: string, key: string | null, raw: strin
   } catch (error) {
     run = { status: 'failed', at, reason: error instanceof Error ? error.name : 'error' };
   }
-  found = [...found, ...ruleWarnings(fresh.messages)].filter((w) => !w.messageId || ids.has(w.messageId));
+  // The check only saw the new messages, so a warning without an evidence message still came from
+  // them: pin it to the last one so the ship gate counts it (fail closed).
+  const lastId = added.at(-1)!.id;
+  found = [...found, ...ruleWarnings(fresh.messages)].map((w) => (w.messageId && ids.has(w.messageId) ? w : { ...w, messageId: lastId }));
 
-  const { stored, role } = await mutate(deps, dealId, key, (current) => {
+  const { role } = await mutate(deps, dealId, key, (current) => {
     if (current.messages.length !== deal.messages.length) throw new DealError('someone else added messages; reload and paste again', 409);
     return { ...current, messages, tokens: redacted.tokens, warnings: [...current.warnings, ...found], addedCheck: current.addedCheck?.status === 'failed' ? current.addedCheck : run };
   });
