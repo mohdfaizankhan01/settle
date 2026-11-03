@@ -29,8 +29,9 @@ export interface DealStore {
   listReceipts(dealId: string): Promise<Receipt[]>;
   saveSellerLink(link: SellerLink): Promise<void>;
   getSellerLink(trackingId: string): Promise<SellerLink | undefined>;
+  /** True once the event was applied to a deal. An event no deal took can be applied again. */
   hasEvent(id: string): Promise<boolean>;
-  /** Records a processed event; recording the same ID again is a no-op. */
+  /** Records a processed event. A record that already names a deal is never replaced. */
   recordEvent(event: WebhookEventRecord): Promise<void>;
 }
 
@@ -99,10 +100,10 @@ export class MemoryDealStore implements DealStore {
   }
 
   async hasEvent(id: string) {
-    return this.events.has(id);
+    return !!this.events.get(id)?.dealId;
   }
 
   async recordEvent(event: WebhookEventRecord) {
-    if (!this.events.has(event.id)) this.events.set(event.id, clone(event));
+    if (!this.events.get(event.id)?.dealId) this.events.set(event.id, clone(event));
   }
 }

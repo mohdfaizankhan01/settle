@@ -107,12 +107,14 @@ export class PgDealStore implements DealStore {
 
   async hasEvent(id: string) {
     await this.schema();
-    const rows = await this.sql`SELECT 1 FROM webhook_events WHERE id = ${id}`;
+    const rows = await this.sql`SELECT 1 FROM webhook_events WHERE id = ${id} AND doc->>'dealId' IS NOT NULL`;
     return rows.length > 0;
   }
 
   async recordEvent(event: WebhookEventRecord) {
     await this.schema();
-    await this.sql`INSERT INTO webhook_events (id, doc) VALUES (${event.id}, ${json(this.sql, event)}) ON CONFLICT (id) DO NOTHING`;
+    await this.sql`
+      INSERT INTO webhook_events (id, doc) VALUES (${event.id}, ${json(this.sql, event)})
+      ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc WHERE webhook_events.doc->>'dealId' IS NULL`;
   }
 }

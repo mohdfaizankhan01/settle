@@ -113,3 +113,13 @@ test('links on the older sandbox API host are kept, and a dispute lost by the se
   assert.equal(gate.decision, 'HOLD');
   assert.equal(gate.checks.find((c) => c.id === 'payment')!.status, 'fail');
 });
+
+test('an event no deal took (e.g. before the code could handle it) is applied when PayPal sends it again', async () => {
+  const { t, d, deps } = await disputed();
+  // As if older code had seen and recorded it without a deal.
+  await t.store.recordEvent({ id: 'WH-D1', type: 'CUSTOMER.DISPUTE.CREATED', dealId: null, at: '2026-11-03T21:54:41Z' });
+  const r = await applyVerifiedEvent(d.event('WH-D1'), deps);
+  assert.equal(r.handled, true);
+  assert.equal((await t.get()).disputes![0].id, 'PP-D-1');
+  assert.equal((await applyVerifiedEvent(d.event('WH-D1'), deps)).reason, 'already processed');
+});
