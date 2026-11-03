@@ -54,6 +54,7 @@ body {
   --color-pp-canvas: var(--pp-canvas);
   --color-pp-surface: var(--pp-surface);
   --color-pp-border: var(--pp-border);
+  --color-pp-gridline: var(--pp-gridline);
   --color-pp-ink: var(--pp-ink);
   --color-pp-muted: var(--pp-muted);
   --color-pp-success: var(--pp-success);

@@ -11,7 +11,8 @@
     "jev:eval": "node --env-file-if-exists=.env.local --import tsx scripts/jev-eval.ts --engine=typesafe",
     "model:train": "tsx scripts/train-model.mts",
     "eval": "node --env-file-if-exists=.env.local --import tsx scripts/jev-eval.ts",
-    "model:fetch": "tsx scripts/fetch-model.ts"
+    "model:fetch": "tsx scripts/fetch-model.ts",
+    "proof": "tsx scripts/proof.mts"
   },
   "dependencies": {
     "@huggingface/transformers": "4.3.2",
