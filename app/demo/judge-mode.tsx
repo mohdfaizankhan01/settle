@@ -15,9 +15,18 @@ export function JudgeMode() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // /demo?deal=<scenario> (from the timeline) opens that deal.
+    const want = new URLSearchParams(window.location.search).get('deal');
     fetch('/api/demo', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((b) => setSession(b.session ?? null))
+      .then((b) => {
+        setSession(b.session ?? null);
+        const d = (b.session?.deals as DemoDeal[] | undefined)?.find((x) => x.scenario === want);
+        if (d) {
+          setPicked(d.scenario);
+          setSide(d.side);
+        }
+      })
       .catch(() => setSession(null));
   }, []);
 
@@ -57,6 +66,11 @@ export function JudgeMode() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-sm">
+            {session && (
+              <Link href="/demo/timeline" className="rounded-full border border-pp-border bg-pp-surface px-4 py-2 font-semibold">
+                Seller timeline
+              </Link>
+            )}
             <Link href="/demo/attacks" className="rounded-full border border-pp-border bg-pp-surface px-4 py-2 font-semibold">
               Try to fool it
             </Link>

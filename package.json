@@ -15,6 +15,8 @@
     "proof": "tsx scripts/proof.mts"
   },
   "dependencies": {
+    "@bryntum/scheduler": "npm:@bryntum/scheduler-trial@7.3.8",
+    "@bryntum/scheduler-react": "7.3.8",
     "@huggingface/transformers": "4.3.2",
     "@typesafe-ai/sdk": "^0.7.0",
     "ag-grid-community": "36.2.0",

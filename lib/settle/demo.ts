@@ -47,13 +47,32 @@ export const SCENARIOS: Scenario[] = [
 
 const sessionId = () => randomBytes(24).toString('base64url');
 
-async function seedOne(store: DealStore, session: string, s: Scenario, now: () => Date) {
+/**
+ * When each step of a scenario happened, in hours before the session started. Demo dates are
+ * back-dated so the seller timeline tells the story; every one is labelled as a demo date.
+ */
+const STEPS: Record<string, Partial<Record<'chat' | 'confirm' | 'paid' | 'label' | 'message' | 'tracking' | 'delivered' | 'dispute', number>>> = {
+  ff: { chat: 2 },
+  'fake-email': { chat: 3 },
+  awaiting: { chat: 30, confirm: 26 },
+  ready: { chat: 50, confirm: 48, paid: 47, label: 2 },
+  hold: { chat: 74, confirm: 72, paid: 70, label: 20, message: 3 },
+  dispute: { chat: 240, confirm: 238, paid: 236, label: 220, tracking: 216, delivered: 120, dispute: 24 },
+};
+
+async function seedOne(store: DealStore, session: string, s: Scenario, start: Date) {
+  const steps = STEPS[s.id];
+  let at = start;
+  const step = (name: keyof (typeof STEPS)[string]) => void (at = new Date(start.getTime() - (steps[name] ?? 0) * 3600_000));
+  const now = () => at;
   const deps: Deps = { store, now };
+  step('chat');
   const { deal, keys } = await createDeal({ chat: s.chat, sellerName: s.seller, country: 'US' }, deps);
-  await updateWithRetry(store, deal.id, (d) => ({ ...d, demo: { session, scenario: s.id, seededAt: now().toISOString() } }));
+  await updateWithRetry(store, deal.id, (d) => ({ ...d, demo: { session, scenario: s.id, seededAt: start.toISOString() } }));
   if (s.id === 'ff' || s.id === 'fake-email') return { dealId: deal.id, keys };
 
   // Both answer the fee question, the seller is connected, both confirm the same card.
+  step('confirm');
   await answerQuestion(deal.id, keys.seller, 'q_fee', 'seller', deps);
   await answerQuestion(deal.id, keys.buyer, 'q_fee', 'seller', deps);
   const connected = await setPayee(deal.id, DEMO_SELLER, deps);
@@ -62,23 +81,28 @@ async function seedOne(store: DealStore, session: string, s: Scenario, now: () =
   if (s.id === 'awaiting') return { dealId: deal.id, keys };
 
   // Paid: the order as the recorded run created it, then the real confirmation path.
+  step('paid');
   const pp = replayPayPal(store, deal.id);
-  const at = now().toISOString();
-  const { after } = await updateWithRetry(store, deal.id, (d) => ({ ...d, order: { id: RECORDED.order.id, cardHash: cardHash(d), createdAt: at, status: 'CAPTURE_REQUESTED', debugId: `rec-${RECORDED.order.debugId}` } }));
-  await store.addReceipt({ dealId: deal.id, kind: 'order.created', at, data: { orderId: RECORDED.order.id, cardHash: cardHash(after), replayed: true, debugId: `rec-${RECORDED.order.debugId}` } });
+  const { after } = await updateWithRetry(store, deal.id, (d) => ({ ...d, order: { id: RECORDED.order.id, cardHash: cardHash(d), createdAt: at.toISOString(), status: 'CAPTURE_REQUESTED', debugId: `rec-${RECORDED.order.debugId}` } }));
+  await store.addReceipt({ dealId: deal.id, kind: 'order.created', at: at.toISOString(), data: { orderId: RECORDED.order.id, cardHash: cardHash(after), replayed: true, debugId: `rec-${RECORDED.order.debugId}` } });
   const pdeps = { store, paypal: pp, disputes: pp, now };
   await applyVerifiedEvent(replayedEvent(after, 'capture'), pdeps);
+  step('label');
   await setLabelPostcode(deal.id, keys.seller, RECORDED.shipping.address.postal_code, pdeps);
   if (s.id === 'ready') return { dealId: deal.id, keys };
   if (s.id === 'hold') {
+    step('message');
     await addMessages(deal.id, keys.seller, 'Sam: hey, change of plan, can you send it to my cousin in Miami instead? I will give you the address', deps);
     return { dealId: deal.id, keys };
   }
 
   // Dispute: shipped with tracking, delivered, then the buyer opened the recorded case.
+  step('tracking');
   await addTracking(deal.id, keys.seller, { carrier: RECORDED.tracking.carrier, number: RECORDED.tracking.number }, { ...pdeps, sdk: replaySdk(store, deal.id) });
-  await markDelivered(deal.id, keys.seller, now().toISOString().slice(0, 10), pdeps);
-  const paid = (await store.getDeal(deal.id))!.value;
+  step('delivered');
+  await markDelivered(deal.id, keys.seller, at.toISOString().slice(0, 10), pdeps);
+  step('dispute');
+  const { after: paid } = await updateWithRetry(store, deal.id, (d) => ({ ...d, demo: { ...d.demo!, disputeOpenedAt: at.toISOString() } }));
   await applyVerifiedEvent(replayedEvent(paid, 'dispute'), pdeps);
   return { dealId: deal.id, keys };
 }
@@ -88,7 +112,8 @@ export async function startDemo(store: DealStore, now: () => Date = () => new Da
   await store.purgeDemo(new Date(now().getTime() - DEMO_TTL_MS).toISOString());
   const id = sessionId();
   const deals: DemoSession['deals'] = [];
-  for (const s of SCENARIOS) deals.push({ scenario: s.id, ...(await seedOne(store, id, s, now)) });
+  const start = now();
+  for (const s of SCENARIOS) deals.push({ scenario: s.id, ...(await seedOne(store, id, s, start)) });
   const session = { id, createdAt: now().toISOString(), deals };
   await store.saveDemoSession(session);
   return session;

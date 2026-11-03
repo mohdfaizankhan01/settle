@@ -150,7 +150,7 @@ export type DisputeRecord = {
 };
 
 /** Judge mode (M5): this deal belongs to one judge session and replays recorded PayPal data. */
-export type DemoTag = { session: string; scenario: string; seededAt: string };
+export type DemoTag = { session: string; scenario: string; seededAt: string; disputeOpenedAt?: string };
 
 export type Deal = {
   id: string;
