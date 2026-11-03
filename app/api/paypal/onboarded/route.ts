@@ -1,5 +1,5 @@
 import { finishConnect } from '@/lib/settle/connect';
-import { DealError } from '@/lib/settle/deals';
+import { DealError, PAYEE_LOCKED } from '@/lib/settle/deals';
 import { getStore, publicHost } from '@/lib/settle/runtime';
 
 // PayPal sends the seller back here after onboarding. Only our own tracking ID (`t`) is used:
@@ -11,7 +11,9 @@ export async function GET(request: Request) {
   try {
     if (t) outcome = (await finishConnect(t, { store: getStore(), publicHost: host })).connected ? 'connected' : 'pending';
   } catch (error) {
-    outcome = error instanceof DealError ? 'unknown' : 'error';
+    // The payee is fixed once payment starts; a stale write is worth retrying; anything else
+    // we know of means the tracking link is stale.
+    outcome = !(error instanceof DealError) ? 'error' : error.message === PAYEE_LOCKED ? 'locked' : error.status === 409 ? 'error' : 'unknown';
   }
   return Response.redirect(`${host}/connected?status=${outcome}`, 303);
 }

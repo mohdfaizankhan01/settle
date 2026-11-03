@@ -9,6 +9,10 @@ const TEXT: Record<string, { title: string; body: string }> = {
     body: 'Go back to your deal page and press “I’ve finished connecting” in a minute. If it still doesn’t connect, start again from the deal page.',
   },
   unknown: { title: 'This connection link is out of date', body: 'Go back to your deal page and connect PayPal again from there.' },
+  locked: {
+    title: 'Payment on this deal has already started',
+    body: 'The buyer is paying the PayPal account that was connected before, so the account can’t change now. Go back to your deal page to see the payment.',
+  },
   error: { title: 'Settle could not check your PayPal connection', body: 'Go back to your deal page and press “I’ve finished connecting” to try again.' },
 };
 

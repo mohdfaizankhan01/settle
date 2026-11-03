@@ -49,8 +49,8 @@ async function get<T>(path: string, headers?: Record<string, string>): Promise<T
 }
 
 // POSTs carry a PayPal-Request-Id, kept the same across retries so PayPal treats a retry as
-// the same request rather than a second one. A caller can pass its own ID to make a repeated
-// call (a double click, a retried page) idempotent too.
+// the same request rather than a second one. post() makes a new ID per call; a caller that needs
+// a repeated call (a double click, a retried page) to be idempotent calls send() with a fixed ID.
 async function post<T>(path: string, body: unknown): Promise<T> {
   return (await send<T>('POST', path, body, crypto.randomUUID())).data;
 }

@@ -8,7 +8,7 @@ import { DealError } from './deals';
 import { PgDealStore } from './pg-store';
 import { MemoryDealStore, type DealStore } from './store';
 
-const g = globalThis as unknown as { settleStore?: DealStore; settleHits?: Map<string, number[]> };
+const g = globalThis as unknown as { settleStore?: DealStore; settleHits?: Map<string, number[]>; settleSwept?: number };
 
 export function getStore(): DealStore {
   if (g.settleStore) return g.settleStore;
@@ -41,6 +41,11 @@ export function rateLimited(request: Request, bucket: string, limit: number, glo
   const all = recent(`${bucket}:*`);
   if (mine.length >= limit) return true;
   if (globalLimit !== undefined && all.length >= globalLimit) return true;
+  // Drop keys with no recent hits now and then, so one-off addresses don't stay in memory.
+  if (Date.now() - (g.settleSwept ?? 0) > 60_000) {
+    g.settleSwept = Date.now();
+    for (const [k, v] of hits) if (!v.some((t) => t > cutoff)) hits.delete(k);
+  }
   hits.set(`${bucket}:${ip}`, [...mine, Date.now()]);
   hits.set(`${bucket}:*`, [...all, Date.now()]);
   return false;
