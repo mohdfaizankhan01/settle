@@ -78,6 +78,9 @@ export async function refreshDispute(dealId: string, disputeId: string, trigger:
   } catch (error) {
     failure = error;
   }
+  // No capture on record yet: a temporary state, not "not this deal". Throw so the event isn't
+  // marked processed and PayPal sends it again (fail closed).
+  if (fresh && !captureOf(stored.value)) throw new Error('the capture is not recorded yet; the dispute will be read again');
   if (fresh) {
     const problem = linkProblem(stored.value, fresh.data);
     if (problem) {

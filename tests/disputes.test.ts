@@ -94,3 +94,13 @@ test('a resolved dispute no longer holds the gate on its own', async () => {
   assert.equal(pay.status, 'pass');
   assert.equal((await t.get()).disputes![0].outcome, 'RESOLVED_SELLER_FAVOUR');
 });
+
+test('a dispute event before the capture is recorded is not marked processed, so PayPal retries it', async () => {
+  const t = await paidSetup();
+  const d = fakeDispute(customIdFor(await t.get()));
+  await assert.rejects(applyVerifiedEvent(d.event('WH-D1'), { ...t.pdeps, disputes: d.paypal }), /not recorded yet/);
+  assert.equal(await t.store.hasEvent('WH-D1'), false);
+  await applyVerifiedEvent(t.event('WH-1'), t.pdeps);
+  await applyVerifiedEvent(d.event('WH-D1'), { ...t.pdeps, disputes: d.paypal });
+  assert.equal((await t.get()).disputes![0].id, 'PP-D-1');
+});
