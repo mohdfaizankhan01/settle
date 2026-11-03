@@ -108,12 +108,21 @@ function addressCheck(deal: Deal): GateCheck {
     return { ...base, status: read && !read.ok ? 'cant_check' : 'not_yet', detail: 'No PayPal shipping address yet; it comes with the confirmed payment.' };
   }
   const paypalCode = normalPostcode(shipTo.postalCode, deal.country);
-  // Only the buyer's messages: the seller mentioning their own postcode is not a new address.
-  const fromBuyer = new Set(deal.messages.filter((m) => m.added && m.role === 'buyer').map((m) => m.id));
-  const later = deal.tokens.filter((t) => fromBuyer.has(t.messageId) && (t.kind === 'POSTCODE' || t.kind === 'ZIP'));
-  const other = later.find((t) => normalPostcode(t.raw, deal.country) !== paypalCode);
+  // Every added message counts. Speaker names come from pasted text and can be faked, so a
+  // different postcode in a "seller" message is REVIEW (look first), never a pass; from the buyer it holds.
+  const roleOf = new Map(deal.messages.map((m) => [m.id, m.role]));
+  const later = deal.tokens.filter((t) => ids.has(t.messageId) && (t.kind === 'POSTCODE' || t.kind === 'ZIP'));
+  const differs = later.filter((t) => normalPostcode(t.raw, deal.country) !== paypalCode);
+  const other = differs.find((t) => roleOf.get(t.messageId) === 'buyer') ?? differs[0];
   if (other) {
-    return { ...base, status: 'fail', detail: `Message ${other.messageId} after payment gives postcode ${other.raw}, but PayPal's address is ${shipTo.postalCode}.`, proof: `Message ${other.messageId}` };
+    const buyer = roleOf.get(other.messageId) === 'buyer';
+    return {
+      ...base,
+      status: 'fail',
+      blocks: buyer ? 'HOLD' : 'REVIEW',
+      detail: `Message ${other.messageId} after payment${buyer ? '' : ' (marked as yours)'} gives postcode ${other.raw}, but PayPal's address is ${shipTo.postalCode}.`,
+      proof: `Message ${other.messageId}`,
+    };
   }
   const label = deal.shipping?.labelPostcode;
   if (!label) return { ...base, status: 'not_yet', blocks: 'REVIEW', detail: `PayPal's address is shown below (postcode ${shipTo.postalCode}). Type the postcode from your label to compare.` };

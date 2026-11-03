@@ -145,12 +145,12 @@ test('a warning on added messages with no evidence message still counts', async 
   assert.equal(shipGate(deal).decision, 'HOLD');
 });
 
-test("the seller's own postcode in a message after payment does not hold", async () => {
+test("a different postcode in a message marked as the seller's asks for review, never passes", async () => {
   const t = await paid();
   await setLabelPostcode(t.dealId, t.keys.seller, 'LS1 1AA', t.pdeps);
   const deal = (await addMessages(t.dealId, t.keys.seller, 'Alex: posting from M1 1AE today', t.deps)).value;
-  assert.equal(check(deal, 'address').status, 'pass');
-  assert.equal(shipGate(deal).decision, 'SHIP');
+  assert.equal(check(deal, 'address').status, 'fail');
+  assert.equal(shipGate(deal).decision, 'REVIEW');
 });
 
 test('a failed read after a good one is "can\'t check" and holds', async () => {
