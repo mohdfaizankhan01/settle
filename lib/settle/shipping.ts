@@ -1,9 +1,10 @@
 // The seller's shipping actions (PLAN M3): type the postcode from the label, and add tracking to
 // the PayPal order. Each one updates the record, writes a receipt and re-runs the ship gate.
 
-import type { PaypalClient, ShipmentCarrier } from 'paypal';
+import type { PaypalClient } from 'paypal';
 import { PayPalApiError } from '../paypal';
 import { addTrackingViaSdk } from '../paypal-sdk';
+import { CARRIERS } from './carriers';
 import { DealError, roleFor } from './deals';
 import { refreshPayment, type PaymentPayPal } from './payment';
 import { isPaid, normalPostcode, syncGate } from './ship-gate';
@@ -62,26 +63,6 @@ export async function setLabelPostcode(dealId: string, key: string | null, raw: 
     return (await deps.store.getDeal(dealId))!;
   }
 }
-
-/** The carriers Settle offers per country (members of the SDK's ShipmentCarrier enum). */
-export const CARRIERS: Record<Deal['country'], { id: ShipmentCarrier; label: string }[]> = {
-  UK: [
-    { id: 'ROYAL_MAIL', label: 'Royal Mail' },
-    { id: 'PARCELFORCE', label: 'Parcelforce' },
-    { id: 'DPD_UK', label: 'DPD' },
-    { id: 'HERMESWORLD_UK', label: 'Evri' },
-    { id: 'YODEL', label: 'Yodel' },
-    { id: 'DHL_UK', label: 'DHL' },
-    { id: 'OTHER', label: 'Other' },
-  ],
-  US: [
-    { id: 'USPS', label: 'USPS' },
-    { id: 'UPS', label: 'UPS' },
-    { id: 'FEDEX', label: 'FedEx' },
-    { id: 'DHL', label: 'DHL' },
-    { id: 'OTHER', label: 'Other' },
-  ],
-};
 
 const TRACKING_RE = /^[A-Za-z0-9-]{4,40}$/;
 

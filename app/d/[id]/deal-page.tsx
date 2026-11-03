@@ -29,6 +29,18 @@ export function DealPage({ dealId }: { dealId: string }) {
     load(keyRef.current).catch((e: Error) => setError(e.message));
   }, [load]);
 
+  // The other side acts on their own page: refresh every 10 s while this tab is visible.
+  const busyRef = useRef(false);
+  useEffect(() => {
+    busyRef.current = busy;
+  }, [busy]);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible' && !busyRef.current && keyRef.current) load(keyRef.current).catch(() => undefined);
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [load]);
+
   const act = useCallback(
     async (path: string, body?: unknown) => {
       setBusy(true);
@@ -148,13 +160,14 @@ export function DealPage({ dealId }: { dealId: string }) {
           <Decline view={view} busy={busy} act={act} />
 
           {me === 'buyer' && view.checkout && !view.payBlocker && <PayButton dealId={dealId} getKey={() => keyRef.current ?? ''} checkout={view.checkout} onDone={() => load(keyRef.current ?? '')} onError={setError} />}
-          {view.order && (
+          {view.order && !view.afterPayment && (
             <section className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
               <p>
-                PayPal order <span className="font-mono">{view.order.id}</span>: {orderStatusText(view.order.status)}
+                PayPal order <span className="font-mono">{view.order.id}</span>: created, waiting for the buyer to approve it in PayPal.
               </p>
             </section>
           )}
+          {view.afterPayment && <AfterPayment view={view} busy={busy} act={act} />}
         </div>
 
         <aside className="order-1 space-y-8 lg:order-2">
@@ -169,13 +182,6 @@ export function DealPage({ dealId }: { dealId: string }) {
       </div>
     </Shell>
   );
-}
-
-function orderStatusText(status: string) {
-  if (status === 'CREATED') return 'created, waiting for the buyer to approve it in PayPal.';
-  if (status === 'CAPTURE_REQUESTED')
-    return 'PayPal accepted the capture. Settle treats the payment as confirmed only after PayPal\'s own notification is verified (coming in the next milestone), so the seller should not ship yet.';
-  return `status ${status}.`;
 }
 
 function sourceText(s: SourceView | null) {
@@ -360,6 +366,7 @@ function Chat({ view }: { view: DealView }) {
             <p className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${m.from === 'seller' ? 'bg-white' : 'bg-pp-highlight'}`}>
               <span className="block text-xs text-pp-muted">
                 {m.from}, message {m.id.slice(1)}
+                {m.added && `, added after payment by the ${m.added.by}`}
               </span>
               {m.text}
             </p>
@@ -408,5 +415,247 @@ function Decline({ view, busy, act }: { view: DealView; busy: boolean; act: (p: 
         </div>
       )}
     </section>
+  );
+}
+
+type Act = (p: string, b?: unknown) => Promise<unknown>;
+type After = NonNullable<DealView['afterPayment']>;
+type Gate = NonNullable<After['gate']>;
+
+const MARK: Record<Gate['checks'][number]['status'], { glyph: string; tone: string; word: string }> = {
+  pass: { glyph: '✓', tone: 'text-pp-success', word: 'Passes' },
+  fail: { glyph: '✕', tone: 'text-pp-danger', word: 'Fails' },
+  not_yet: { glyph: '○', tone: 'text-pp-muted', word: 'Not yet' },
+  cant_check: { glyph: '?', tone: 'text-pp-warning', word: "Can't check" },
+};
+
+const DECISION_TONE: Record<Gate['decision'], string> = {
+  SHIP: 'border-pp-success',
+  HOLD: 'border-pp-danger',
+  REVIEW: 'border-pp-warning',
+};
+
+function AfterPayment({ view, busy, act }: { view: DealView; busy: boolean; act: Act }) {
+  const a = view.afterPayment!;
+  const tone = a.payment.state === 'paid' ? 'text-pp-success' : a.payment.state === 'waiting' ? 'text-pp-muted' : 'text-pp-danger';
+  return (
+    <div className="space-y-8">
+      <section aria-label="Payment" className="text-sm">
+        <p className={`font-semibold ${tone}`}>{a.payment.text}</p>
+        <p className="mt-1 text-pp-muted">
+          PayPal order <span className="font-mono">{view.order!.id}</span>
+          {a.checkedAt && `, last read from PayPal ${new Date(a.checkedAt).toLocaleTimeString()}`}. Sandbox: no real money moved.
+        </p>
+        {a.fee && (
+          <p className="mt-1 text-pp-muted">
+            PayPal&apos;s fee on this payment: {a.fee.actual}
+            {a.fee.estimate && ` (Settle estimated ${a.fee.estimate})`}
+            {a.fee.net && `. You receive ${a.fee.net}`}.
+          </p>
+        )}
+      </section>
+      {a.gate && <ShipPanel a={a} gate={a.gate} busy={busy} act={act} />}
+      {view.role === 'seller' && <PaidCheckBox busy={busy} act={act} />}
+      <AddMessages view={view} busy={busy} act={act} />
+    </div>
+  );
+}
+
+function ShipPanel({ a, gate, busy, act }: { a: After; gate: Gate; busy: boolean; act: Act }) {
+  return (
+    <section aria-label="Ship check" className="space-y-6">
+      <div className={`border-l-4 ${DECISION_TONE[gate.decision]} bg-pp-surface px-5 py-4`}>
+        <h2 className="text-[28px] font-semibold leading-tight text-pp-navy">{gate.headline}</h2>
+        {gate.reasons.length > 0 && (
+          <ul className="mt-2 space-y-1 text-sm">
+            {gate.reasons.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-2 text-sm text-pp-muted">{gate.note}</p>
+      </div>
+
+      <ul aria-label="Seller Protection checklist" className="divide-y divide-pp-gridline rounded-md border border-pp-border bg-pp-surface">
+        {gate.checks.map((c) => (
+          <li key={c.id} className="flex gap-3 px-4 py-3">
+            <span aria-hidden className={`w-5 shrink-0 text-center text-lg font-semibold leading-6 ${MARK[c.status].tone}`}>
+              {MARK[c.status].glyph}
+            </span>
+            <div className="min-w-0 text-sm">
+              <p className="font-semibold">
+                {c.label} <span className={`font-normal ${MARK[c.status].tone}`}>({MARK[c.status].word})</span>
+              </p>
+              <p className="mt-0.5">{c.detail}</p>
+              {(c.cites.length > 0 || c.proof) && (
+                <p className="mt-1 text-xs text-pp-muted">
+                  {c.cites.length > 0 && `PayPal terms: ${c.cites.join(', ')}`}
+                  {c.cites.length > 0 && c.proof && '. '}
+                  {c.proof && `Proof: ${c.proof}`}
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div className="text-sm">
+          <h3 className="font-semibold">Ship to this address only</h3>
+          {a.shipTo ? (
+            <address className="mt-2 not-italic leading-relaxed">
+              {a.shipTo.name && <span className="block font-semibold">{a.shipTo.name}</span>}
+              {a.shipTo.lines.map((l) => (
+                <span key={l} className="block">{l}</span>
+              ))}
+              <span className="block">
+                {a.shipTo.postalCode} {a.shipTo.countryCode}
+              </span>
+            </address>
+          ) : (
+            <p className="mt-2 text-pp-muted">PayPal&apos;s shipping address appears once the payment is confirmed.</p>
+          )}
+          <p className="mt-2 text-xs text-pp-muted">From the PayPal payment. Don&apos;t use an address sent in the chat.</p>
+        </div>
+        <LabelForm a={a} busy={busy} act={act} />
+      </div>
+
+      <TrackingForm a={a} busy={busy} act={act} />
+    </section>
+  );
+}
+
+const input = 'w-full rounded-md border border-pp-border bg-white px-3 py-2 text-sm focus:border-pp-blue focus:outline-none focus:ring-2 focus:ring-pp-blue/30';
+const primary = 'rounded-full bg-pp-blue px-5 py-2 text-sm font-semibold text-white disabled:opacity-40';
+
+function LabelForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
+  const [code, setCode] = useState(a.labelPostcode ?? '');
+  return (
+    <form
+      className="text-sm"
+      onSubmit={(e) => {
+        e.preventDefault();
+        act('/label', { postcode: code });
+      }}
+    >
+      <label htmlFor="label-postcode" className="font-semibold">
+        {a.postcodeLabel} on your shipping label
+      </label>
+      <p className="mt-1 text-pp-muted">Settle compares it with PayPal&apos;s address before you hand the parcel over.</p>
+      <div className="mt-2 flex gap-2">
+        <input id="label-postcode" value={code} onChange={(e) => setCode(e.target.value)} className={input} autoComplete="off" />
+        <button disabled={busy || !code.trim()} className={primary}>
+          Compare
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function TrackingForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
+  const [carrier, setCarrier] = useState(a.carriers[0]?.id ?? '');
+  const [number, setNumber] = useState('');
+  const [name, setName] = useState('');
+  if (a.tracking?.state === 'sent') {
+    return (
+      <p className="text-sm">
+        Tracking <span className="font-mono">{a.tracking.number}</span> ({a.tracking.carrier}) was added to the PayPal order.
+      </p>
+    );
+  }
+  return (
+    <form
+      className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm"
+      onSubmit={(e) => {
+        e.preventDefault();
+        act('/tracking', { carrier, number, ...(carrier === 'OTHER' ? { carrierName: name } : {}) });
+      }}
+    >
+      <h3 className="font-semibold">Add tracking to PayPal</h3>
+      <p className="mt-1 text-pp-muted">
+        After you post it. PayPal needs tracking as proof of shipment and delivery. Sent through PayPal&apos;s TypeScript SDK; the check passes once PayPal shows it on the order.
+      </p>
+      {a.tracking?.state === 'unknown' && (
+        <p className="mt-2 text-pp-warning">PayPal didn&apos;t answer last time. Add it again: Settle checks PayPal first, so it won&apos;t be added twice.</p>
+      )}
+      <div className="mt-3 grid gap-2 sm:grid-cols-[10rem_minmax(0,1fr)_auto]">
+        <select aria-label="Carrier" value={carrier} onChange={(e) => setCarrier(e.target.value)} className={input}>
+          {a.carriers.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        <input aria-label="Tracking number" placeholder="Tracking number" value={number} onChange={(e) => setNumber(e.target.value)} className={input} autoComplete="off" />
+        <button disabled={busy || !number.trim()} className={primary}>
+          Add tracking
+        </button>
+      </div>
+      {carrier === 'OTHER' && <input aria-label="Carrier name" placeholder="Carrier name" value={name} onChange={(e) => setName(e.target.value)} className={`${input} mt-2`} />}
+    </form>
+  );
+}
+
+type PaidAnswer = { verdict: 'paid' | 'not_paid' | 'cant_check'; answer: string; notes: string[] };
+
+function PaidCheckBox({ busy, act }: { busy: boolean; act: Act }) {
+  const [text, setText] = useState('');
+  const [result, setResult] = useState<PaidAnswer | null>(null);
+  const tone = result?.verdict === 'paid' ? 'border-pp-success' : result?.verdict === 'not_paid' ? 'border-pp-danger' : 'border-pp-warning';
+  const word = result?.verdict === 'paid' ? 'Paid' : result?.verdict === 'not_paid' ? 'Not paid' : "Couldn't reach PayPal";
+  return (
+    <section aria-label="Is this paid?" className="text-sm">
+      <h2 className="text-lg font-semibold">Got a &ldquo;payment received&rdquo; message?</h2>
+      <p className="mt-1 text-pp-muted">Paste the email or the text from the screenshot. Settle answers from this deal&apos;s PayPal order, not from the message. The text isn&apos;t saved.</p>
+      <form
+        className="mt-3 space-y-2"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const out = (await act('/paid-check', { text })) as PaidAnswer | undefined;
+          if (out) setResult(out);
+        }}
+      >
+        <textarea aria-label="Payment message" rows={4} value={text} onChange={(e) => setText(e.target.value)} className={input} />
+        <button disabled={busy} className={primary}>
+          Check with PayPal
+        </button>
+      </form>
+      {result && (
+        <div role="status" className={`mt-4 border-l-4 ${tone} bg-pp-surface px-4 py-3`}>
+          <p className="text-lg font-semibold">{word}</p>
+          <p className="mt-1">{result.answer}</p>
+          {result.notes.length > 0 && (
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {result.notes.map((n) => (
+                <li key={n}>{n}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AddMessages({ view, busy, act }: { view: DealView; busy: boolean; act: Act }) {
+  const [text, setText] = useState('');
+  const names = [...new Set(view.messages.map((m) => m.from))];
+  return (
+    <form
+      className="text-sm"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (await act('/messages', { text })) setText('');
+      }}
+    >
+      <h2 className="text-lg font-semibold">New messages since payment</h2>
+      <p className="mt-1 text-pp-muted">
+        Paste any new messages from the chat, one per line starting with the sender&apos;s name as before. Settle checks them for warning signs, such as a new delivery address{view.role === 'seller' ? ', before you ship' : ''}.
+      </p>
+      <textarea aria-label="New messages" rows={3} value={text} onChange={(e) => setText(e.target.value)} className={`${input} mt-2`} placeholder={names.length ? 'Name: message' : undefined} />
+      <button disabled={busy || !text.trim()} className={`${primary} mt-2`}>
+        Add messages
+      </button>
+    </form>
   );
 }

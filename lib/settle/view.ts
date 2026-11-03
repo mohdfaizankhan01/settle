@@ -3,10 +3,12 @@
 // (DECISIONS #7): "No warning signs found" only when the check ran; never "safe".
 
 import { blockers, cardHash, formatMoney, isLocked, moneyOf } from './card';
+import { CARRIERS } from './carriers';
 import type { Role } from './chat';
 import { payBlocker } from './checkout';
 import { DECLINE_REASONS } from './deals';
 import { FEE_RATES } from './fees';
+import { isPaid, shipGate } from './ship-gate';
 import { shownTo, signalById, TERM_SIGNALS } from './signals';
 import { CURRENCY_OF, type Deal, type TermKey, type TermSource } from './types';
 
@@ -104,7 +106,7 @@ export function dealView(deal: Deal, role: Role) {
               : 'The warning check did not run, so this card cannot be confirmed yet.',
           },
     warnings,
-    messages: deal.messages.map((m) => ({ id: m.id, from: m.role, text: m.text })),
+    messages: deal.messages.map((m) => ({ id: m.id, from: m.role, text: m.text, added: m.added ? { by: m.added.by, at: m.added.at } : null })),
     terms,
     questions: deal.questions
       .filter((q) => !q.resolved)
@@ -140,7 +142,36 @@ export function dealView(deal: Deal, role: Role) {
       role === 'buyer' && isLocked(deal) && deal.payeeMerchantId && moneyOf(deal)
         ? { clientId: process.env.PAYPAL_CLIENT_ID ?? '', merchantId: deal.payeeMerchantId, amount: moneyOf(deal)!.total, currency: deal.card.price!.value.currency }
         : null,
+    // After payment (PLAN M3): what PayPal confirmed, and for the seller, the ship gate.
+    afterPayment: deal.order && deal.order.status !== 'CREATED' ? afterPaymentView(deal, role) : null,
     canEnter: role === 'seller' ? (['item', 'price'] as const).filter((k) => !deal.card[k] || deal.card[k]!.source.kind === 'entered') : [],
+  };
+}
+
+function afterPaymentView(deal: Deal, role: Role) {
+  const read = deal.payment?.read;
+  const paid = isPaid(deal);
+  const c = CURRENCY_OF[deal.country];
+  const estimate = moneyOf(deal)?.fee;
+  const payment = paid
+    ? { state: 'paid' as const, text: 'PayPal confirmed the payment: a verified PayPal notification and a fresh read of the order both match the card.' }
+    : read && !read.ok
+      ? { state: 'cant_check' as const, text: "Couldn't reach PayPal to check the payment. That isn't the same as unpaid; Settle tries again when the page reloads." }
+      : read?.ok && (read.mismatches.length > 0 || (read.captureStatus && read.captureStatus !== 'COMPLETED'))
+        ? { state: 'problem' as const, text: read.mismatches.length > 0 ? `The PayPal order doesn't match the card: ${read.mismatches.join('; ')}.` : `PayPal shows the payment as ${read.captureStatus}.` }
+        : { state: 'waiting' as const, text: "Waiting for PayPal's payment notification. The seller shouldn't ship until PayPal confirms it." };
+  const seller = role === 'seller';
+  return {
+    payment,
+    checkedAt: read?.at ?? null,
+    // PayPal's actual fee from the capture, next to Settle's estimate (docs/fees.md).
+    fee: seller && read?.ok && read.fee ? { actual: formatMoney(read.fee, c), estimate: estimate ? formatMoney(estimate, c) : null, net: read.net ? formatMoney(read.net, c) : null } : null,
+    gate: seller ? shipGate(deal) : null,
+    shipTo: seller && read?.ok ? (read.shipTo ?? null) : null,
+    labelPostcode: seller ? (deal.shipping?.labelPostcode?.value ?? null) : null,
+    tracking: deal.shipping?.tracking ? { carrier: CARRIERS[deal.country].find((x) => x.id === deal.shipping!.tracking!.carrier)?.label ?? deal.shipping.tracking.carrier, number: deal.shipping.tracking.number, state: deal.shipping.tracking.state } : null,
+    carriers: seller ? CARRIERS[deal.country].map((x) => ({ id: x.id as string, label: x.label })) : [],
+    postcodeLabel: deal.country === 'US' ? 'ZIP code' : 'Postcode',
   };
 }
 
