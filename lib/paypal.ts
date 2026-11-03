@@ -3,7 +3,7 @@
 // checks, seller onboarding (Partner Referrals) and orders, with plain fetch and no SDK. Server-side only: it reads the client
 // secret from the environment.
 
-const BASE_URL = 'https://api-m.sandbox.paypal.com';
+export const BASE_URL = 'https://api-m.sandbox.paypal.com';
 const MAX_ATTEMPTS = 4;
 
 export class PayPalApiError extends Error {

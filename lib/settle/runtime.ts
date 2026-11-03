@@ -60,6 +60,8 @@ export async function api(fn: () => Promise<unknown>): Promise<Response> {
     if (error instanceof ChatError) return Response.json({ error: error.message }, { status: 400 });
     if (error instanceof PayPalApiError) {
       console.log(`[deal] PayPal ${error.status} on ${error.path} debug=${error.debugId ?? '-'}`);
+      // Our quota or our credentials, never the caller's fault: 503 for busy, 502 otherwise.
+      if (error.status === 429) return Response.json({ error: 'PayPal is busy; try again in a minute', debugId: error.debugId ?? null }, { status: 503 });
       return Response.json({ error: 'PayPal returned an error', debugId: error.debugId ?? null }, { status: 502 });
     }
     console.log(`[deal] unexpected ${error instanceof Error ? error.name : 'error'}`);

@@ -116,7 +116,8 @@ function trackingCheck(deal: Deal): GateCheck {
   const captureId = read?.ok ? read.captureId : undefined;
   const shown = read?.ok && (read.trackers ?? []).some((id) => id === `${captureId}-${t.number}` || id.endsWith(`-${t.number}`));
   if (shown) return { ...base, status: 'pass', detail: `PayPal shows tracking ${t.number} (${t.carrier}) on the order.`, proof: `Fresh GET of order ${deal.order?.id}` };
-  if (read && !read.ok) return { ...base, status: 'cant_check', detail: `Tracking ${t.number} was sent; couldn't reach PayPal to see it on the order.` };
+  if (read && !read.ok) return { ...base, status: 'cant_check', detail: `Couldn't reach PayPal to see tracking ${t.number} on the order.` };
+  if (t.state === 'unknown') return { ...base, status: 'cant_check', detail: `PayPal didn't answer when tracking ${t.number} was sent, and it isn't on the order yet. Try adding it again.` };
   return { ...base, status: 'not_yet', detail: `Tracking ${t.number} was sent to PayPal; waiting to see it on the order.`, proof: t.debugId ? `PayPal debug ID ${t.debugId}` : undefined };
 }
 

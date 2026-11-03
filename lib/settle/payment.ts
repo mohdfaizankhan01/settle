@@ -59,7 +59,9 @@ export function readOrder(deal: Deal, order: paypal.Order, at: string, debugId?:
 
 export type Trigger =
   | { kind: 'webhook'; eventId: string; eventType: string; captureId?: string }
-  | { kind: 'page' };
+  | { kind: 'page' }
+  // Re-read after the seller added tracking, to see the tracker on the order.
+  | { kind: 'tracking' };
 
 const summary = (p: Payment | undefined, paid: boolean) => {
   const r = p?.read;

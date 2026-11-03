@@ -110,7 +110,16 @@ export type Payment = {
 /** What the seller did to ship: the postcode typed from the label, and tracking sent to PayPal. */
 export type Shipping = {
   labelPostcode?: { value: string; at: string };
-  tracking?: { carrier: string; number: string; addedAt: string; debugId?: string };
+  tracking?: {
+    carrier: string;
+    /** Carrier name when carrier is OTHER. */
+    carrierName?: string;
+    number: string;
+    /** sending: claimed, call in flight. sent: PayPal accepted it. unknown: no answer; re-read decides. */
+    state: 'sending' | 'sent' | 'unknown';
+    at: string;
+    debugId?: string;
+  };
 };
 
 export type Deal = {
