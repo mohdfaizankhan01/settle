@@ -177,6 +177,8 @@ export type Deal = {
   payment?: Payment;
   shipping?: Shipping;
   disputes?: DisputeRecord[];
+  /** Dispute responses sent (or being sent) with the seller's approval, by request hash. */
+  submissions?: { disputeId: string; rel: string; hash: string; state: 'sending' | 'sent' | 'failed' | 'unknown'; at: string; debugId?: string; status?: number }[];
   /** The last ship gate decision written to a receipt, so only changes are recorded. */
   gate?: { decision: string; key: string; at: string };
 };
