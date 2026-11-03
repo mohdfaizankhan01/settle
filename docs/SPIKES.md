@@ -95,7 +95,7 @@ Findings:
 - **Settle can work a dispute for a connected seller**: read it, receive its webhooks, and send seller-approved supporting info with `PayPal-Auth-Assertion`. PayPal records the note as the seller's.
 - Opening disputes on demand needs a buyer login (Resolution Center). The disputes create API needs the buyer's consent to our app; `process-chargeback` needs a card-funded payment and the full chargeback body. For judge mode, pre-open a dispute per demo, or retry `process-chargeback` with a card payment in M4.
 - The buyer sees tracking we uploaded before they can file.
-- Only actions in the dispute's links are offered: here just `provide_supporting_info`. `provide-supporting-info` also takes multipart documents (not tested yet; M4).
+- Only actions in the dispute's links are offered: here just `provide_supporting_info`. `provide-supporting-info` also takes multipart documents: **confirmed 2026-11-03 (M4)**, dispute PP-R-BTN-10196230, `input` JSON part plus `file1` PDF, 2xx debug f4289668a7883, PayPal lists the PDF under `supporting_info.documents`, source SUBMITTED_BY_SELLER.
 - The dispute's `seller_protection_eligible` was `false` although the capture said `ELIGIBLE`. Don't present either field as a verdict; cite the checks and say PayPal decides.
 - Stages moved from `INQUIRY` to `CHARGEBACK` within minutes in the sandbox; Settle must re-read the dispute before offering an action.
 
