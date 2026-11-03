@@ -4,13 +4,16 @@
 
 import { blockers, cardHash, formatMoney, isLocked, moneyOf } from './card';
 import { CARRIERS } from './carriers';
+import { caseFile, REASON_LABELS } from './case-file';
+import { ADVICE_LABEL, disputePlan } from './dispute-plan';
+import type { Receipt } from './receipts';
 import type { Role } from './chat';
 import { payBlocker } from './checkout';
 import { DECLINE_REASONS } from './deals';
 import { FEE_RATES } from './fees';
 import { isPaid, readFailedLast, shipGate } from './ship-gate';
 import { shownTo, signalById, TERM_SIGNALS } from './signals';
-import { CURRENCY_OF, type Deal, type TermKey, type TermSource } from './types';
+import { CURRENCY_OF, type Currency, type Deal, type TermKey, type TermSource } from './types';
 
 export const SIMULATED_NOTE =
   "PayPal sandbox: no real money moves. The warning check is Settle Link's own small model, running on our server over a redacted copy of the chat.";
@@ -37,7 +40,7 @@ function sourceView(deal: Deal, source: TermSource): SourceView {
   return { kind: 'entered', by: source.by };
 }
 
-export function dealView(deal: Deal, role: Role) {
+export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = []) {
   const hash = cardHash(deal);
 
   const bySignal = new Map<string, ReturnType<typeof warningView>>();
@@ -143,12 +146,12 @@ export function dealView(deal: Deal, role: Role) {
         ? { clientId: process.env.PAYPAL_CLIENT_ID ?? '', merchantId: deal.payeeMerchantId, amount: moneyOf(deal)!.total, currency: deal.card.price!.value.currency }
         : null,
     // After payment (PLAN M3): what PayPal confirmed, and for the seller, the ship gate.
-    afterPayment: deal.order && deal.order.status !== 'CREATED' ? afterPaymentView(deal, role) : null,
+    afterPayment: deal.order && deal.order.status !== 'CREATED' ? afterPaymentView(deal, role, receipts) : null,
     canEnter: role === 'seller' ? (['item', 'price'] as const).filter((k) => !deal.card[k] || deal.card[k]!.source.kind === 'entered') : [],
   };
 }
 
-function afterPaymentView(deal: Deal, role: Role) {
+function afterPaymentView(deal: Deal, role: Role, receipts: readonly Receipt[]) {
   const read = deal.payment?.read;
   const paid = isPaid(deal) && !readFailedLast(deal);
   const c = CURRENCY_OF[deal.country];
@@ -176,6 +179,20 @@ function afterPaymentView(deal: Deal, role: Role) {
     tracking: deal.shipping?.tracking ? { carrier: CARRIERS[deal.country].find((x) => x.id === deal.shipping!.tracking!.carrier)?.label ?? deal.shipping.tracking.carrier, number: deal.shipping.tracking.number, state: deal.shipping.tracking.state } : null,
     carriers: seller ? CARRIERS[deal.country].map((x) => ({ id: x.id as string, label: x.label })) : [],
     postcodeLabel: deal.country === 'US' ? 'ZIP code' : 'Postcode',
+    delivered: deal.shipping?.delivered?.date ?? null,
+    // Disputes (M4): the seller gets the case file and advice; the buyer only sees that one is open.
+    disputes: (deal.disputes ?? []).map((d) => {
+      const base = { id: d.id, reason: REASON_LABELS[d.reason] ?? d.reason, stage: d.stage, status: d.status, amount: d.amount ? formatMoney(d.amount.value, d.amount.currency as Currency) : null, dueDate: d.dueDate ?? null, outcome: d.outcome ?? null, readAt: d.readAt, failedAt: d.failed?.at ?? null };
+      if (!seller) return { ...base, caseFile: null, plan: null, adviceLabels: null, submissions: [] };
+      const cf = caseFile(deal, d, receipts);
+      return {
+        ...base,
+        caseFile: cf,
+        plan: disputePlan(cf, d),
+        adviceLabels: ADVICE_LABEL,
+        submissions: (deal.submissions ?? []).filter((x) => x.disputeId === d.id).map((x) => ({ rel: x.rel, state: x.state, at: x.at, debugId: x.debugId ?? null })),
+      };
+    }),
   };
 }
 

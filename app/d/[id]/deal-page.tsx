@@ -454,6 +454,7 @@ function AfterPayment({ view, busy, act }: { view: DealView; busy: boolean; act:
           </p>
         )}
       </section>
+      {a.disputes.map((d) => (view.role === 'seller' ? <DisputePanel key={d.id} d={d} busy={busy} act={act} dealId={view.id} /> : <BuyerDispute key={d.id} d={d} />))}
       {a.gate && <ShipPanel a={a} gate={a.gate} busy={busy} act={act} />}
       {view.role === 'seller' && <PaidCheckBox busy={busy} act={act} />}
       <AddMessages view={view} busy={busy} act={act} />
@@ -558,9 +559,12 @@ function TrackingForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
   const [name, setName] = useState('');
   if (a.tracking?.state === 'sent') {
     return (
-      <p className="text-sm">
-        Tracking <span className="font-mono">{a.tracking.number}</span> ({a.tracking.carrier}) was added to the PayPal order.
-      </p>
+      <div className="space-y-3 text-sm">
+        <p>
+          Tracking <span className="font-mono">{a.tracking.number}</span> ({a.tracking.carrier}) was added to the PayPal order.
+        </p>
+        <DeliveredForm a={a} busy={busy} act={act} />
+      </div>
     );
   }
   return (
@@ -657,5 +661,223 @@ function AddMessages({ view, busy, act }: { view: DealView; busy: boolean; act: 
         Add messages
       </button>
     </form>
+  );
+}
+
+function DeliveredForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
+  const [date, setDate] = useState('');
+  if (a.delivered) return <p>You recorded that the carrier shows it delivered on {a.delivered}.</p>;
+  return (
+    <form
+      className="flex flex-wrap items-end gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        act('/delivered', { date });
+      }}
+    >
+      <label className="block">
+        <span className="font-semibold">Carrier shows delivered on</span>
+        <span className="block text-pp-muted">Settle can&apos;t see the carrier. Record it once their tracking page says delivered; a dispute needs it.</span>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${input} mt-1 w-auto`} />
+      </label>
+      <button disabled={busy || !date} className={primary}>
+        Record delivery
+      </button>
+    </form>
+  );
+}
+
+type DisputeView = After['disputes'][number];
+
+const PROOF_MARK = {
+  on_file: { glyph: '✓', tone: 'text-pp-success', word: 'On file' },
+  missing: { glyph: '○', tone: 'text-pp-muted', word: 'Missing' },
+  contradicts: { glyph: '✕', tone: 'text-pp-danger', word: 'Contradicts' },
+} as const;
+
+function due(iso: string | null) {
+  return iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+}
+
+function BuyerDispute({ d }: { d: DisputeView }) {
+  return (
+    <section aria-label="Dispute" className="border-l-4 border-pp-warning bg-pp-surface px-5 py-4 text-sm">
+      <h2 className="text-lg font-semibold">You opened a PayPal dispute: {d.reason.toLowerCase()}</h2>
+      <p className="mt-1 text-pp-muted">
+        Case {d.id}, {d.status === 'RESOLVED' ? `resolved${d.outcome ? ` (${d.outcome})` : ''}` : `status ${d.status.toLowerCase().replaceAll('_', ' ')}`}. PayPal decides it; follow it in your PayPal account.
+      </p>
+    </section>
+  );
+}
+
+type Preview = { request: { advice: string; rel: string; url: string; json: unknown; files: { name: string; size: number; sha256: string }[]; hash: string }; recommended: boolean };
+
+function DisputePanel({ d, busy, act, dealId }: { d: DisputeView; busy: boolean; act: Act; dealId: string }) {
+  const plan = d.plan!;
+  const cf = d.caseFile!;
+  const [advice, setAdvice] = useState<string>(plan.advice);
+  const [offer, setOffer] = useState('');
+  const [withFiles, setWithFiles] = useState(true);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const resolved = d.status === 'RESOLVED';
+  const choices = [plan.action ? plan.advice : null, ...plan.alternatives.map((x) => x.advice)].filter((x): x is NonNullable<typeof x> => !!x);
+  const choice = { disputeId: d.id, advice, ...(advice === 'offer' ? { offerAmount: offer } : {}), ...(withFiles ? {} : { withFiles: false }) };
+
+  const download = async () => {
+    const key = new URLSearchParams(window.location.hash.slice(1)).get('k') ?? '';
+    const res = await fetch(`/api/deals/${dealId}/disputes/pack?d=${encodeURIComponent(d.id)}`, { headers: { 'x-settle-key': key }, cache: 'no-store' });
+    if (!res.ok) return;
+    const url = URL.createObjectURL(await res.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `settle-evidence-${d.id}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <section aria-label="Dispute" className="space-y-6">
+      <div className={`border-l-4 ${resolved ? 'border-pp-border' : 'border-pp-danger'} bg-pp-surface px-5 py-4`}>
+        <h2 className="text-[28px] font-semibold leading-tight text-pp-navy">
+          {resolved ? 'Dispute resolved' : 'The buyer opened a dispute'}: {cf.reasonLabel.toLowerCase()}
+        </h2>
+        <p className="mt-2 text-sm">
+          PayPal case {d.id}
+          {d.amount && `, ${d.amount}`}. Stage {d.stage.toLowerCase().replaceAll('_', ' ')}, status {d.status.toLowerCase().replaceAll('_', ' ')}
+          {d.outcome && `, outcome ${d.outcome}`}.
+        </p>
+        {!resolved && d.dueDate && <p className="mt-1 text-sm font-semibold">Respond by {due(d.dueDate)}.</p>}
+        <p className="mt-1 text-xs text-pp-muted">
+          Read from PayPal {new Date(d.readAt).toLocaleTimeString()}
+          {d.failedAt && '; the last re-read failed, so this may be out of date'}. Sandbox: no real money moves.
+        </p>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-semibold">What the record shows</h3>
+        <ul className="mt-2 divide-y divide-pp-gridline rounded-md border border-pp-border bg-pp-surface">
+          {cf.proofs.map((p) => (
+            <li key={p.id} className="flex gap-3 px-4 py-3 text-sm">
+              <span aria-hidden className={`w-5 shrink-0 text-center text-lg font-semibold leading-6 ${PROOF_MARK[p.status].tone}`}>
+                {PROOF_MARK[p.status].glyph}
+              </span>
+              <div className="min-w-0">
+                <p className="font-semibold">
+                  {p.label} <span className={`font-normal ${PROOF_MARK[p.status].tone}`}>({PROOF_MARK[p.status].word})</span>
+                </p>
+                <p className="mt-0.5">{p.detail}</p>
+                <p className="mt-1 text-xs text-pp-muted">
+                  Source: {p.source}. PayPal terms: {p.cites.join(', ')}.
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {cf.notes.map((n) => (
+          <p key={n} className="mt-2 text-sm text-pp-muted">
+            {n}
+          </p>
+        ))}
+      </div>
+
+      <div className="text-sm">
+        <h3 className="text-lg font-semibold">Settle&apos;s advice: {d.adviceLabels![plan.advice].toLowerCase()}</h3>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          {plan.reasons.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+        <p className="mt-3 font-semibold">
+          Proof on file: {plan.score.lines.map((l) => `${l.points >= 0 ? '+' : ''}${l.points}`).join(' ')} = {plan.score.total} of {plan.score.of}
+        </p>
+        <p className="mt-1 text-pp-muted">{plan.note}</p>
+        {plan.fallback && <p className="mt-2 text-pp-warning">{plan.fallback}</p>}
+      </div>
+
+      {!resolved && choices.length > 0 && (
+        <div className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
+          <h3 className="font-semibold">Respond to PayPal</h3>
+          <p className="mt-1 text-pp-muted">Only the responses PayPal offers on this case right now. You see the exact request before anything is sent.</p>
+          <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Response">
+            {choices.map((c) => (
+              <button
+                key={c}
+                role="radio"
+                aria-checked={advice === c}
+                onClick={() => {
+                  setAdvice(c);
+                  setPreview(null);
+                }}
+                className={`rounded-full border px-4 py-1.5 ${advice === c ? 'border-pp-blue bg-pp-highlight font-semibold' : 'border-pp-border hover:border-pp-blue'}`}
+              >
+                {d.adviceLabels![c]}
+                {c === plan.advice && ' (advised)'}
+              </button>
+            ))}
+          </div>
+          {advice === 'offer' && (
+            <label className="mt-3 block">
+              <span className="font-semibold">Refund to offer</span>
+              <input value={offer} onChange={(e) => { setOffer(e.target.value); setPreview(null); }} className={`${input} mt-1 w-40`} inputMode="decimal" />
+            </label>
+          )}
+          {advice === 'fight' && (
+            <label className="mt-3 flex items-center gap-2">
+              <input type="checkbox" checked={withFiles} onChange={(e) => { setWithFiles(e.target.checked); setPreview(null); }} />
+              Attach the evidence pack PDF
+            </label>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              disabled={busy}
+              className={primary}
+              onClick={async () => {
+                const out = (await act('/disputes/preview', choice)) as Preview | undefined;
+                if (out) setPreview(out);
+              }}
+            >
+              Review the request
+            </button>
+            <button type="button" onClick={download} className="rounded-full border border-pp-border px-5 py-2 font-semibold">
+              Download evidence pack
+            </button>
+          </div>
+
+          {preview && (
+            <div className="mt-4 space-y-2 border-t border-pp-gridline pt-4">
+              <p className="font-semibold">This is exactly what Settle will send to PayPal, as you:</p>
+              <p className="font-mono text-xs break-all">POST {preview.request.url}</p>
+              <pre className="max-h-64 overflow-auto rounded-md bg-pp-canvas p-3 text-xs whitespace-pre-wrap">{JSON.stringify(preview.request.json, null, 2)}</pre>
+              {preview.request.files.map((f) => (
+                <p key={f.sha256} className="text-xs">
+                  File {f.name}, {Math.round(f.size / 1024)} KB, SHA-256 <span className="font-mono break-all">{f.sha256}</span>
+                </p>
+              ))}
+              <p className="text-xs text-pp-muted">Request fingerprint {preview.request.hash.slice(0, 16)}…. If the case or the record changes before you approve, Settle asks you to review again.</p>
+              <button
+                disabled={busy}
+                className="rounded-full bg-pp-navy px-5 py-2 font-semibold text-white disabled:opacity-40"
+                onClick={async () => {
+                  if (await act('/disputes/submit', { ...choice, hash: preview.request.hash })) setPreview(null);
+                }}
+              >
+                Approve and send to PayPal
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {d.submissions.length > 0 && (
+        <ul className="space-y-1 text-sm">
+          {d.submissions.map((x) => (
+            <li key={x.at + x.rel}>
+              {x.rel.replaceAll('_', ' ')}: {x.state}
+              {x.debugId && <span className="text-pp-muted"> (PayPal debug ID {x.debugId})</span>}, {new Date(x.at).toLocaleString()}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

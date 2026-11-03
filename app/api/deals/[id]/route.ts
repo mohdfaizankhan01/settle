@@ -15,6 +15,6 @@ export async function GET(request: Request, ctx: RouteContext<'/api/deals/[id]'>
     // isn't confirmed. Only for a valid link, so strangers can't make us call PayPal.
     let deal = await maybeRefreshOnLoad(stored.value, { store: getStore() });
     deal = await maybeRefreshDisputes(deal, { store: getStore() });
-    return dealView(deal, role);
+    return dealView(deal, role, role === 'seller' && deal.disputes?.length ? await getStore().listReceipts(id) : []);
   });
 }

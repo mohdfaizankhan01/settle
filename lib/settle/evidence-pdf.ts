@@ -7,6 +7,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { cardHash, formatMoney, moneyOf } from './card';
 import { caseFile, gateAtShipping, type CaseFile } from './case-file';
+import { carrierLabel } from './carriers';
 import { redactChat } from './redact';
 import { verifyChain, type Receipt } from './receipts';
 import type { Deal, DisputeRecord } from './types';
@@ -140,11 +141,11 @@ export async function evidencePdf(deal: Deal, dispute: DisputeRecord, receipts: 
   if (deal.payment?.webhook) w.text(`Capture ${deal.payment.webhook.captureId}, confirmed by a verified PayPal webhook (${deal.payment.webhook.eventId}) at ${deal.payment.webhook.at}.`, { indent: 8, gap: 0 });
   if (read?.fee && currency) w.text(`PayPal's fee ${formatMoney(read.fee, currency)}; the seller received ${read.net ? formatMoney(read.net, currency) : 'n/a'}.`, { indent: 8, gap: 0 });
   if (read?.items?.length) w.text(`Items on the order: ${read.items.join('; ')}`, { indent: 8, gap: 0 });
-  if (read?.shipTo) w.text(`Ship-to on the payment: ${[read.shipTo.lines.at(-2), read.shipTo.lines.at(-1), read.shipTo.postalCode, read.shipTo.countryCode].filter(Boolean).join(', ')} (street address omitted here; it is on the PayPal transaction).`, { indent: 8 });
+  if (read?.shipTo) w.text(`Ship-to on the payment: postcode ${read.shipTo.postalCode ?? 'n/a'}, ${read.shipTo.countryCode ?? ''} (the full address is on the PayPal transaction).`, { indent: 8 });
 
   w.heading('4. Shipping and tracking', 'PayPal API, Settle record and entered by the seller');
   if (deal.shipping?.labelPostcode) w.text(`Label postcode typed by the seller on ${day(deal.shipping.labelPostcode.at)}: ${deal.shipping.labelPostcode.value}.`, { indent: 8, gap: 0 });
-  if (t) w.text(`Tracking ${t.number} (${t.carrier}) sent to PayPal on ${day(t.at)}, state ${t.state}${t.debugId ? `, PayPal debug ID ${t.debugId}` : ''}.`, { indent: 8, gap: 0 });
+  if (t) w.text(`Tracking ${t.number} (${carrierLabel(deal, t.carrier)}) sent to PayPal on ${day(t.at)}, state ${t.state}${t.debugId ? `, PayPal debug ID ${t.debugId}` : ''}.`, { indent: 8, gap: 0 });
   else w.text('No tracking was added.', { indent: 8, gap: 0 });
   if (deal.shipping?.delivered) w.text(`Entered by the seller: the carrier shows delivered on ${deal.shipping.delivered.date}.`, { indent: 8, gap: 0 });
   const gate = gateAtShipping(receipts);

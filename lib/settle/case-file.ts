@@ -4,6 +4,7 @@
 // delivery counts only if PayPal or the seller recorded it. It never says the seller will win.
 
 import { cardHash } from './card';
+import { carrierLabel } from './carriers';
 import { NOT_AS_DESCRIBED, NOT_RECEIVED } from './disputes';
 import type { Receipt } from './receipts';
 import { normalPostcode, trackerShown } from './ship-gate';
@@ -75,7 +76,7 @@ function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonl
   const ship = { id: 'shipment', label: 'Proof of shipment: tracking on the PayPal order', cites: ['SP-PROOF-SHIP'], weight: 2, source: 'PayPal API' as const };
   if (t && trackerShown(deal, t.number)) {
     const late = dispute.createdAt && t.at > dispute.createdAt ? ' It was added after the dispute opened.' : '';
-    proofs.push({ ...ship, status: 'on_file', detail: `${t.carrier} tracking ${t.number} is on the PayPal order (added ${day(t.at)}).${late}` });
+    proofs.push({ ...ship, status: 'on_file', detail: `${carrierLabel(deal, t.carrier)} tracking ${t.number} is on the PayPal order (added ${day(t.at)}).${late}` });
   } else {
     proofs.push({ ...ship, status: 'missing', detail: t ? `Tracking ${t.number} was sent, but PayPal doesn't show it on the order yet.` : 'No tracking was added to the PayPal order.' });
   }
@@ -85,8 +86,8 @@ function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonl
   const d = deal.shipping?.delivered;
   proofs.push(
     d
-      ? { ...deliv, status: 'on_file', source: 'Entered by the seller', detail: `You recorded that the carrier shows it delivered on ${d.date}. Attach the carrier's delivery page if PayPal asks.` }
-      : { ...deliv, status: 'missing', source: 'Settle record', detail: "Settle can't see the carrier's delivery status. If the carrier shows delivered, record the date; without it the delivery can't be proved." },
+      ? { ...deliv, status: 'on_file', source: 'Entered by the seller', detail: `The seller recorded that the carrier shows it delivered on ${d.date}.` }
+      : { ...deliv, status: 'missing', source: 'Settle record', detail: "No delivery is recorded. Settle can't see the carrier's delivery status; without it the delivery can't be proved." },
   );
 
   // Shipped to the PayPal address.
@@ -109,7 +110,7 @@ function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonl
 
   // The ship gate when tracking went in.
   const gate = gateAtShipping(receipts);
-  const g = { id: 'gate', label: 'Settle\'s ship check when you shipped', cites: ['SP-RELEASE'], weight: 1, source: 'Settle record' as const };
+  const g = { id: 'gate', label: 'Settle\'s ship check at shipping', cites: ['SP-RELEASE'], weight: 1, source: 'Settle record' as const };
   if (!gate) proofs.push({ ...g, status: 'missing', detail: 'No ship check was recorded before tracking was added.' });
   else if (gate.decision === 'SHIP') proofs.push({ ...g, status: 'on_file', detail: `The ship check said ready to ship on ${day(gate.at)}, before tracking was added.` });
   else proofs.push({ ...g, status: 'contradicts', detail: `The ship check said ${gate.decision === 'HOLD' ? 'hold' : 'review'} when tracking was added (${day(gate.at)}).` });
