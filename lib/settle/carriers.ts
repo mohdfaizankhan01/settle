@@ -24,4 +24,5 @@ export const CARRIERS: Record<Deal['country'], { id: ShipmentCarrier; label: str
 };
 
 /** The carrier's display name, or its ID if Settle doesn't list it. */
-export const carrierLabel = (deal: Deal, id: string) => CARRIERS[deal.country].find((c) => c.id === id)?.label ?? id;
+export const carrierLabel = (deal: Deal, id: string, otherName?: string) =>
+  id === 'OTHER' && otherName ? otherName : (CARRIERS[deal.country].find((c) => c.id === id)?.label ?? id);

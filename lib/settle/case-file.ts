@@ -7,6 +7,7 @@ import { cardHash } from './card';
 import { carrierLabel } from './carriers';
 import { NOT_AS_DESCRIBED, NOT_RECEIVED } from './disputes';
 import type { Receipt } from './receipts';
+import { redactChat } from './redact';
 import { normalPostcode, trackerShown } from './ship-gate';
 import type { Deal, DisputeRecord } from './types';
 
@@ -22,6 +23,8 @@ export type Proof = {
   source: ProofSource;
   /** How much this proof counts in the advice's score (shown as a sum, never a percentage). */
   weight: number;
+  /** Tracking went on the order after the dispute opened (the buyer may not have seen it). */
+  late?: boolean;
 };
 
 export type CaseFile = {
@@ -50,6 +53,18 @@ export const REASON_LABELS: Record<string, string> = {
 
 const day = (iso: string) => iso.slice(0, 10);
 
+/**
+ * A chat message as it may leave Settle: redacted (names, contact details, account numbers
+ * removed), with prices and dates put back since they are deal terms, not personal details.
+ */
+export function redactedQuote(deal: Deal, messageId: string): string | undefined {
+  const { messages, tokens } = redactChat(deal.messages);
+  let text = messages.find((m) => m.id === messageId)?.text;
+  if (text === undefined) return undefined;
+  for (const t of tokens.filter((x) => x.messageId === messageId && (x.kind === 'PRICE' || x.kind === 'DATE'))) text = text.replace(`[${t.id}]`, t.raw);
+  return text;
+}
+
 /** The ship gate's decision as it stood when tracking was first sent to PayPal. */
 export function gateAtShipping(receipts: readonly Receipt[]): { decision: string; at: string } | undefined {
   const sent = receipts.find((r) => r.kind === 'tracking.added' && r.data.state === 'sent');
@@ -75,8 +90,8 @@ function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonl
   // Proof of shipment: tracking PayPal shows on the order.
   const ship = { id: 'shipment', label: 'Proof of shipment: tracking on the PayPal order', cites: ['SP-PROOF-SHIP'], weight: 2, source: 'PayPal API' as const };
   if (t && trackerShown(deal, t.number)) {
-    const late = dispute.createdAt && t.at > dispute.createdAt ? ' It was added after the dispute opened.' : '';
-    proofs.push({ ...ship, status: 'on_file', detail: `${carrierLabel(deal, t.carrier)} tracking ${t.number} is on the PayPal order (added ${day(t.at)}).${late}` });
+    const late = !!dispute.createdAt && t.at > dispute.createdAt;
+    proofs.push({ ...ship, status: 'on_file', ...(late ? { late } : {}), detail: `${carrierLabel(deal, t.carrier, t.carrierName)} tracking ${t.number} is on the PayPal order (added ${day(t.at)}).${late ? ' It was added after the dispute opened.' : ''}` });
   } else {
     proofs.push({ ...ship, status: 'missing', detail: t ? `Tracking ${t.number} was sent, but PayPal doesn't show it on the order yet.` : 'No tracking was added to the PayPal order.' });
   }
@@ -152,7 +167,7 @@ function notAsDescribedProofs(deal: Deal): Proof[] {
     weight: 1,
     source: src?.kind === 'entered' ? 'Entered by the seller' : 'Settle record',
     status: quote || src?.kind === 'entered' ? 'on_file' : 'missing',
-    detail: quote ? `The ${quote.role}'s message ${quote.id.slice(1)}: "${quote.text}"` : src?.kind === 'entered' ? 'Typed in by the seller and confirmed by the buyer.' : 'No source for the item description.',
+    detail: quote ? `The ${quote.role}'s message ${quote.id.slice(1)} (redacted): "${redactedQuote(deal, quote.id)}"` : src?.kind === 'entered' ? 'Typed in by the seller and confirmed by the buyer.' : 'No source for the item description.',
   });
   const read = deal.payment?.read;
   const names = read?.ok ? (read.items ?? []) : [];

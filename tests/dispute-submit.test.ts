@@ -130,6 +130,24 @@ test('a 5xx or a dropped connection is unknown, never "failed"', async () => {
   });
   await assert.rejects(submitApproved(t.dealId, t.keys.seller, 'PP-D-1', { advice: 'refund' }, request.hash, deps), /didn't confirm/);
   assert.equal((await t.get()).submissions![0].state, 'unknown');
+  // Approving the same request again never re-sends it: it may already have gone through.
+  setAnswer(async () => ({ data: {}, debugId: 'dbg-2' }));
+  await assert.rejects(submitApproved(t.dealId, t.keys.seller, 'PP-D-1', { advice: 'refund' }, request.hash, deps), /won't send it twice/);
+});
+
+test('an OTHER carrier sends its name, and source quotes leaving Settle are redacted', async () => {
+  const t = await paidSetup();
+  await applyVerifiedEvent(t.event('WH-1'), t.pdeps);
+  await setLabelPostcode(t.dealId, t.keys.seller, 'LS1 1AA', t.pdeps);
+  t.order.purchase_units![0].shipping!.trackers = [{ id: 'CAP-1-AB123456789GB' }];
+  await addTracking(t.dealId, t.keys.seller, { carrier: 'OTHER', carrierName: 'Local Couriers', number: 'AB123456789GB' }, { ...t.pdeps, sdk: sdkOk() });
+  const d = fakeDispute(customIdFor(await t.get()));
+  await applyVerifiedEvent(d.event('WH-D1'), { ...t.pdeps, disputes: d.paypal });
+  const deps = { store: t.store, paypal: { getDispute: d.paypal.getDispute, sendDisputeAction: async () => ({ data: {} }) }, now: t.pdeps.now };
+  const { request } = await previewSubmission(t.dealId, t.keys.seller, 'PP-D-1', { advice: 'fight', withFiles: false }, deps);
+  const ev = (request.json.evidences as { evidence_info: { tracking_info: Record<string, string>[] }; notes: string }[])[0];
+  assert.deepEqual(ev.evidence_info.tracking_info[0], { carrier_name: 'OTHER', carrier_name_other: 'Local Couriers', tracking_number: 'AB123456789GB' });
+  assert.match(ev.notes, /Shipped by Local Couriers/);
 });
 
 test('the same notes-only request is never sent twice', async () => {

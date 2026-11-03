@@ -8,8 +8,8 @@ import { createHash } from 'node:crypto';
 import * as paypal from '../paypal';
 import { canonicalJson, sha256Hex } from './canonical';
 import { formatMoney } from './card';
-import { caseFile } from './case-file';
-import { CARRIERS } from './carriers';
+import { caseFile, redactedQuote } from './case-file';
+import { carrierLabel } from './carriers';
 import { DealError } from './deals';
 import { disputePlan, ACTION_FOR, type Advice } from './dispute-plan';
 import { NOT_AS_DESCRIBED, refreshDispute, type DisputeDeps } from './disputes';
@@ -48,7 +48,7 @@ const clip = (s: string) => (s.length > MAX_NOTE ? `${s.slice(0, MAX_NOTE - 1)}â
 /** The note for each action, filled from the record. Fixed templates only. */
 export function noteFor(deal: Deal, dispute: DisputeRecord, choice: Choice): string {
   const t = deal.shipping?.tracking;
-  const carrier = t ? (CARRIERS[deal.country].find((c) => c.id === t.carrier)?.label ?? t.carrier) : '';
+  const carrier = t ? carrierLabel(deal, t.carrier, t.carrierName) : '';
   const ref = `The buyer and seller confirmed these terms on Settle Link before paying (deal ${deal.id}).`;
   const read = deal.payment?.read?.ok ? deal.payment.read : undefined;
   if (choice.advice === 'refund') return 'The seller accepts the claim and refunds the buyer in full.';
@@ -60,7 +60,7 @@ export function noteFor(deal: Deal, dispute: DisputeRecord, choice: Choice): str
     const item = deal.card.item;
     const src = item?.source.kind === 'message' ? deal.messages.find((m) => m.id === (item.source as { messageId: string }).messageId) : undefined;
     parts.push(`Before paying, the buyer confirmed the item as "${item?.value}".`);
-    if (src) parts.push(`That description comes from the ${src.role}'s message: "${src.text}".`);
+    if (src) parts.push(`That description comes from the ${src.role}'s message: "${redactedQuote(deal, src.id)}".`);
     if (read?.items?.includes(item?.value ?? '')) parts.push('The PayPal order names the same item.');
   }
   if (t && trackerShown(deal, t.number)) parts.push(`Shipped by ${carrier}, tracking ${t.number}, added to the PayPal order on ${t.at.slice(0, 10)}.`);
@@ -74,7 +74,8 @@ async function build(deal: Deal, dispute: DisputeRecord, choice: Choice, receipt
   const rel = ACTION_FOR[choice.advice].map((r) => dispute.actions.find((a) => a.rel === r)).find(Boolean);
   if (!rel) throw new DealError('PayPal does not offer that action on this dispute right now', 409);
   if (choice.advice === 'send_tracking' && dispute.stage !== 'INQUIRY') throw new DealError('sending tracking is only offered while the dispute is an inquiry', 409);
-  const note = noteFor(deal, dispute, choice);
+  const offerAmount = choice.advice === 'offer' && /^\d{1,6}(?:\.\d{1,2})?$/.test(choice.offerAmount ?? '') ? Number(choice.offerAmount).toFixed(2) : undefined;
+  const note = noteFor(deal, dispute, { ...choice, ...(offerAmount ? { offerAmount } : {}) });
   const t = deal.shipping?.tracking;
   const currency = deal.card.price!.value.currency;
   let json: Record<string, unknown>;
@@ -84,7 +85,11 @@ async function build(deal: Deal, dispute: DisputeRecord, choice: Choice, receipt
     json = {
       evidences: [
         tracked
-          ? { evidence_type: 'PROOF_OF_FULFILLMENT', evidence_info: { tracking_info: [{ carrier_name: t.carrier, tracking_number: t.number }] }, notes: note }
+          ? {
+              evidence_type: 'PROOF_OF_FULFILLMENT',
+              evidence_info: { tracking_info: [{ carrier_name: t.carrier, ...(t.carrier === 'OTHER' && t.carrierName ? { carrier_name_other: t.carrierName } : {}), tracking_number: t.number }] },
+              notes: note,
+            }
           : { evidence_type: 'OTHER', notes: note },
       ],
     };
@@ -95,11 +100,10 @@ async function build(deal: Deal, dispute: DisputeRecord, choice: Choice, receipt
   } else if (rel.rel === 'accept_claim') {
     json = { note };
   } else if (rel.rel === 'make_offer') {
-    const amount = choice.offerAmount ?? '';
-    if (!/^\d{1,6}(?:\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) throw new DealError('enter the refund to offer, like 40 or 40.50');
+    if (!offerAmount || Number(offerAmount) <= 0) throw new DealError('enter the refund to offer, like 40 or 40.50');
     const max = Number(dispute.amount?.value ?? deal.card.price!.value.amount);
-    if (Number(amount) >= max) throw new DealError('a partial refund must be less than the disputed amount; refund in full instead', 400);
-    json = { note: noteFor(deal, dispute, { ...choice, offerAmount: Number(amount).toFixed(2) }), offer_amount: { currency_code: currency, value: Number(amount).toFixed(2) }, offer_type: 'REFUND' };
+    if (Number(offerAmount) >= max) throw new DealError('a partial refund must be less than the disputed amount; refund in full instead', 400);
+    json = { note, offer_amount: { currency_code: currency, value: offerAmount }, offer_type: 'REFUND' };
   } else {
     throw new DealError('Settle does not send that action', 409);
   }
@@ -159,6 +163,10 @@ export async function submitApproved(dealId: string, key: string | null, dispute
       throw new DealError('a response to this dispute is being sent; reload in a moment', 409);
     }
     if (subs.some((s) => s.hash === request.hash && s.state === 'sent')) throw new DealError('this exact request was already sent', 409);
+    // A 5xx or lost answer may have been recorded by PayPal: never send that exact request again.
+    if (subs.some((s) => s.hash === request.hash && s.state === 'unknown')) {
+      throw new DealError("PayPal didn't confirm this request last time and it may have gone through. Check the case in PayPal; Settle won't send it twice.", 409);
+    }
     return { ...d, submissions: [...subs.filter((s) => s.hash !== request.hash), { disputeId, rel: request.rel, hash: request.hash, state: 'sending', at }] };
   });
 

@@ -104,3 +104,12 @@ test('a dispute event before the capture is recorded is not marked processed, so
   await applyVerifiedEvent(d.event('WH-D1'), { ...t.pdeps, disputes: d.paypal });
   assert.equal((await t.get()).disputes![0].id, 'PP-D-1');
 });
+
+test('links on the older sandbox API host are kept, and a dispute lost by the seller holds the gate', async () => {
+  assert.equal(actionPath('PP-D-1', { href: 'https://api.sandbox.paypal.com/v1/customer/disputes/PP-D-1/accept-claim', rel: 'accept_claim', method: 'POST' }), '/v1/customer/disputes/PP-D-1/accept-claim');
+  const { t, d, deps } = await disputed({ status: 'RESOLVED', dispute_outcome: { outcome_code: 'RESOLVED_BUYER_FAVOUR' } });
+  await applyVerifiedEvent(d.event('WH-D9', 'CUSTOMER.DISPUTE.RESOLVED'), deps);
+  const gate = shipGate(await t.get());
+  assert.equal(gate.decision, 'HOLD');
+  assert.equal(gate.checks.find((c) => c.id === 'payment')!.status, 'fail');
+});

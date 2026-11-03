@@ -715,18 +715,25 @@ type Preview = { request: { advice: string; rel: string; url: string; json: unkn
 function DisputePanel({ d, busy, act, dealId }: { d: DisputeView; busy: boolean; act: Act; dealId: string }) {
   const plan = d.plan!;
   const cf = d.caseFile!;
-  const [advice, setAdvice] = useState<string>(plan.advice);
+  const resolved = d.status === 'RESOLVED';
+  const choices = [plan.action ? plan.advice : null, ...plan.alternatives.map((x) => x.advice)].filter((x): x is NonNullable<typeof x> => !!x);
+  // Start on a response PayPal offers: the advice if it can be sent, otherwise nothing picked.
+  const [advice, setAdvice] = useState<string | null>(plan.action ? plan.advice : null);
   const [offer, setOffer] = useState('');
   const [withFiles, setWithFiles] = useState(true);
   const [preview, setPreview] = useState<Preview | null>(null);
-  const resolved = d.status === 'RESOLVED';
-  const choices = [plan.action ? plan.advice : null, ...plan.alternatives.map((x) => x.advice)].filter((x): x is NonNullable<typeof x> => !!x);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const choice = { disputeId: d.id, advice, ...(advice === 'offer' ? { offerAmount: offer } : {}), ...(withFiles ? {} : { withFiles: false }) };
 
   const download = async () => {
     const key = new URLSearchParams(window.location.hash.slice(1)).get('k') ?? '';
+    setDownloadError(null);
     const res = await fetch(`/api/deals/${dealId}/disputes/pack?d=${encodeURIComponent(d.id)}`, { headers: { 'x-settle-key': key }, cache: 'no-store' });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setDownloadError(body.error ?? 'The evidence pack could not be downloaded. Reload the page and try again.');
+      return;
+    }
     const url = URL.createObjectURL(await res.blob());
     const link = document.createElement('a');
     link.href = url;
@@ -829,7 +836,7 @@ function DisputePanel({ d, busy, act, dealId }: { d: DisputeView; busy: boolean;
           )}
           <div className="mt-3 flex flex-wrap gap-2">
             <button
-              disabled={busy}
+              disabled={busy || !advice}
               className={primary}
               onClick={async () => {
                 const out = (await act('/disputes/preview', choice)) as Preview | undefined;
@@ -842,6 +849,7 @@ function DisputePanel({ d, busy, act, dealId }: { d: DisputeView; busy: boolean;
               Download evidence pack
             </button>
           </div>
+          {downloadError && <p role="alert" className="mt-2 text-pp-danger">{downloadError}</p>}
 
           {preview && (
             <div className="mt-4 space-y-2 border-t border-pp-gridline pt-4">
@@ -865,6 +873,15 @@ function DisputePanel({ d, busy, act, dealId }: { d: DisputeView; busy: boolean;
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {(resolved || choices.length === 0) && (
+        <div className="text-sm">
+          <button type="button" onClick={download} className="rounded-full border border-pp-border px-5 py-2 font-semibold">
+            Download evidence pack
+          </button>
+          {downloadError && <p role="alert" className="mt-2 text-pp-danger">{downloadError}</p>}
         </div>
       )}
 

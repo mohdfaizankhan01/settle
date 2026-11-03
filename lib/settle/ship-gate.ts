@@ -69,6 +69,10 @@ function paymentCheck(deal: Deal): GateCheck {
   const base = { id: 'payment' as const, label: 'Payment confirmed by PayPal', cites: ['SP-RELEASE', ...(deal.country === 'UK' ? ['SP-SINGLE'] : [])], blocks: 'HOLD' as const };
   const read = deal.payment?.read;
   const proof = read?.debugId ? `Fresh GET of order ${deal.order?.id} (PayPal debug ID ${read.debugId})` : undefined;
+  const lost = (deal.disputes ?? []).find((d) => d.status === 'RESOLVED' && d.outcome !== 'RESOLVED_SELLER_FAVOUR' && d.outcome !== 'CANCELED_BY_BUYER');
+  if (lost) {
+    return { ...base, status: 'fail', detail: `PayPal resolved dispute ${lost.id}${lost.outcome ? ` (${lost.outcome})` : ''} not in the seller's favour. Don't ship.`, proof: `PayPal dispute ${lost.id}` };
+  }
   const disputed = (deal.disputes ?? []).find((d) => d.status !== 'RESOLVED');
   if (disputed) {
     return { ...base, status: 'fail', detail: `The buyer opened a PayPal dispute (${disputed.id}). Don't ship while it is open; answer it from the dispute panel.`, proof: `PayPal dispute ${disputed.id}` };

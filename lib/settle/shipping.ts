@@ -94,6 +94,9 @@ export async function addTracking(dealId: string, key: string | null, input: Tra
     const fresh = await refreshPayment(dealId, { kind: 'tracking' }, deps).catch(() => undefined);
     if (fresh && trackerShown(fresh, existing.number)) {
       await setTracking(deps, dealId, (d) => ({ ...d.shipping!.tracking!, state: 'sent' }));
+      if (existing.state !== 'sent') {
+        await deps.store.addReceipt({ dealId, kind: 'tracking.added', at, data: { orderId: deal.order!.id, carrier: existing.carrier, number: existing.number, state: 'sent', seenOnOrder: true, via: 'apimatic-paypal-sdk', debugId: existing.debugId ?? null, unknownKind: 'recovered' } });
+      }
       await syncGate(deps.store, dealId, at);
       if (existing.number !== number) throw new DealError('tracking is already added for this deal', 409);
       return (await deps.store.getDeal(dealId))!;
@@ -157,7 +160,13 @@ export async function markDelivered(dealId: string, key: string | null, date: st
   const deal = (await sellerDeal(deps.store, dealId, key)).value;
   if (!deal.shipping?.tracking || deal.shipping.tracking.state !== 'sent') throw new DealError('add tracking to PayPal first', 409);
   const at = nowOf(deps);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date)) || date > at.slice(0, 10)) throw new DealError('enter the delivery date the carrier shows, not in the future');
+  // A real calendar date (2026-02-30 is refused), not before the tracking went in, and not after
+  // tomorrow in UTC (sellers' local dates run up to a day ahead).
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00Z`) : undefined;
+  const tomorrow = new Date(Date.parse(at) + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  if (!parsed || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) throw new DealError('enter the delivery date as shown by the carrier');
+  if (date > tomorrow) throw new DealError('the delivery date can\'t be in the future');
+  if (date < deal.shipping.tracking.at.slice(0, 10)) throw new DealError('the delivery date is before the tracking was added');
   await updateWithRetry(deps.store, dealId, (d) => ({ ...d, shipping: { ...d.shipping, delivered: { date, at } } }));
   await deps.store.addReceipt({ dealId, kind: 'shipping.delivered', at, data: { date, by: 'seller', tracking: deal.shipping.tracking.number } });
   await syncGate(deps.store, dealId, at);

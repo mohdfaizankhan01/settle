@@ -133,3 +133,39 @@ test('marking delivered needs tracking first and a date that is not in the futur
   await assert.rejects(markDelivered(t2.dealId, t2.keys.seller, '2027-01-01', t2.pdeps), /future/);
   await assert.rejects(markDelivered(t2.dealId, t2.keys.buyer, '2026-11-04', t2.pdeps), /only the seller/);
 });
+
+test('the source quote in the case file is redacted; prices stay', async () => {
+  const t = await paidSetup();
+  await applyVerifiedEvent(t.event('WH-1'), t.pdeps);
+  const deal = await t.get();
+  // Pretend the item came from a message that also holds contact details.
+  deal.messages[0] = { ...deal.messages[0], text: 'is the PS5 £350? call me on 07700 900123 or sam@example.com' };
+  const d = fakeDispute(customIdFor(deal), { reason: 'MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED' });
+  const rec = { id: 'PP-D-1', reason: d.dispute.reason!, status: 'OPEN', stage: 'INQUIRY', actions: [], readAt: deal.createdAt };
+  const cf = caseFile(deal, rec, []);
+  const q = cf.proofs.find((p) => p.id === 'quotes')!.detail;
+  assert.doesNotMatch(q, /07700|sam@example\.com|Sam\b/);
+  assert.match(q, /£350/);
+});
+
+test('delivery dates must be real, not before tracking, not in the future', async () => {
+  const t = await shipped({ label: 'LS1 1AA', tracking: true });
+  await assert.rejects(markDelivered(t.dealId, t.keys.seller, '2026-02-30', t.pdeps), /as shown by the carrier/);
+  await assert.rejects(markDelivered(t.dealId, t.keys.seller, '2026-11-01', t.pdeps), /before the tracking/);
+  await markDelivered(t.dealId, t.keys.seller, '2026-11-05', t.pdeps);
+});
+
+test('tracking recovered after a lost answer still records the ship check at shipping', async () => {
+  const t = await paidSetup();
+  await applyVerifiedEvent(t.event('WH-1'), t.pdeps);
+  await setLabelPostcode(t.dealId, t.keys.seller, 'LS1 1AA', t.pdeps);
+  const lost = new PaypalClient({ oauth2: { clientId: 'id', clientSecret: 's' }, retry: { maxRetries: 0 }, logging: { level: 'off' }, fetch: async (input, init) => {
+    if (new URL(new Request(input, init).url).pathname === '/v1/oauth2/token') return Response.json({ access_token: 'T', token_type: 'Bearer', expires_in: 3600 });
+    throw new Error('ECONNRESET');
+  } });
+  await assert.rejects(addTracking(t.dealId, t.keys.seller, { carrier: 'ROYAL_MAIL', number: 'AB123456789GB' }, { ...t.pdeps, sdk: lost }));
+  t.order.purchase_units![0].shipping!.trackers = [{ id: 'CAP-1-AB123456789GB' }];
+  await addTracking(t.dealId, t.keys.seller, { carrier: 'ROYAL_MAIL', number: 'AB123456789GB' }, { ...t.pdeps, sdk: lost });
+  const { cf } = await fileFor(t);
+  assert.equal(statusOf(cf, 'gate'), 'on_file');
+});

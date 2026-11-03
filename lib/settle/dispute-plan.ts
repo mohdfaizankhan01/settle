@@ -63,7 +63,7 @@ function decide(cf: CaseFile, dispute: DisputeRecord): { advice: Advice; reasons
       if (dispute.stage === 'INQUIRY') reasons.push('While this is still an inquiry you can also send the tracking first; if the carrier never shows delivered, refund.');
       return { advice: 'refund', reasons };
     }
-    if (dispute.stage === 'INQUIRY' && (cf.proofs.find((p) => p.id === 'shipment')?.detail.includes('after the dispute opened') ?? false)) {
+    if (dispute.stage === 'INQUIRY' && cf.proofs.find((p) => p.id === 'shipment')?.late) {
       return { advice: 'send_tracking', reasons: ['The buyer may not have seen the tracking: it went on the order after they opened the inquiry.'] };
     }
     return { advice: 'fight', reasons: ['Shipment, delivery and the PayPal address are all on file, and nothing in the record contradicts them.'] };

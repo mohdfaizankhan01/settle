@@ -527,7 +527,9 @@ export function actionPath(disputeId: string, link: DisputeLink): string | undef
     return undefined;
   }
   const prefix = `/v1/customer/disputes/${encodeURIComponent(disputeId)}/`;
-  if (url.origin !== BASE_URL || !url.pathname.startsWith(prefix) || url.search || url.hash) return undefined;
+  // PayPal's v1 links may name the older sandbox API host; either way Settle sends to BASE_URL.
+  const hosts = [BASE_URL, 'https://api.sandbox.paypal.com'];
+  if (!hosts.includes(url.origin) || !url.pathname.startsWith(prefix) || url.search || url.hash) return undefined;
   if (link.method && link.method.toUpperCase() !== 'POST') return undefined;
   if (!/^[a-z-]+$/.test(url.pathname.slice(prefix.length))) return undefined;
   return url.pathname;
