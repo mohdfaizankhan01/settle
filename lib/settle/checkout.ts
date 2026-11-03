@@ -123,18 +123,25 @@ export async function captureCheckout(dealId: string, key: string | null, orderI
     throw new DealError('could not check the order with PayPal; nothing was captured', 409);
   }
   const mismatches = orderMismatches(deal, fresh.data);
-  if (fresh.data.status !== 'APPROVED') mismatches.push(`order status is ${fresh.data.status}, not APPROVED`);
+  // COMPLETED: an earlier capture went through but its answer was lost. Record it, don't refuse.
+  const alreadyCaptured = fresh.data.status === 'COMPLETED';
+  if (!alreadyCaptured && fresh.data.status !== 'APPROVED') mismatches.push(`order status is ${fresh.data.status}, not APPROVED`);
   if (mismatches.length > 0) {
     await deps.store.addReceipt({ dealId, kind: 'capture.blocked', at: now(deps), data: { orderId, reasons: mismatches, debugId: fresh.debugId ?? null } });
     throw new DealError(`not captured: ${mismatches.join('; ')}`, 409);
   }
 
-  let captured;
-  try {
-    captured = await pp.captureOrder(orderId, `settle-capture-${orderId}`);
-  } catch (error) {
-    await deps.store.addReceipt({ dealId, kind: 'capture.failed', at: now(deps), data: { orderId, debugId: debugIdOf(error) ?? null } });
-    throw error;
+  let captured = fresh;
+  if (!alreadyCaptured) {
+    try {
+      captured = await pp.captureOrder(orderId, `settle-capture-${orderId}`);
+    } catch (error) {
+      await deps.store.addReceipt({ dealId, kind: 'capture.failed', at: now(deps), data: { orderId, debugId: debugIdOf(error) ?? null } });
+      // The capture may have gone through with its answer lost: read PayPal before giving up.
+      const after = await pp.getOrder(orderId, deal.payeeMerchantId!).catch(() => null);
+      if (!after || after.data.status !== 'COMPLETED' || orderMismatches(deal, after.data).length > 0) throw error;
+      captured = after;
+    }
   }
   const capture = captured.data.purchase_units?.[0]?.payments?.captures?.[0];
   const status = captured.data.status === 'COMPLETED' ? 'CAPTURE_REQUESTED' : captured.data.status;

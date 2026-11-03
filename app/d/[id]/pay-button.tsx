@@ -123,7 +123,7 @@ export function PayButton(props: { dealId: string; getKey: () => string; checkou
     <section className="rounded-md border border-pp-border bg-pp-surface p-4">
       <h2 className="font-semibold">Pay with PayPal</h2>
       <p className="mt-1 text-sm text-pp-muted">
-        PayPal charges exactly the price on the confirmed card, paid to the seller&apos;s own PayPal account. Sandbox only: use a sandbox buyer login.
+        PayPal charges exactly the total on the confirmed card (“Buyer pays” above), paid to the seller&apos;s own PayPal account. Sandbox only: use a sandbox buyer login.
       </p>
       {state === 'ineligible' ? (
         <p className="mt-3 text-sm text-pp-warning">PayPal checkout isn&apos;t available for this amount or currency.</p>

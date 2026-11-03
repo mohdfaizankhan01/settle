@@ -97,7 +97,12 @@ export function dealView(deal: Deal, role: Role) {
     check:
       deal.check.status === 'ran'
         ? { status: 'ran' as const, label: warnings.length === 0 ? 'No warning signs found' : `${warnings.length} warning${warnings.length > 1 ? 's' : ''} for you` }
-        : { status: 'failed' as const, label: 'The warning check did not run, so this card cannot be confirmed yet.' },
+        : {
+            status: 'failed' as const,
+            label: deal.check.reason?.startsWith('ChatTooLongError')
+              ? 'This chat is too long for the warning check. Make a new link from just the part where you agreed the deal.'
+              : 'The warning check did not run, so this card cannot be confirmed yet.',
+          },
     warnings,
     messages: deal.messages.map((m) => ({ id: m.id, from: m.role, text: m.text })),
     terms,
@@ -128,10 +133,12 @@ export function dealView(deal: Deal, role: Role) {
     payee: { connected: !!deal.payeeMerchantId, merchantId: role === 'seller' ? (deal.payeeMerchantId ?? null) : null },
     order: deal.order ? { id: deal.order.id, status: deal.order.status } : null,
     payBlocker: payBlocker(deal) ?? null,
-    // What the buyer's browser needs to show PayPal's buttons. Amount and payee are never sent back.
+    // What the buyer's browser needs to show PayPal's buttons: the JS SDK needs the seller's merchant
+    // ID (PayPal shows the payee at checkout anyway) and the total for its eligibility check. The
+    // browser never sends an amount or payee back; the server builds the order from the card.
     checkout:
-      role === 'buyer' && isLocked(deal) && deal.payeeMerchantId
-        ? { clientId: process.env.PAYPAL_CLIENT_ID ?? '', merchantId: deal.payeeMerchantId, amount: deal.card.price!.value.amount, currency: deal.card.price!.value.currency }
+      role === 'buyer' && isLocked(deal) && deal.payeeMerchantId && moneyOf(deal)
+        ? { clientId: process.env.PAYPAL_CLIENT_ID ?? '', merchantId: deal.payeeMerchantId, amount: moneyOf(deal)!.total, currency: deal.card.price!.value.currency }
         : null,
     canEnter: role === 'seller' ? (['item', 'price'] as const).filter((k) => !deal.card[k] || deal.card[k]!.source.kind === 'entered') : [],
   };
