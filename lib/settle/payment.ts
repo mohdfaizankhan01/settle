@@ -8,6 +8,7 @@
 import * as paypal from '../paypal';
 import { orderMismatches } from './checkout';
 import { dealOfDisputeEvent, refreshDispute, type DisputePayPal } from './disputes';
+import { replayPayPal } from './demo-paypal';
 import { isPaid, syncGate, trackerShown } from './ship-gate';
 import { updateWithRetry, type DealStore } from './store';
 import type { Deal, OrderRead, Payment, ShipTo } from './types';
@@ -75,10 +76,11 @@ const summary = (p: Payment | undefined, paid: boolean) => {
  * outcome changes. Throws if PayPal can't be read (after recording "can't check").
  */
 export async function refreshPayment(dealId: string, trigger: Trigger, deps: PaymentDeps): Promise<Deal> {
-  const pp = deps.paypal ?? paypal;
   const first = await deps.store.getDeal(dealId);
   if (!first) throw new Error('no such deal');
   const deal = first.value;
+  // Demo deals never reach PayPal: they get the recorded replay (judge mode, M5).
+  const pp = deps.paypal ?? (deal.demo ? replayPayPal(deps.store, dealId) : paypal);
   if (!deal.order || !deal.payeeMerchantId) throw new Error('deal has no order');
   const at = nowOf(deps).toISOString();
 

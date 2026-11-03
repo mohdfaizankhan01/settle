@@ -13,6 +13,7 @@ import { carrierLabel } from './carriers';
 import { DealError } from './deals';
 import { disputePlan, ACTION_FOR, type Advice } from './dispute-plan';
 import { NOT_AS_DESCRIBED, refreshDispute, type DisputeDeps } from './disputes';
+import { replayPayPal } from './demo-paypal';
 import { evidencePdf } from './evidence-pdf';
 import { sellerDeal } from './shipping';
 import { trackerShown } from './ship-gate';
@@ -145,8 +146,9 @@ export async function evidencePack(dealId: string, key: string | null, disputeId
 
 /** Sends the request the seller approved, if it is still exactly that request. */
 export async function submitApproved(dealId: string, key: string | null, disputeId: string, choice: Choice, approvedHash: string, deps: SubmitDeps) {
-  const pp = deps.paypal ?? paypal;
   const { deal, dispute } = await freshDispute(dealId, key, disputeId, deps);
+  // Demo deals never reach PayPal: they get the recorded replay (judge mode, M5).
+  const pp = deps.paypal ?? (deal.demo ? replayPayPal(deps.store, dealId) : paypal);
   const receipts = await deps.store.listReceipts(dealId);
   const { request, path, files } = await build(deal, dispute, choice, receipts);
   const nowMs = (deps.now ?? (() => new Date()))().getTime();

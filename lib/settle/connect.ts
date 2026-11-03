@@ -18,6 +18,7 @@ export async function startConnect(dealId: string, key: string | null, deps: Con
   const stored = await deps.store.getDeal(dealId);
   if (!stored) throw new DealError('no such deal', 404);
   if (roleFor(stored.value, key) !== 'seller') throw new DealError('only the seller connects a PayPal account', 403);
+  if (stored.value.demo) throw new DealError('judge mode never connects a PayPal account; this is a demo deal', 409);
 
   const trackingId = randomBytes(18).toString('base64url');
   const startedAt = now(deps);
@@ -62,6 +63,7 @@ export async function checkConnect(dealId: string, key: string | null, deps: Con
   const stored = await deps.store.getDeal(dealId);
   if (!stored) throw new DealError('no such deal', 404);
   if (roleFor(stored.value, key) !== 'seller') throw new DealError('only the seller connects a PayPal account', 403);
+  if (stored.value.demo) return { dealId, connected: !!stored.value.payeeMerchantId };
   if (!stored.value.connect) return { dealId, connected: !!stored.value.payeeMerchantId };
   return finishConnect(stored.value.connect.trackingId, deps);
 }

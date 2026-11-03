@@ -149,8 +149,13 @@ export type DisputeRecord = {
   failed?: { at: string; debugId?: string };
 };
 
+/** Judge mode (M5): this deal belongs to one judge session and replays recorded PayPal data. */
+export type DemoTag = { session: string; scenario: string; seededAt: string };
+
 export type Deal = {
   id: string;
+  /** Set only on judge-mode deals. Live code paths never call PayPal for a demo deal. */
+  demo?: DemoTag;
   createdAt: string;
   country: Country;
   messages: ChatMessage[];

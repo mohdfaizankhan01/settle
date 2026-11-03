@@ -13,6 +13,9 @@ export type SellerLink = { trackingId: string; dealId: string; createdAt: string
 /** A verified webhook event Settle has processed. Replays of the same ID are ignored. */
 export type WebhookEventRecord = { id: string; type: string; dealId: string | null; at: string };
 
+/** A judge session: its demo deals and their link keys (demo deals only; real keys are never stored). */
+export type DemoSession = { id: string; createdAt: string; deals: { dealId: string; scenario: string; keys: { seller: string; buyer: string } }[] };
+
 export class StaleWriteError extends Error {
   constructor() {
     super('the deal changed since it was read');
@@ -33,6 +36,10 @@ export interface DealStore {
   hasEvent(id: string): Promise<boolean>;
   /** Records a processed event. A record that already names a deal is never replaced. */
   recordEvent(event: WebhookEventRecord): Promise<void>;
+  saveDemoSession(session: DemoSession): Promise<void>;
+  getDemoSession(id: string): Promise<DemoSession | undefined>;
+  /** Deletes judge sessions created before `before`, with their demo deals and receipts. Never touches a deal without a demo tag. */
+  purgeDemo(before: string): Promise<number>;
 }
 
 const clone = <T>(v: T): T => structuredClone(v);
@@ -60,6 +67,7 @@ export class MemoryDealStore implements DealStore {
   private receipts = new Map<string, Receipt[]>();
   private sellers = new Map<string, SellerLink>();
   private events = new Map<string, WebhookEventRecord>();
+  private demo = new Map<string, DemoSession>();
 
   async createDeal(deal: Deal) {
     if (this.deals.has(deal.id)) throw new Error('deal already exists');
@@ -105,5 +113,29 @@ export class MemoryDealStore implements DealStore {
 
   async recordEvent(event: WebhookEventRecord) {
     if (!this.events.get(event.id)?.dealId) this.events.set(event.id, clone(event));
+  }
+
+  async saveDemoSession(session: DemoSession) {
+    this.demo.set(session.id, clone(session));
+  }
+
+  async getDemoSession(id: string) {
+    const s = this.demo.get(id);
+    return s && clone(s);
+  }
+
+  async purgeDemo(before: string) {
+    let n = 0;
+    for (const [id, s] of this.demo) {
+      if (s.createdAt >= before) continue;
+      for (const d of s.deals) {
+        if (!this.deals.get(d.dealId)?.value.demo) continue;
+        this.deals.delete(d.dealId);
+        this.receipts.delete(d.dealId);
+        n++;
+      }
+      this.demo.delete(id);
+    }
+    return n;
   }
 }

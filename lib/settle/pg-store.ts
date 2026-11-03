@@ -4,7 +4,7 @@
 
 import postgres, { type JSONValue, type Sql } from 'postgres';
 import { makeReceipt, type Receipt, type ReceiptInput } from './receipts';
-import { StaleWriteError, type DealStore, type SellerLink, type Stored, type WebhookEventRecord } from './store';
+import { StaleWriteError, type DealStore, type DemoSession, type SellerLink, type Stored, type WebhookEventRecord } from './store';
 import type { Deal } from './types';
 
 const SCHEMA = `
@@ -24,6 +24,11 @@ CREATE TABLE IF NOT EXISTS receipts (
 CREATE TABLE IF NOT EXISTS seller_links (
   tracking_id text PRIMARY KEY,
   deal_id text NOT NULL REFERENCES deals(id),
+  doc jsonb NOT NULL
+);
+CREATE TABLE IF NOT EXISTS demo_sessions (
+  id text PRIMARY KEY,
+  created_at timestamptz NOT NULL,
   doc jsonb NOT NULL
 );
 CREATE TABLE IF NOT EXISTS webhook_events (
@@ -116,5 +121,37 @@ export class PgDealStore implements DealStore {
     await this.sql`
       INSERT INTO webhook_events (id, doc) VALUES (${event.id}, ${json(this.sql, event)})
       ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc WHERE webhook_events.doc->>'dealId' IS NULL`;
+  }
+
+  async saveDemoSession(session: DemoSession) {
+    await this.schema();
+    await this.sql`
+      INSERT INTO demo_sessions (id, created_at, doc) VALUES (${session.id}, ${session.createdAt}, ${json(this.sql, session)})
+      ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc`;
+  }
+
+  async getDemoSession(id: string) {
+    await this.schema();
+    const [row] = await this.sql<{ doc: DemoSession }[]>`SELECT doc FROM demo_sessions WHERE id = ${id}`;
+    return row?.doc;
+  }
+
+  async purgeDemo(before: string) {
+    await this.schema();
+    return this.sql.begin(async (tx) => {
+      // Only deals carrying a demo tag and listed in an expired session; real deals can't match.
+      const ids = await tx<{ id: string }[]>`
+        SELECT d.id FROM deals d
+        JOIN demo_sessions s ON s.doc->'deals' @> jsonb_build_array(jsonb_build_object('dealId', d.id))
+        WHERE s.created_at < ${before} AND d.doc ? 'demo'`;
+      const list = ids.map((r) => r.id);
+      if (list.length > 0) {
+        await tx`DELETE FROM receipts WHERE deal_id IN ${tx(list)}`;
+        await tx`DELETE FROM seller_links WHERE deal_id IN ${tx(list)}`;
+        await tx`DELETE FROM deals WHERE id IN ${tx(list)} AND doc ? 'demo'`;
+      }
+      await tx`DELETE FROM demo_sessions WHERE created_at < ${before}`;
+      return list.length;
+    }) as Promise<number>;
   }
 }

@@ -4,6 +4,7 @@
 import type { PaypalClient } from 'paypal';
 import { PayPalApiError } from '../paypal';
 import { addTrackingViaSdk } from '../paypal-sdk';
+import { replaySdk } from './demo-paypal';
 import { CARRIERS } from './carriers';
 import { DealError, roleFor } from './deals';
 import { refreshPayment, type PaymentPayPal } from './payment';
@@ -115,7 +116,8 @@ export async function addTracking(dealId: string, key: string | null, input: Tra
   try {
     outcome = await addTrackingViaSdk(
       { orderId: deal.order!.id, captureId, sellerMerchantId: deal.payeeMerchantId!, trackingNumber: number, carrier: carrier.id, carrierNameOther: carrierName },
-      deps.sdk,
+      // Demo deals never reach PayPal: they get the recorded replay (judge mode, M5).
+      deps.sdk ?? (deal.demo ? replaySdk(deps.store, dealId) : undefined),
     );
   } catch (error) {
     // Thrown before or outside the SDK's answer (config, a bug): nothing to settle, release the claim.

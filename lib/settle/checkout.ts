@@ -38,6 +38,7 @@ export async function startCheckout(dealId: string, key: string | null, deps: Ch
   const pp = deps.paypal ?? paypal;
   const stored = await buyerDeal(deps.store, dealId, key);
   const deal = stored.value;
+  if (deal.demo) throw new DealError('judge mode never takes a payment; this is a demo deal', 409);
   const blocked = payBlocker(deal);
   if (blocked) throw new DealError(blocked, 409);
 
@@ -109,6 +110,7 @@ export async function captureCheckout(dealId: string, key: string | null, orderI
   const pp = deps.paypal ?? paypal;
   const stored = await buyerDeal(deps.store, dealId, key);
   const deal = stored.value;
+  if (deal.demo) throw new DealError('judge mode never takes a payment; this is a demo deal', 409);
   if (!deal.order || deal.order.id !== orderId) throw new DealError('that order is not this deal\'s order', 409);
   if (!isLocked(deal) || deal.order.cardHash !== cardHash(deal)) {
     await deps.store.addReceipt({ dealId, kind: 'capture.blocked', at: now(deps), data: { orderId, reason: 'card changed after the order was created' } });

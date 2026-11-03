@@ -1,0 +1,51 @@
+{
+  "_note": "PayPal sandbox responses recorded 2026-11-03 (deal 8059ece4, order 59058912RP348845J, dispute PP-R-BTN-10196230), trimmed to the fields Settle reads. Judge mode replays them; amounts, custom_id and payee are set to each demo deal. No buyer email is kept; the address is PayPal's sandbox default.",
+  "recordedAt": "2026-11-03",
+  "order": {
+    "id": "59058912RP348845J",
+    "debugId": "f6531429f5c8f",
+    "createTime": "2026-11-03T21:27:47Z"
+  },
+  "capture": {
+    "id": "8PH43721BP535001K",
+    "status": "COMPLETED",
+    "fee": "11.66",
+    "net": "308.34",
+    "debugId": "f9679418cbfd1"
+  },
+  "shipping": {
+    "name": "John Doe",
+    "address": {
+      "address_line_1": "2211 N First St",
+      "admin_area_2": "San Jose",
+      "admin_area_1": "CA",
+      "postal_code": "95131",
+      "country_code": "US"
+    }
+  },
+  "webhook": {
+    "captureCompleted": "WH-97P41731WH8556200-3FV7355961261054A",
+    "disputeCreated": "WH-8AC501597H657402M-4U061857MC598923H"
+  },
+  "tracking": {
+    "carrier": "USPS",
+    "number": "9400111899223197428490"
+  },
+  "dispute": {
+    "id": "PP-R-BTN-10196230",
+    "createTime": "2026-11-03T21:50:20.531Z",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+    "status": "UNDER_REVIEW",
+    "stage": "CHARGEBACK",
+    "debugId": "f42890687a718",
+    "linkRels": [
+      "provide_supporting_info",
+      "accept_claim"
+    ]
+  },
+  "submission": {
+    "rel": "provide_supporting_info",
+    "debugId": "f4289668a7883",
+    "at": "2026-11-03T22:16:11.336Z"
+  }
+}
