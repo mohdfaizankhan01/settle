@@ -119,7 +119,7 @@ function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonl
       ...addr,
       status: 'on_file',
       source: 'PayPal API',
-      detail: `The label postcode matched PayPal's address (${shipTo.postalCode}).${elsewhere ? ` Message ${elsewhere.messageId} asked to ship elsewhere; the label shows you didn't.` : ''}`,
+      detail: `The label postcode matched PayPal's address (${shipTo.postalCode}).${elsewhere ? ` Message ${elsewhere.messageId} asked to ship elsewhere; the seller's label shows the parcel went to PayPal's address.` : ''}`,
     });
   }
 
