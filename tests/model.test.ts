@@ -70,3 +70,12 @@ test('a risky clause inside an ordinary message is still flagged', async () => {
   const r = await localCheck(chat('Sam: is the PS5 still for sale?\nAlex: yes £350 posted, send it as a gift so no fees\nSam: ok'));
   assert.ok(r.warnings.some((w) => w.signalId === 'ff_payment'));
 });
+
+test('a chat too long to check in full fails closed, never "no warning signs"', async () => {
+  const filler = Array.from({ length: 150 }, (_, i) =>
+    `${i % 2 ? 'Alex' : 'Sam'}: the frame is fine on number ${i}, the wheels are true and straight, the tyres were fitted last spring`,
+  );
+  const r = await localCheck(chat([...filler, 'Alex: yes £350 posted, send it as a gift so no fees'].join('\n')));
+  assert.equal(r.run.status, 'failed');
+  assert.match(r.run.status === 'failed' ? r.run.reason : '', /^ChatTooLongError/);
+});

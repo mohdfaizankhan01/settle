@@ -36,6 +36,10 @@ async function vectors(texts: string[]): Promise<SparseVector[]> {
 export const MAX_CLAUSES_PER_MESSAGE = 8;
 export const MAX_PIECES_PER_CHAT = 400;
 export const MAX_PIECE_CHARS = 1000;
+export const TOO_LONG = 'chat too long for the warning check';
+export class ChatTooLongError extends Error {
+  name = 'ChatTooLongError';
+}
 
 export function clauses(text: string): string[] {
   const parts = text
@@ -48,13 +52,11 @@ export function clauses(text: string): string[] {
 export async function localScores(redacted: Redacted) {
   const key = activeModel();
   const model = (decoded[key] ??= decodeModel(FILES[key]));
-  let budget = MAX_PIECES_PER_CHAT;
-  const pieces = redacted.messages.map((m) => {
-    if (!hasWords(m.text) || budget <= 0) return [];
-    const p = (key === 'b' ? clauses(m.text) : [m.text]).slice(0, budget);
-    budget -= p.length;
-    return p;
-  });
+  // Fail closed: a chat that needs more pieces than the budget is not checked at all, rather
+  // than checked only partly and shown as "no warning signs found".
+  const pieces = redacted.messages.map((m) => (!hasWords(m.text) ? [] : key === 'b' ? clauses(m.text) : [m.text.slice(0, MAX_PIECE_CHARS)]));
+  const total = pieces.reduce((n, p) => n + p.length, 0);
+  if (total > MAX_PIECES_PER_CHAT) throw new ChatTooLongError(`${TOO_LONG}: ${total} pieces, the check reads at most ${MAX_PIECES_PER_CHAT}`);
   const xs = await vectors(pieces.flat());
   let at = 0;
   const perMessage = redacted.messages.map((m, i) => {
