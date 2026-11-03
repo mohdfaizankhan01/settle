@@ -92,6 +92,8 @@ export type OrderRead =
       fee?: string;
       net?: string;
       shipTo?: ShipTo;
+      /** Tracker IDs PayPal shows on the order (`<captureId>-<tracking number>`). */
+      trackers?: string[];
       /** Why the order doesn't match the card. Empty when it matches. */
       mismatches: string[];
       debugId?: string;
@@ -103,6 +105,12 @@ export type Payment = {
   /** The verified PAYMENT.CAPTURE.COMPLETED event for this deal's capture. */
   webhook?: { eventId: string; captureId: string; at: string; via: 'webhook' | 'event-log' };
   read?: OrderRead;
+};
+
+/** What the seller did to ship: the postcode typed from the label, and tracking sent to PayPal. */
+export type Shipping = {
+  labelPostcode?: { value: string; at: string };
+  tracking?: { carrier: string; number: string; addedAt: string; debugId?: string };
 };
 
 export type Deal = {
@@ -127,6 +135,11 @@ export type Deal = {
   /** The seller's latest Partner Referrals attempt for this deal. */
   connect?: { trackingId: string; startedAt: string };
   order?: PaymentOrder;
+  /** The warning check on the latest messages pasted in after payment. */
+  addedCheck?: CheckRun;
   /** Filled in after capture by verified webhooks and fresh GETs of the order (M3). */
   payment?: Payment;
+  shipping?: Shipping;
+  /** The last ship gate decision written to a receipt, so only changes are recorded. */
+  gate?: { decision: string; key: string; at: string };
 };

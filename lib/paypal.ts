@@ -430,7 +430,7 @@ export type Order = {
     amount?: Money;
     payee?: { merchant_id?: string; email_address?: string };
     items?: { name: string; description?: string; quantity: string; unit_amount: Money }[];
-    shipping?: { name?: { full_name?: string }; address?: PayPalAddress };
+    shipping?: { name?: { full_name?: string }; address?: PayPalAddress; trackers?: { id: string; status?: string }[] };
     payments?: { captures?: Capture[] };
   }[];
   links?: { rel: string; href: string }[];

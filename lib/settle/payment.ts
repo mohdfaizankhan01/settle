@@ -8,6 +8,7 @@
 
 import * as paypal from '../paypal';
 import { orderMismatches } from './checkout';
+import { isPaid, syncGate } from './ship-gate';
 import { StaleWriteError, type DealStore } from './store';
 import type { Deal, OrderRead, Payment, ShipTo } from './types';
 
@@ -20,19 +21,6 @@ export const FALLBACK_INTERVAL_MS = 60_000;
 
 const nowOf = (deps: PaymentDeps) => (deps.now ?? (() => new Date()))();
 const debugIdOf = (error: unknown) => (error instanceof paypal.PayPalApiError ? error.debugId : undefined);
-
-/** True only when a verified event and the latest fresh GET agree the capture completed. */
-export function isPaid(deal: Deal): boolean {
-  const { webhook, read } = deal.payment ?? {};
-  return (
-    !!webhook &&
-    !!read?.ok &&
-    read.orderStatus === 'COMPLETED' &&
-    read.captureStatus === 'COMPLETED' &&
-    read.captureId === webhook.captureId &&
-    read.mismatches.length === 0
-  );
-}
 
 function shipToOf(order: paypal.Order): ShipTo | undefined {
   const s = order.purchase_units?.[0]?.shipping;
@@ -63,6 +51,7 @@ export function readOrder(deal: Deal, order: paypal.Order, at: string, debugId?:
     fee: b?.paypal_fee?.value,
     net: b?.net_amount?.value,
     shipTo: shipToOf(order),
+    trackers: (order.purchase_units?.[0]?.shipping?.trackers ?? []).map((t) => t.id),
     mismatches,
     debugId,
   };
@@ -164,6 +153,7 @@ export async function refreshPayment(dealId: string, trigger: Trigger, deps: Pay
       },
     });
   }
+  await syncGate(deps.store, dealId, at);
   if (failure) throw failure;
   return saved;
 }
@@ -203,6 +193,8 @@ export async function applyVerifiedEvent(event: paypal.WebhookEvent, deps: Payme
  * The missed-webhook fallback: on a deal page load, if a capture was requested but payment isn't
  * confirmed, re-read PayPal at most once a minute per deal. Same rules as the webhook path.
  */
+export { isPaid };
+
 export async function maybeRefreshOnLoad(deal: Deal, deps: PaymentDeps): Promise<Deal> {
   if (!deal.order || deal.order.status === 'CREATED' || isPaid(deal)) return deal;
   const last = deal.payment?.read?.at;

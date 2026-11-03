@@ -8,11 +8,13 @@ import type { AskJev } from '../jev/deal-check';
 import { engineFor, type CheckEngine } from '../model/engine';
 import { applyAnswer, blockers, buildCard, cardHash, formatMoney, isLocked, termWarnings } from './card';
 import { sha256Hex } from './canonical';
-import { parseChat, type Role } from './chat';
+import { ChatError, parseChat, parseMore, type Role } from './chat';
+import { MAX_CHAT_CHARS } from './policy';
 import { redactChat } from './redact';
 import { ruleWarnings } from './rules';
+import { syncGate } from './ship-gate';
 import { StaleWriteError, type DealStore, type Stored } from './store';
-import { CURRENCY_OF, type Country, type Deal, type DealCard, type DeclineReason } from './types';
+import { CURRENCY_OF, type CheckRun, type Country, type Deal, type DealCard, type DeclineReason } from './types';
 
 export type Deps = { store: DealStore; ask?: AskJev; engine?: CheckEngine; now?: () => Date };
 
@@ -256,4 +258,56 @@ export async function withdrawDecline(dealId: string, key: string | null, deps: 
   });
   await deps.store.addReceipt({ dealId, kind: 'deal.decline_withdrawn', at: now(deps), data: { by: role } });
   return stored;
+}
+
+/** At most this much text can be pasted in at once after payment. */
+export const MAX_ADDED_CHARS = 4000;
+
+/**
+ * Either side pastes messages from the DM that came after payment started (PLAN M3). They are
+ * redacted and run through the same warning check; the card can't change. A failed check is
+ * recorded and makes the ship gate REVIEW, never pass.
+ */
+export async function addMessages(dealId: string, key: string | null, raw: string, deps: Deps) {
+  const first = await load(deps, dealId, key);
+  const deal = first.stored.value;
+  if (!deal.order || deal.order.status === 'CREATED') throw new DealError('messages can be added once payment has started', 409);
+  const added = parseMore(raw, deal.messages, MAX_ADDED_CHARS);
+  const totalChars = [...deal.messages, ...added].reduce((n, m) => n + m.text.length, 0);
+  if (totalChars > MAX_CHAT_CHARS) throw new ChatError(`the deal can hold at most ${MAX_CHAT_CHARS} characters of chat`);
+  const at = now(deps);
+  const messages = [...deal.messages, ...added.map((m) => ({ ...m, added: { at, by: first.role } }))];
+  // A failed check stays on the record (fail closed): later pastes don't clear it.
+  // Redact the whole chat so token numbers stay the same, then check only the new messages.
+  const redacted = redactChat(messages);
+  const ids = new Set(added.map((m) => m.id));
+  const fresh = { messages: redacted.messages.filter((m) => ids.has(m.id)), tokens: redacted.tokens.filter((t) => ids.has(t.messageId)) };
+  let run: CheckRun;
+  let found: Deal['warnings'] = [];
+  try {
+    const check = await engineFor(deps)(fresh, deps.now);
+    run = check.run;
+    found = check.run.status === 'ran' ? check.warnings : [];
+  } catch (error) {
+    run = { status: 'failed', at, reason: error instanceof Error ? error.name : 'error' };
+  }
+  found = [...found, ...ruleWarnings(fresh.messages)].filter((w) => !w.messageId || ids.has(w.messageId));
+
+  const { stored, role } = await mutate(deps, dealId, key, (current) => {
+    if (current.messages.length !== deal.messages.length) throw new DealError('someone else added messages; reload and paste again', 409);
+    return { ...current, messages, tokens: redacted.tokens, warnings: [...current.warnings, ...found], addedCheck: current.addedCheck?.status === 'failed' ? current.addedCheck : run };
+  });
+  await deps.store.addReceipt({
+    dealId,
+    kind: 'messages.added',
+    at,
+    data: {
+      by: role,
+      messages: added.map((m) => m.id),
+      check: run.status,
+      warnings: found.map((w) => ({ signal: w.signalId, by: w.by, message: w.messageId ?? null, p: w.probability ?? null })),
+    },
+  });
+  await syncGate(deps.store, dealId, at);
+  return (await deps.store.getDeal(dealId))!;
 }

@@ -13,6 +13,8 @@ export type ChatMessage = {
   speaker: string;
   role: Role;
   text: string;
+  /** Set on messages pasted in after payment started (PLAN M3), with who pasted them. */
+  added?: { at: string; by: Role };
 };
 
 export class ChatError extends Error {}
@@ -68,4 +70,29 @@ export function parseChat(raw: string, sellerName: string): ChatMessage[] {
     if (messages.length > MAX_MESSAGES) throw new ChatError(`chat has more than ${MAX_MESSAGES} messages`);
   }
   return messages.filter((m) => m.text.length > 0).map((m, i) => ({ ...m, id: `m${i + 1}` }));
+}
+
+/**
+ * Parses messages pasted in after payment, in the same "Name: text" form. Only the deal's two
+ * speakers count; a line without a known name continues the message before it. Message IDs
+ * carry on from the chat so far.
+ */
+export function parseMore(raw: string, existing: readonly ChatMessage[], maxChars: number): Omit<ChatMessage, 'added'>[] {
+  if (raw.length > maxChars) throw new ChatError(`paste at most ${maxChars} characters at a time`);
+  const roles = new Map(existing.map((m) => [m.speaker, m.role]));
+  const out: Omit<ChatMessage, 'added'>[] = [];
+  for (const line of splitLines(raw)) {
+    const role = line.speaker ? roles.get(line.speaker) : undefined;
+    if (line.speaker && role) out.push({ id: '', speaker: line.speaker, role, text: line.text.trim() });
+    else if (out.length > 0) {
+      const prev = out[out.length - 1];
+      prev.text = `${prev.text}\n${line.speaker ? `${line.speaker}: ${line.text}` : line.text}`.trim();
+    } else if (line.text.trim()) {
+      throw new ChatError(`start each message with the sender's name, as in the chat (${[...roles.keys()].join(' or ')})`);
+    }
+  }
+  const kept = out.filter((m) => m.text.length > 0);
+  if (kept.length === 0) throw new ChatError('no messages found');
+  if (existing.length + kept.length > MAX_MESSAGES) throw new ChatError(`the deal can hold at most ${MAX_MESSAGES} messages`);
+  return kept.map((m, i) => ({ ...m, id: `m${existing.length + i + 1}` }));
 }
