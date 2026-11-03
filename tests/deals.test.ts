@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { AskJev } from '../lib/jev/deal-check';
-import { buildCard, cardHash, isLocked } from '../lib/settle/card';
+import { buildCard, cardHash, isLocked, itemText } from '../lib/settle/card';
 import { verifyChain } from '../lib/settle/receipts';
 import { answerQuestion, confirmCard, createDeal, DealError, enterTerm, recheckDeal, roleFor, setPayee, type Deps } from '../lib/settle/deals';
 import { SIGNALS } from '../lib/settle/signals';
@@ -157,4 +157,39 @@ test('a failed check can be run again, rebuilding the card; a check that ran can
   assert.equal(stored.value.card.price?.display, '£350.00');
   await assert.rejects(recheckDeal(deal.id, keys.buyer, d), /already ran/);
   assert.equal((await d.store.listReceipts(deal.id)).at(-1)?.kind, 'deal.rechecked');
+});
+
+test('itemText: the seller describing the item in reply names it, citing that reply', () => {
+  const m = (id: string, role: 'buyer' | 'seller', text: string) => ({ id, speaker: role, role, text });
+  const chat = [
+    m('m1', 'buyer', 'hi, is the road bike still for sale?'),
+    m('m2', 'seller', 'yes, Trek Domane AL 2, 54cm, good condition'),
+    m('m3', 'buyer', 'would you take $300?'),
+  ];
+  assert.deepEqual(itemText(chat, chat[0]), { text: 'Trek Domane AL 2, 54cm, good condition', messageId: 'm2' });
+});
+
+test('itemText: without a describing reply, the phrase the buyer asks about', () => {
+  const m = (id: string, role: 'buyer' | 'seller', text: string) => ({ id, speaker: role, role, text });
+  const priceReply = [m('m1', 'buyer', 'is the road bike still for sale?'), m('m2', 'seller', 'yes, $320 and it is yours')];
+  assert.deepEqual(itemText(priceReply, priceReply[0]), { text: 'road bike', messageId: 'm1' });
+  const ps5 = [m('m1', 'buyer', 'hi, is the PS5 still for sale? would you take £300?'), m('m2', 'seller', 'I can do £350 posted')];
+  assert.deepEqual(itemText(ps5, ps5[0]), { text: 'PS5', messageId: 'm1' });
+});
+
+test('itemText: a message it cannot read falls back to the whole message', () => {
+  const msg = { id: 'm1', speaker: 'Alex', role: 'seller' as const, text: 'Selling my old desk lamp' };
+  assert.deepEqual(itemText([msg], msg), { text: 'Selling my old desk lamp', messageId: 'm1' });
+});
+
+test('the PS5 deal card names the item, not the whole first message', async () => {
+  const { deal } = await setup();
+  assert.equal(deal.card.item?.value, 'PS5');
+  assert.deepEqual(deal.card.item?.source, { kind: 'message', messageId: 'm1' });
+});
+
+test('itemText: a "yes" reply about delivery or the seller is not a description', () => {
+  const m = (id: string, role: 'buyer' | 'seller', text: string) => ({ id, speaker: role, role, text });
+  const chat = [m('m1', 'buyer', 'is the PS5 still for sale?'), m('m2', 'seller', 'yes, I post it tracked')];
+  assert.deepEqual(itemText(chat, chat[0]), { text: 'PS5', messageId: 'm1' });
 });

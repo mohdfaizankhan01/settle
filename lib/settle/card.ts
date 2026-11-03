@@ -133,15 +133,38 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
     answers: {},
   });
 
-  // Item: the message that names it, quoted.
+  // Item: the words that name it, quoted from their message.
   const itemPick = picks.itemMessage;
   const itemMessage = sure(itemPick) ? messages.find((m) => m.id === itemPick.id) : undefined;
   if (itemMessage) {
-    const text = itemMessage.text.length > ITEM_MAX ? `${itemMessage.text.slice(0, ITEM_MAX - 1)}…` : itemMessage.text;
-    card.item = { value: text, display: text, source: { kind: 'message', messageId: itemMessage.id }, confidence: itemPick!.confidence };
+    const { text: raw, messageId } = itemText(messages, itemMessage);
+    const text = raw.length > ITEM_MAX ? `${raw.slice(0, ITEM_MAX - 1)}…` : raw;
+    card.item = { value: text, display: text, source: { kind: 'message', messageId }, confidence: itemPick!.confidence };
   }
 
   return { card, questions };
+}
+
+// "yes, Trek Domane AL 2, 54cm, good condition": the seller describing the item in reply.
+const DESCRIBES = /^(?:yes|yeah|yep|yup)\b[\s,.!:;–-]+(.{3,})$/i;
+// "is the road bike still for sale?": the item named in the buyer's question.
+const ASKS_FOR = /\b(?:is|are) (?:the|your|this|that|these|those) (.{2,60}?) (?:still )?(?:for sale|available|there)\b/i;
+// A reply about money, delivery or the seller, not the item ("yes, $300 is fine", "yes, I post it").
+const NOT_ITEM =
+  /[$£€]\s?\d|\b\d+(?:\.\d+)?\s?(?:usd|gbp|eur|dollars?|pounds?|quid|bucks)\b|^(?:i|i'?ll|i'?m|we|it|it'?s|that|sure|ok|okay|can|will|still|no)\b|\b(?:post|ship|send|deliver|collect|pick ?up|meet)\w*\b/i;
+
+/**
+ * The item's name, in code: the seller's describing reply right after the item message, or the
+ * phrase the question asks about, or (as before) the whole message. Always cites its message.
+ */
+export function itemText(messages: ChatMessage[], itemMessage: ChatMessage): { text: string; messageId: string } {
+  const at = messages.findIndex((m) => m.id === itemMessage.id);
+  const reply = messages.slice(at + 1, at + 3).find((m) => m.role === 'seller');
+  const described = reply && itemMessage.role === 'buyer' ? DESCRIBES.exec(reply.text.trim())?.[1] : undefined;
+  if (described && !NOT_ITEM.test(described)) return { text: described.replace(/[.!\s]+$/, ''), messageId: reply!.id };
+  const asked = ASKS_FOR.exec(itemMessage.text)?.[1];
+  if (asked) return { text: asked.trim(), messageId: itemMessage.id };
+  return { text: itemMessage.text, messageId: itemMessage.id };
 }
 
 /** Applies a question both sides answered the same way. */
