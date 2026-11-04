@@ -20,6 +20,8 @@ test('every receipt the demo writes reads as a sentence; the chain verifies; tam
   const buyer = history(receipts, 'buyer');
   assert.ok(buyer.items.length < seller.items.length, 'seller-only steps are left out for the buyer');
   assert.ok(!buyer.items.some((i) => i.text.includes('label postcode')));
+  assert.ok(!buyer.items.some((i) => i.text.startsWith('Ship check')), "the seller's ship check is not the buyer's");
+  assert.ok(!buyer.items.some((i) => /RRBVDNUTQMAXN|\d+ warnings?/.test(i.text)), 'no merchant ID or warning counts for the buyer');
   const tampered = receipts.map((r, i) => (i === 2 ? { ...r, data: { ...r.data, by: 'someone' } } : r));
   assert.deepEqual(history(tampered, 'seller').chain, { ok: false, brokenAt: 2, reason: 'receipt was changed' });
 });
