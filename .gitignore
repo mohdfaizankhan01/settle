@@ -51,3 +51,7 @@ docs/competitor-scan.md
 
 # Downloaded model files (fetched at build time)
 /models/
+
+# Playwright
+/test-results/
+/playwright-report/

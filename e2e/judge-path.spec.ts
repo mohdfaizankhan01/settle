@@ -1,0 +1,84 @@
+import { expect, test, type Page } from '@playwright/test';
+
+// The judge path, start to finish, on the real app: judge mode, each deal state from both sides,
+// a dispute response approved and sent (replayed, never to PayPal), the seller timeline, the
+// attack lab and the proof page.
+
+async function openDeal(page: Page, title: string) {
+  await page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button', { name: new RegExp(title) }).click();
+  await expect(page.getByRole('region', { name: title })).toBeVisible();
+}
+
+const pane = (page: Page, who: 'Buyer' | 'Seller') => page.locator('div').filter({ has: page.getByRole('heading', { name: `${who}'s view`, exact: true }) }).last();
+
+test('a judge walks from the home page through every deal state', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('One link to settle a deal made in a DM');
+  await page.getByRole('link', { name: 'Try it in judge mode' }).click();
+  await expect(page).toHaveURL(/\/demo$/);
+
+  // A fresh private session with six demo deals.
+  await page.getByRole('button', { name: /Start judge mode|Start over with fresh deals/ }).click();
+  await expect(page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button')).toHaveCount(6, { timeout: 90_000 });
+
+  // 1. The buyer is warned about Friends and Family, and every pane says what is real.
+  await openDeal(page, 'Buyer warned about Friends and Family');
+  const buyer = pane(page, 'Buyer');
+  await expect(buyer.getByText('Judge mode (demo deal).')).toBeVisible();
+  await expect(buyer.getByText(/Warning check: ran/)).toBeVisible();
+  await expect(buyer.getByText('Asked to pay as Friends and Family')).toBeVisible();
+
+  // 2. The seller is warned about a fake payment email.
+  await openDeal(page, 'Seller warned about a fake payment email');
+  await expect(pane(page, 'Seller').getByText('"PayPal is holding your money" story')).toBeVisible();
+
+  // 3. Confirmed and waiting: judge mode never takes a payment.
+  await openDeal(page, 'Confirmed, waiting for payment');
+  await expect(pane(page, 'Buyer').getByText(/Judge mode never takes a payment/)).toBeVisible();
+
+  // 4. Paid and ready to ship.
+  await openDeal(page, 'Paid and ready to ship');
+  await expect(pane(page, 'Seller').getByRole('heading', { name: 'Ready to ship to the PayPal address' })).toBeVisible();
+
+  // 5. HOLD after the buyer asks to ship to a cousin.
+  await openDeal(page, 'Paid, then HOLD after an address change');
+  const holdSeller = pane(page, 'Seller');
+  await expect(holdSeller.getByRole('heading', { name: "Hold: don't ship yet" })).toBeVisible();
+  await expect(holdSeller.getByText(/asks to ship somewhere else/).first()).toBeVisible();
+
+  // 6. A dispute: case file, advice, the exact request, then approve and send (replayed).
+  await openDeal(page, 'A dispute with its evidence pack');
+  const seller = pane(page, 'Seller');
+  await expect(seller.getByText(/Settle's advice: answer with your evidence/)).toBeVisible();
+  await expect(seller.getByText(/Proof on file: .* = 8 of 8/)).toBeVisible();
+  await seller.getByRole('button', { name: 'Review the request' }).click();
+  await expect(seller.getByText('This is exactly what Settle will send to PayPal, as you:')).toBeVisible();
+  await expect(seller.getByText(/POST https:\/\/api-m\.sandbox\.paypal\.com\/v1\/customer\/disputes\//)).toBeVisible();
+  await seller.getByRole('button', { name: 'Approve and send to PayPal' }).click();
+  await expect(seller.getByText(/provide supporting info: sent.*PayPal debug ID rec-/)).toBeVisible();
+
+  // The deal's history verifies.
+  await seller.getByText(/History of this deal/).click();
+  await expect(seller.getByText('record verifies')).toBeVisible();
+});
+
+test('the seller timeline, the attack lab and the proof page', async ({ page }) => {
+  await page.goto('/demo');
+  await page.getByRole('button', { name: /Start judge mode|Start over with fresh deals/ }).click();
+  await expect(page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button')).toHaveCount(6, { timeout: 90_000 });
+
+  await page.getByRole('link', { name: 'Seller timeline' }).click();
+  await expect(page.getByRole('heading', { name: 'Seller timeline' })).toBeVisible();
+  // Bryntum draws the events; some sit outside the scrolled view, so count them rather than check one.
+  await expect(page.locator('.b-sch-event-wrap')).not.toHaveCount(0);
+  await expect(page.getByText('Warning: Asked to pay as Friends and Family')).toBeVisible();
+  await expect(page.getByText('Sony A7 III camera')).toBeVisible();
+
+  await page.goto('/demo/attacks');
+  await page.getByRole('button', { name: 'Run the attacks' }).click();
+  await expect(page.getByRole('status')).toContainText('7 of 7 stopped', { timeout: 90_000 });
+
+  await page.goto('/proof');
+  await expect(page.getByRole('heading', { name: 'How often the warning check is right' })).toBeVisible();
+  await expect(page.getByText(/was not run/)).toBeVisible();
+});

@@ -12,7 +12,8 @@
     "model:train": "tsx scripts/train-model.mts",
     "eval": "node --env-file-if-exists=.env.local --import tsx scripts/jev-eval.ts",
     "model:fetch": "tsx scripts/fetch-model.ts",
-    "proof": "tsx scripts/proof.mts"
+    "proof": "tsx scripts/proof.mts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@bryntum/scheduler": "npm:@bryntum/scheduler-trial@7.3.8",
@@ -31,6 +32,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
