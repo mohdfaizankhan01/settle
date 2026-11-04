@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-03T22:33:09.883Z",
-  "commit": "96badf4",
+  "generatedAt": "2026-11-04T08:53:22.040Z",
+  "commit": "04a05df",
   "tests": {
-    "total": 192,
-    "pass": 192,
+    "total": 197,
+    "pass": 197,
     "fail": 0
   },
   "attacks": [
@@ -21,7 +21,7 @@
       "stopped": true,
       "rule": "lib/settle/paid-check.ts: the answer comes only from the PayPal order",
       "test": "tests/paid-check.test.ts › a fake \"payment received\" email on an unpaid deal is not paid, with the mismatches named",
-      "ms": 8
+      "ms": 9
     },
     {
       "id": "amount-in-browser",
@@ -29,7 +29,7 @@
       "stopped": true,
       "rule": "lib/settle/checkout.ts: orders are built on the server from the card; capture needs a fresh GET that matches it",
       "test": "tests/checkout.test.ts › an order whose amount, payee or custom_id differs from the card is not captured",
-      "ms": 12
+      "ms": 7
     },
     {
       "id": "card-edited",
@@ -37,7 +37,7 @@
       "stopped": true,
       "rule": "lib/settle/card.ts: the card is locked by hash; any change clears both confirmations",
       "test": "tests/checkout.test.ts › a card changed after confirming cannot be paid",
-      "ms": 7
+      "ms": 6
     },
     {
       "id": "forged-webhook",
@@ -53,7 +53,7 @@
       "stopped": true,
       "rule": "lib/settle/payment.ts: events applied to a deal are recorded; a replay is a no-op",
       "test": "tests/payment.test.ts › a replayed event is a no-op",
-      "ms": 7
+      "ms": 8
     },
     {
       "id": "cousin",
@@ -61,7 +61,7 @@
       "stopped": true,
       "rule": "lib/settle/ship-gate.ts: a ship-elsewhere warning or a new postcode after payment holds (SP-ADDR)",
       "test": "tests/ship-gate.test.ts › \"send it to my cousin\" after payment turns the gate to HOLD, naming SP-ADDR",
-      "ms": 10
+      "ms": 9
     }
   ]
 }
