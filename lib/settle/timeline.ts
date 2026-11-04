@@ -8,7 +8,7 @@ import { isPaid, shipGate } from './ship-gate';
 import { signalById, shownTo } from './signals';
 import type { Deal } from './types';
 
-export type TimelineRow = { id: string; name: string; scenario: string; status: string; colour: string };
+export type TimelineRow = { id: string; name: string; scenario: string; title: string; status: string; colour: string };
 export type TimelineEvent = { id: string; resourceId: string; name: string; startDate: string; endDate: string; eventColor: string; detail: string };
 
 const DAY = 24 * 3600_000;
@@ -25,12 +25,12 @@ export function rowStatus(deal: Deal): { status: string; colour: string } {
   return d === 'SHIP' ? { status: 'Ready to ship', colour: 'green' } : d === 'HOLD' ? { status: 'Hold', colour: 'red' } : { status: 'Review', colour: 'orange' };
 }
 
-export function timeline(deals: { deal: Deal; title: string }[], now: Date) {
+export function timeline(deals: { deal: Deal; title: string; scenario: string }[], now: Date) {
   const rows: TimelineRow[] = [];
   const events: TimelineEvent[] = [];
-  for (const { deal, title } of deals) {
+  for (const { deal, title, scenario } of deals) {
     const { status, colour } = rowStatus(deal);
-    rows.push({ id: deal.id, name: deal.card.item?.value ?? title, scenario: title, status, colour });
+    rows.push({ id: deal.id, name: deal.card.item?.value ?? title, scenario, title, status, colour });
     const add = (key: string, name: string, start: number, end: number, color: string, detail: string) =>
       events.push({ id: `${deal.id}:${key}`, resourceId: deal.id, name, startDate: iso(start), endDate: iso(Math.max(end, start)), eventColor: color, detail });
 

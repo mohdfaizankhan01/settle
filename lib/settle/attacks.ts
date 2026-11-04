@@ -129,8 +129,10 @@ export async function runAttacks(): Promise<AttackResult[]> {
         const { orderId } = await startCheckout(dealId, keys.buyer, co);
         lab.approve(orderId);
         lab.tamper(orderId, (r) => void (r.amount = { currency_code: 'USD', value: '1.00' }));
-        const refused = await captureCheckout(dealId, keys.buyer, orderId, co).then(() => false, () => true);
-        return { stopped: refused && lab.captured.length === 0, outcome: refused ? 'Not captured: the fresh read of the order did not match the $320.00 on the card.' : 'Captured.' };
+        const why = await captureCheckout(dealId, keys.buyer, orderId, co).then(() => 'captured', (e: unknown) => (e instanceof Error ? e.message : 'error'));
+        // Stopped only by the amount check itself, not by any other error.
+        const stopped = /amount does not match the card/.test(why) && lab.captured.length === 0;
+        return { stopped, outcome: stopped ? 'Not captured: the fresh read of the order did not match the $320.00 on the card.' : `Not stopped by the amount check (${why}).` };
       },
     ),
     await timed(
@@ -140,8 +142,9 @@ export async function runAttacks(): Promise<AttackResult[]> {
         const { dealId, keys } = await lockedDeal(store);
         await setPayee(dealId, 'ATTACKER', { store });
         const lab = checkoutStandIn();
-        const refused = await startCheckout(dealId, keys.buyer, { store, paypal: lab.pp, publicHost: 'https://attack-lab.test' }).then(() => false, () => true);
-        return { stopped: refused, outcome: refused ? 'Payment refused: both sides must confirm the card as it is now.' : 'Payment allowed.' };
+        const why = await startCheckout(dealId, keys.buyer, { store, paypal: lab.pp, publicHost: 'https://attack-lab.test' }).then(() => 'payment allowed', (e: unknown) => (e instanceof Error ? e.message : 'error'));
+        const stopped = /Both sides must confirm the card as it is now/.test(why);
+        return { stopped, outcome: stopped ? 'Payment refused: both sides must confirm the card as it is now.' : `Not stopped by the card lock (${why}).` };
       },
     ),
     await timed(

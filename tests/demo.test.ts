@@ -7,6 +7,7 @@ import { demoView, startDemo, SCENARIOS } from '../lib/settle/demo';
 import { previewSubmission, submitApproved } from '../lib/settle/dispute-submit';
 import { maybeRefreshOnLoad } from '../lib/settle/payment';
 import { shipGate } from '../lib/settle/ship-gate';
+import type { CheckEngine } from '../lib/model/engine';
 import { MemoryDealStore } from '../lib/settle/store';
 import { askWith } from './helpers/paid-deal';
 
@@ -88,4 +89,17 @@ test('expired sessions are purged with their demo deals; a live deal is never de
   assert.ok(await store.getDeal(live.deal.id));
   assert.equal(await store.getDeal(old.deals[0].dealId), undefined);
   assert.equal(await store.getDemoSession(old.id), undefined);
+});
+
+test('a failed seed still records the deals it created, so the purge can remove them; expired sessions are not served', async () => {
+  const store = new MemoryDealStore();
+  const t0 = new Date('2026-11-01T00:00:00Z');
+  // The warning check fails, so confirming refuses (fail closed) after each deal is created.
+  const failing: CheckEngine = async () => ({ run: { status: 'failed', at: t0.toISOString(), reason: 'model down' }, warnings: [], picks: {}, scores: {} });
+  await assert.rejects(startDemo(store, () => t0, failing));
+  // Every created deal is in a session the purge can find.
+  assert.equal(await store.purgeDemo('2026-11-02T00:00:00Z'), SCENARIOS.length);
+
+  const ok = await startDemo(store, () => t0);
+  assert.equal(await demoView(store, ok.id), undefined, 'created days before now, so expired');
 });

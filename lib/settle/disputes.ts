@@ -6,7 +6,7 @@
 
 import * as paypal from '../paypal';
 import { customIdFor } from './checkout';
-import { replayPayPal } from './demo-paypal';
+import { paypalFor } from './demo-paypal';
 import { syncGate } from './ship-gate';
 import { updateWithRetry, type DealStore } from './store';
 import type { Deal, DisputeRecord } from './types';
@@ -70,7 +70,7 @@ export async function refreshDispute(dealId: string, disputeId: string, trigger:
   const stored = await deps.store.getDeal(dealId);
   if (!stored?.value.payeeMerchantId) throw new Error('deal has no connected seller');
   // Demo deals never reach PayPal: they get the recorded replay (judge mode, M5).
-  const pp = deps.paypal ?? (stored.value.demo ? replayPayPal(deps.store, dealId) : paypal);
+  const pp = paypalFor(deps.store, stored.value, deps.paypal, paypal as DisputePayPal);
   const at = nowOf(deps).toISOString();
 
   let fresh: paypal.WithDebugId<paypal.Dispute> | undefined;

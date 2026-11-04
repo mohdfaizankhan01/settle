@@ -1,12 +1,12 @@
 import { cookies } from 'next/headers';
 import { DealError } from '@/lib/settle/deals';
-import { DEMO_TTL_MS, demoView, startDemo } from '@/lib/settle/demo';
+import { DEMO_COOKIE, DEMO_TTL_MS, demoView, startDemo } from '@/lib/settle/demo';
 import { api, getStore, rateLimited } from '@/lib/settle/runtime';
 
 // Judge mode. The session lives in an httpOnly cookie; a session only ever reads its own deals.
 // Starting a session seeds six demo deals (each runs the warning check), so it is rate-limited.
 
-const COOKIE = 'settle_judge';
+const COOKIE = DEMO_COOKIE;
 
 export async function GET() {
   return api(async () => {

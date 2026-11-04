@@ -13,7 +13,7 @@ test('one row per demo deal, coloured by the ship check, with the events each de
   const now = new Date('2026-11-04T10:00:00Z');
   const s = await startDemo(store, () => now);
   const deals = [];
-  for (const d of s.deals) deals.push({ deal: (await store.getDeal(d.dealId))!.value, title: d.scenario });
+  for (const d of s.deals) deals.push({ deal: (await store.getDeal(d.dealId))!.value, title: d.scenario, scenario: d.scenario });
   const t = timeline(deals, now);
   const row = (scenario: string) => t.rows.find((r) => r.scenario === scenario)!;
   const events = (scenario: string) => t.events.filter((e) => e.resourceId === row(scenario).id).map((e) => e.name);

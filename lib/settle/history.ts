@@ -73,7 +73,9 @@ export function describe(r: Receipt, role: Role = 'seller'): string {
     case 'gate.decided':
       return `Ship check: ${d.decision === 'SHIP' ? 'ready to ship' : d.decision === 'HOLD' ? 'hold' : 'review'}.`;
     case 'messages.added':
-      return `The ${s(d.by)} added ${(d.messages as unknown[]).length} message${(d.messages as unknown[]).length === 1 ? '' : 's'} from after payment${seller ? `; ${(d.warnings as unknown[]).length} warning${(d.warnings as unknown[]).length === 1 ? '' : 's'} found` : ''}.`;
+      return `The ${s(d.by)} added ${(d.messages as unknown[]).length} message${(d.messages as unknown[]).length === 1 ? '' : 's'} from after payment${
+        d.check !== 'ran' ? '; the warning check did not run on them' : seller ? `; ${(d.warnings as unknown[]).length} warning${(d.warnings as unknown[]).length === 1 ? '' : 's'} found` : ''
+      }.`;
     case 'shipping.label_postcode':
       return `The seller typed the label postcode; it ${d.matchesPayPal ? 'matches' : d.matchesPayPal === false ? 'does not match' : 'was compared with'} PayPal's address.`;
     case 'tracking.added':
@@ -98,6 +100,8 @@ export function describe(r: Receipt, role: Role = 'seller'): string {
 }
 
 export function history(receipts: readonly Receipt[], role: Role) {
+  // Verified on every read on purpose: a cache keyed on the last hash would hide a changed middle
+  // receipt. A deal has tens of receipts, so this is a few dozen SHA-256 hashes.
   const chain = verifyChain(receipts);
   const items: HistoryItem[] = receipts
     .filter((r) => role === 'seller' || BUYER_SEES.has(r.kind))
@@ -105,5 +109,7 @@ export function history(receipts: readonly Receipt[], role: Role) {
       const debugId = typeof r.data.debugId === 'string' ? r.data.debugId : null;
       return { seq: r.seq, at: r.at, text: describe(r, role), debugId, replayed: !!debugId?.startsWith('rec-') || r.data.replayed === true };
     });
+  // The buyer sees whether the record verifies, not counts or positions from the seller's full list.
+  if (role !== 'seller') return { items, chain: chain.ok ? { ok: true as const, count: null } : { ok: false as const, brokenAt: null, reason: chain.reason } };
   return { items, chain: chain.ok ? { ok: true as const, count: chain.count } : { ok: false as const, brokenAt: chain.brokenAt, reason: chain.reason } };
 }

@@ -949,8 +949,8 @@ function History({ view }: { view: DealView }) {
       <div className="border-t border-pp-gridline px-4 py-3">
         <p className="text-xs text-pp-muted">
           {h.chain.ok
-            ? `Each step is a receipt holding the hash of the one before, so a changed, removed or reordered step would show here. All ${h.chain.count} check out.`
-            : `Receipt ${h.chain.brokenAt} does not check out (${h.chain.reason}). The record after it can't be trusted.`}
+            ? `Each step is a receipt holding the hash of the one before, so a step changed, reordered or removed from the middle would show here${h.chain.count !== null ? `; all ${h.chain.count} check out` : ''}. Steps removed from the very end would not.`
+            : `${h.chain.brokenAt !== null ? `Receipt ${h.chain.brokenAt}` : 'A step'} does not check out (${h.chain.reason}). The record from there on can't be trusted.`}
         </p>
         <ol className="mt-3 space-y-2">
           {h.items.map((i) => (

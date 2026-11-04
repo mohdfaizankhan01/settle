@@ -25,3 +25,9 @@ test('every receipt the demo writes reads as a sentence; the chain verifies; tam
   const tampered = receipts.map((r, i) => (i === 2 ? { ...r, data: { ...r.data, by: 'someone' } } : r));
   assert.deepEqual(history(tampered, 'seller').chain, { ok: false, brokenAt: 2, reason: 'receipt was changed' });
 });
+
+test('a failed check on messages added after payment never reads as "0 warnings"', () => {
+  const r = { seq: 5, dealId: 'd', kind: 'messages.added', at: '2026-11-04T10:00:00Z', prevHash: '', hash: '', data: { by: 'seller', messages: ['m6'], check: 'failed', warnings: [] } };
+  assert.match(describe(r, 'seller'), /the warning check did not run on them/);
+  assert.doesNotMatch(describe(r, 'seller'), /0 warnings/);
+});

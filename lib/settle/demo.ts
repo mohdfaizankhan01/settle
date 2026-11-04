@@ -6,6 +6,7 @@
 // reach PayPal and real deals are never touched.
 
 import { randomBytes } from 'node:crypto';
+import type { CheckEngine } from '../model/engine';
 import { cardHash } from './card';
 import { answerQuestion, confirmCard, createDeal, addMessages, setPayee, type Deps } from './deals';
 import { replayedEvent, replayPayPal, replaySdk, RECORDED } from './demo-paypal';
@@ -16,6 +17,8 @@ import { updateWithRetry, type DealStore, type DemoSession } from './store';
 /** Judge sessions (and their demo deals) are deleted after this long. */
 export const DEMO_TTL_MS = 24 * 60 * 60 * 1000;
 export const DEMO_SELLER = 'RRBVDNUTQMAXN';
+/** The judge session's cookie (httpOnly). */
+export const DEMO_COOKIE = 'settle_judge';
 
 export type Scenario = { id: string; title: string; side: 'buyer' | 'seller'; shows: string; chat: string; seller: string };
 
@@ -60,14 +63,15 @@ const STEPS: Record<string, Partial<Record<'chat' | 'confirm' | 'paid' | 'label'
   dispute: { chat: 240, confirm: 238, paid: 236, label: 220, tracking: 216, delivered: 120, dispute: 24 },
 };
 
-async function seedOne(store: DealStore, session: string, s: Scenario, start: Date) {
+async function seedOne(store: DealStore, session: string, s: Scenario, start: Date, engine: CheckEngine | undefined, created: (dealId: string, keys: { seller: string; buyer: string }) => void) {
   const steps = STEPS[s.id];
   let at = start;
   const step = (name: keyof (typeof STEPS)[string]) => void (at = new Date(start.getTime() - (steps[name] ?? 0) * 3600_000));
   const now = () => at;
-  const deps: Deps = { store, now };
+  const deps: Deps = { store, now, ...(engine ? { engine } : {}) };
   step('chat');
   const { deal, keys } = await createDeal({ chat: s.chat, sellerName: s.seller, country: 'US' }, deps);
+  created(deal.id, keys);
   await updateWithRetry(store, deal.id, (d) => ({ ...d, demo: { session, scenario: s.id, seededAt: start.toISOString() } }));
   if (s.id === 'ff' || s.id === 'fake-email') return { dealId: deal.id, keys };
 
@@ -108,14 +112,19 @@ async function seedOne(store: DealStore, session: string, s: Scenario, start: Da
 }
 
 /** Starts a fresh judge session: purges expired ones, then seeds one deal per scenario. */
-export async function startDemo(store: DealStore, now: () => Date = () => new Date()): Promise<DemoSession> {
+export async function startDemo(store: DealStore, now: () => Date = () => new Date(), engine?: CheckEngine): Promise<DemoSession> {
   await store.purgeDemo(new Date(now().getTime() - DEMO_TTL_MS).toISOString());
   const id = sessionId();
   const deals: DemoSession['deals'] = [];
   const start = now();
-  for (const s of SCENARIOS) deals.push({ scenario: s.id, ...(await seedOne(store, id, s, start)) });
-  const session = { id, createdAt: now().toISOString(), deals };
+  // Independent deals, seeded together. Whatever was created is saved in the session even if one
+  // seed fails, so the purge can always find (and later delete) every demo deal.
+  const results = await Promise.allSettled(SCENARIOS.map((s) => seedOne(store, id, s, start, engine, (dealId, keys) => void deals.push({ scenario: s.id, dealId, keys }))));
+  deals.sort((a, b) => SCENARIOS.findIndex((s) => s.id === a.scenario) - SCENARIOS.findIndex((s) => s.id === b.scenario));
+  const session = { id, createdAt: start.toISOString(), deals };
   await store.saveDemoSession(session);
+  const failed = results.find((r) => r.status === 'rejected');
+  if (failed) throw (failed as PromiseRejectedResult).reason;
   return session;
 }
 
@@ -123,7 +132,8 @@ export async function startDemo(store: DealStore, now: () => Date = () => new Da
 export async function demoView(store: DealStore, id: string | undefined) {
   if (!id || !/^[A-Za-z0-9_-]{32}$/.test(id)) return undefined;
   const session = await store.getDemoSession(id);
-  if (!session) return undefined;
+  // Expired sessions are gone even before the purge runs.
+  if (!session || Date.parse(session.createdAt) + DEMO_TTL_MS < Date.now()) return undefined;
   return {
     createdAt: session.createdAt,
     expiresAt: new Date(Date.parse(session.createdAt) + DEMO_TTL_MS).toISOString(),

@@ -132,6 +132,7 @@ export class MemoryDealStore implements DealStore {
         if (!this.deals.get(d.dealId)?.value.demo) continue;
         this.deals.delete(d.dealId);
         this.receipts.delete(d.dealId);
+        for (const [eid, e] of this.events) if (e.dealId === d.dealId) this.events.delete(eid);
         n++;
       }
       this.demo.delete(id);

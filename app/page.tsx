@@ -32,7 +32,7 @@ export default async function Home() {
         <section className="max-w-3xl">
           <h1 className="text-[40px] font-semibold leading-[1.1] text-pp-navy sm:text-[52px]">One link to settle a deal made in a DM.</h1>
           <p className="mt-5 text-lg leading-relaxed text-pp-muted">
-            Strangers who agree a sale in a chat get stuck on who goes first. Settle Link turns the chat into one card both people confirm, paid through PayPal checkout so PayPal&apos;s protections apply, and keeps the record from the first message to a dispute.
+            Strangers who agree a sale in a chat get stuck on who goes first. Settle Link turns the chat into one card both people confirm, paid through PayPal checkout instead of Friends and Family or a bank transfer, and keeps the record from the first message to a dispute.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/demo" className="rounded-full bg-pp-blue px-6 py-3 font-semibold text-white">

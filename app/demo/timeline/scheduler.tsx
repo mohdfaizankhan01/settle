@@ -8,7 +8,7 @@ import { BryntumScheduler } from '@bryntum/scheduler-react';
 import { useRouter } from 'next/navigation';
 import type { TimelineEvent, TimelineRow } from '@/lib/settle/timeline';
 
-export type TimelineData = { start: string; end: string; rows: (TimelineRow & { scenario: string; title: string })[]; events: TimelineEvent[] };
+export type TimelineData = { start: string; end: string; rows: TimelineRow[]; events: TimelineEvent[] };
 
 export default function Scheduler({ data }: { data: TimelineData }) {
   const router = useRouter();

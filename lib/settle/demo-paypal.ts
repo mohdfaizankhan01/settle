@@ -83,8 +83,8 @@ export function replayedDispute(deal: Deal): paypal.Dispute {
 /** The verified webhook event the demo replays for a capture or a dispute. */
 export function replayedEvent(deal: Deal, kind: 'capture' | 'dispute'): paypal.WebhookEvent {
   return kind === 'capture'
-    ? { id: `${recorded.webhook.captureCompleted}-${deal.id.slice(0, 8)}`, event_type: 'PAYMENT.CAPTURE.COMPLETED', resource: { id: recorded.capture.id, status: 'COMPLETED', custom_id: customIdFor(deal) } }
-    : { id: `${recorded.webhook.disputeCreated}-${deal.id.slice(0, 8)}`, event_type: 'CUSTOMER.DISPUTE.CREATED', resource: { dispute_id: recorded.dispute.id, disputed_transactions: [{ seller_transaction_id: recorded.capture.id, custom: customIdFor(deal) }] } };
+    ? { id: `${recorded.webhook.captureCompleted}-${deal.id}`, event_type: 'PAYMENT.CAPTURE.COMPLETED', resource: { id: recorded.capture.id, status: 'COMPLETED', custom_id: customIdFor(deal) } }
+    : { id: `${recorded.webhook.disputeCreated}-${deal.id}`, event_type: 'CUSTOMER.DISPUTE.CREATED', resource: { dispute_id: recorded.dispute.id, disputed_transactions: [{ seller_transaction_id: recorded.capture.id, custom: customIdFor(deal) }] } };
 }
 
 /** PayPal stand-in for one demo deal. Reads always reflect the deal as it is now in the store. */
@@ -128,4 +128,18 @@ export function replaySdk(store: DealStore, dealId: string): PaypalClient {
       return Response.json({ id: recorded.order.id, status: 'COMPLETED' }, { headers: { 'paypal-debug-id': rec('tracking') } });
     },
   });
+}
+
+/**
+ * The PayPal client for a deal: always the replay for a demo deal, even if a caller passed a live
+ * client, so a demo deal can never reach PayPal; otherwise the caller's client or live PayPal.
+ */
+export function paypalFor<T>(store: DealStore, deal: Pick<Deal, 'id' | 'demo'>, injected: T | undefined, live: T): T | ReturnType<typeof replayPayPal> {
+  if (deal.demo) return replayPayPal(store, deal.id);
+  return injected ?? live;
+}
+
+/** The SDK client for add-tracking: the replay for a demo deal, otherwise the caller's (or the default). */
+export function sdkFor(store: DealStore, deal: Pick<Deal, 'id' | 'demo'>, injected: PaypalClient | undefined): PaypalClient | undefined {
+  return deal.demo ? replaySdk(store, deal.id) : injected;
 }

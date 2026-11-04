@@ -35,3 +35,11 @@ test('every test an attack names exists', async () => {
     assert.ok(readFileSync(file, 'utf8').includes(`test(${JSON.stringify(name).slice(0, -1)}`) || readFileSync(file, 'utf8').includes(`test('${name.replaceAll("'", "\\\\'")}'`), `${r.id}: ${r.test}`);
   }
 });
+
+test('an attack only counts as stopped for its named reason', async () => {
+  // If the amount check were gone, a different refusal must not be reported as "stopped".
+  const { runAttacks: run } = await import('../lib/settle/attacks');
+  const results = await run();
+  const amount = results.find((r) => r.id === 'amount-in-browser')!;
+  assert.match(amount.outcome, /did not match the \$320\.00/);
+});

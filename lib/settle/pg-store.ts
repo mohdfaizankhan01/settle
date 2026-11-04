@@ -148,6 +148,7 @@ export class PgDealStore implements DealStore {
       if (list.length > 0) {
         await tx`DELETE FROM receipts WHERE deal_id IN ${tx(list)}`;
         await tx`DELETE FROM seller_links WHERE deal_id IN ${tx(list)}`;
+        await tx`DELETE FROM webhook_events WHERE doc->>'dealId' IN ${tx(list)}`;
         await tx`DELETE FROM deals WHERE id IN ${tx(list)} AND doc ? 'demo'`;
       }
       await tx`DELETE FROM demo_sessions WHERE created_at < ${before}`;
