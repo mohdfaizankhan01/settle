@@ -7,6 +7,7 @@ import { CARRIERS } from './carriers';
 import { REPLAY_NOTE } from './demo-paypal';
 import { caseFile, REASON_LABELS } from './case-file';
 import { ADVICE_LABEL, disputePlan } from './dispute-plan';
+import { history } from './history';
 import type { Receipt } from './receipts';
 import type { Role } from './chat';
 import { payBlocker } from './checkout';
@@ -158,6 +159,8 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
         : null,
     // After payment (PLAN M3): what PayPal confirmed, and for the seller, the ship gate.
     afterPayment: deal.order && deal.order.status !== 'CREATED' ? afterPaymentView(deal, role, receipts) : null,
+    // The deal's history from its receipts, and whether the chain verifies (M5).
+    history: history(receipts, role),
     canEnter: role === 'seller' ? (['item', 'price'] as const).filter((k) => !deal.card[k] || deal.card[k]!.source.kind === 'entered') : [],
   };
 }

@@ -183,6 +183,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
             </section>
           )}
           {view.afterPayment && <AfterPayment view={view} busy={busy} act={act} />}
+          <History view={view} />
         </div>
 
         <aside className={`order-1 space-y-8 ${embedded ? '' : 'lg:order-2'}`}>
@@ -930,5 +931,47 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
         </ul>
       )}
     </section>
+  );
+}
+
+/** The deal's history from its receipts, and whether the chain of receipts verifies. */
+function History({ view }: { view: DealView }) {
+  const h = view.history;
+  if (h.items.length === 0) return null;
+  return (
+    <details className="rounded-md border border-pp-border bg-pp-surface text-sm">
+      <summary className="cursor-pointer px-4 py-3 font-semibold">
+        History of this deal ({h.items.length} steps){' '}
+        <span className={`font-normal ${h.chain.ok ? 'text-pp-success' : 'text-pp-danger'}`}>
+          {h.chain.ok ? 'record verifies' : 'record does not verify'}
+        </span>
+      </summary>
+      <div className="border-t border-pp-gridline px-4 py-3">
+        <p className="text-xs text-pp-muted">
+          {h.chain.ok
+            ? `Each step is a receipt holding the hash of the one before, so a changed, removed or reordered step would show here. All ${h.chain.count} check out.`
+            : `Receipt ${h.chain.brokenAt} does not check out (${h.chain.reason}). The record after it can't be trusted.`}
+        </p>
+        <ol className="mt-3 space-y-2">
+          {h.items.map((i) => (
+            <li key={i.seq} className="grid gap-x-3 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
+              <time dateTime={i.at} className="text-xs text-pp-muted tabular-nums">
+                {new Date(i.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </time>
+              <span>
+                {i.text}
+                {i.debugId && (
+                  <span className="text-xs text-pp-muted">
+                    {' '}
+                    PayPal debug ID {i.debugId}
+                    {i.replayed && ' (replayed from the recorded sandbox run)'}
+                  </span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </details>
   );
 }
