@@ -5,6 +5,7 @@ import { Shell } from '@/app/components/shell';
 import type { DealView, SourceView } from '@/lib/settle/view';
 import { PayButton } from './pay-button';
 import { HandoverPanel, rememberBuyerKey } from './handover-panel';
+import { keyHeaders, rememberDevice } from './link-auth';
 
 const keyFromHash = () => new URLSearchParams(window.location.hash.slice(1)).get('k') ?? '';
 
@@ -25,9 +26,11 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
 
   const load = useCallback(
     async (k: string) => {
-      const res = await fetch(`/api/deals/${dealId}`, { headers: { 'x-settle-key': k }, cache: 'no-store' });
+      const res = await fetch(`/api/deals/${dealId}`, { headers: keyHeaders(k), cache: 'no-store' });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? 'This deal could not be loaded.');
+      // First open on this device: keep the secret that makes this link work here (and only here).
+      if (typeof body.claim === 'string') rememberDevice(k, body.claim);
       setView(body);
       // Meet-up deals: the buyer scans the seller's code with this phone's camera, which opens the
       // handover page without the link key, so this phone remembers it (handover-panel.tsx).
@@ -60,7 +63,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
       try {
         const res = await fetch(`/api/deals/${dealId}${path}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-settle-key': keyRef.current ?? '' },
+          headers: { 'Content-Type': 'application/json', ...keyHeaders(keyRef.current ?? '') },
           body: JSON.stringify(body ?? {}),
         });
         const out = await res.json();
@@ -786,7 +789,7 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
   const download = async () => {
     const key = getKey();
     setDownloadError(null);
-    const res = await fetch(`/api/deals/${dealId}/disputes/pack?d=${encodeURIComponent(d.id)}`, { headers: { 'x-settle-key': key }, cache: 'no-store' });
+    const res = await fetch(`/api/deals/${dealId}/disputes/pack?d=${encodeURIComponent(d.id)}`, { headers: keyHeaders(key), cache: 'no-store' });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       setDownloadError(body.error ?? 'The evidence pack could not be downloaded. Reload the page and try again.');

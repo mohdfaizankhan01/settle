@@ -30,13 +30,55 @@ export class DealError extends Error {
 const now = (deps: Deps) => (deps.now ?? (() => new Date()))().toISOString();
 const newKey = () => randomBytes(32).toString('base64url');
 
+/** The link key and, after the first open, this device's secret: `<key>\n<device secret>`. */
+export const withDevice = (key: string | null | undefined, device: string | null | undefined): string | null => (key && device ? `${key}\n${device}` : (key ?? null));
+
+export const OTHER_DEVICE_LINK =
+  "This link was already opened on another device, and it only works there. If that wasn't you, don't confirm or pay: ask the other person for a new deal link.";
+
+const hashEq = (a: string, hexHash: string) => {
+  const x = Buffer.from(sha256Hex(a), 'hex');
+  const y = Buffer.from(hexHash, 'hex');
+  return x.length === y.length && timingSafeEqual(x, y);
+};
+
+/**
+ * Which side a link key is for. Once a side's link has been claimed (opened on a device), it only
+ * counts from that device: any other device gets a 403 that says so (DECISIONS #22).
+ */
 export function roleFor(deal: Deal, key: string | null | undefined): Role | undefined {
   if (!key) return undefined;
-  const hash = Buffer.from(sha256Hex(key), 'hex');
+  const [linkKey, device] = key.split('\n');
   for (const role of ['seller', 'buyer'] as const) {
-    if (timingSafeEqual(hash, Buffer.from(deal.keyHashes[role], 'hex'))) return role;
+    if (!hashEq(linkKey, deal.keyHashes[role])) continue;
+    const claim = deal.claims?.[role];
+    if (claim && !deal.demo && !(device && hashEq(device, claim.hash))) throw new DealError(OTHER_DEVICE_LINK, 403);
+    return role;
   }
   return undefined;
+}
+
+/**
+ * First open of a link on a device: the device gets a secret that the link needs from now on.
+ * Returns the secret only to the first device; later opens return nothing. Judge-mode deals are
+ * never claimed (their sessions are already private, and one judge plays both sides).
+ */
+export async function claimLink(dealId: string, key: string | null | undefined, deps: Deps): Promise<string | undefined> {
+  const stored = await deps.store.getDeal(dealId);
+  if (!stored) throw new DealError('no such deal', 404);
+  const role = roleFor(stored.value, key);
+  if (!role || stored.value.demo || stored.value.claims?.[role]) return undefined;
+  const secret = randomBytes(24).toString('base64url');
+  const at = now(deps);
+  try {
+    await deps.store.updateDeal(dealId, stored.version, { ...stored.value, claims: { ...stored.value.claims, [role]: { hash: sha256Hex(secret), at } } });
+  } catch (error) {
+    // Two devices opened it at once: the other one won, and this one gets the 403 next time.
+    if (error instanceof StaleWriteError) return undefined;
+    throw error;
+  }
+  await deps.store.addReceipt({ dealId, kind: 'link.claimed', at, data: { role } });
+  return secret;
 }
 
 async function load(deps: Deps, dealId: string, key: string | null | undefined) {

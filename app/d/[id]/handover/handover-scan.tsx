@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Shell } from '@/app/components/shell';
 import type { DealView } from '@/lib/settle/view';
 import { buyerKeyOnThisPhone, payerOnThisPhone } from '../handover-panel';
+import { keyHeaders } from '../link-auth';
 
 export function HandoverScan({ dealId }: { dealId: string }) {
   const router = useRouter();
@@ -38,7 +39,7 @@ export function HandoverScan({ dealId }: { dealId: string }) {
         if (!token.current) throw new Error("This page needs the seller's code. Scan it again from their phone.");
         if (!key.current) throw new Error("This phone doesn't know you're the buyer yet. Open your own deal link on this phone first, then scan the seller's code again.");
         if (!payerOnThisPhone(dealId)) throw new Error('Only the phone that placed the PayPal hold can confirm the handover. Scan the code with that phone.');
-        return fetch(`/api/deals/${dealId}`, { headers: { 'x-settle-key': key.current }, cache: 'no-store' });
+        return fetch(`/api/deals/${dealId}`, { headers: keyHeaders(key.current), cache: 'no-store' });
       })
       .then(async (res) => {
         const body = await res.json();
@@ -59,7 +60,7 @@ export function HandoverScan({ dealId }: { dealId: string }) {
     try {
       const res = await fetch(`/api/deals/${dealId}/handover/release`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-settle-key': key.current ?? '', 'x-settle-payer': payerOnThisPhone(dealId) ?? '' },
+        headers: { 'Content-Type': 'application/json', ...keyHeaders(key.current ?? ''), 'x-settle-payer': payerOnThisPhone(dealId) ?? '' },
         body: JSON.stringify({ token: token.current }),
       });
       const out = await res.json();

@@ -200,6 +200,12 @@ export type Deal = {
   declines?: Decline[];
   /** SHA-256 of each side's link key. The keys themselves are never stored. */
   keyHashes: Record<Role, string>;
+  /**
+   * Claim on open (DECISIONS #22): each link works only on the first device that opened it. The
+   * maker of a deal gets both links, so this stops them quietly holding a working copy of the
+   * other side's link. Only each device secret's hash is kept. Judge-mode deals aren't claimed.
+   */
+  claims?: Partial<Record<Role, { hash: string; at: string }>>;
   /** The seller's PayPal merchant ID once they connect (D1, DECISIONS #12). Part of the locked card. */
   payeeMerchantId?: string;
   /** The seller's latest Partner Referrals attempt for this deal. */

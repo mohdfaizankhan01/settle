@@ -28,6 +28,7 @@ const BUYER_SEES = new Set([
   'shipping.delivered',
   'dispute.read',
   // Meet-up mode: both sides see every step of the hold and the handover.
+  'link.claimed',
   'order.hold_requested',
   'handover.code_shown',
   'handover.blocked',
@@ -71,6 +72,8 @@ export function describe(r: Receipt, role: Role = 'seller'): string {
       return `Capture refused before calling PayPal: ${s(d.reason) || ((d.reasons as string[] | undefined) ?? []).join('; ')}.`;
     case 'capture.failed':
       return 'The capture request to PayPal failed; PayPal was read again to settle it.';
+    case 'link.claimed':
+      return `The ${s(d.role)}'s link was opened, and now works only on that device.`;
     case 'order.hold_requested':
       return `Hold requested; PayPal said ${s(d.authorizationStatus) || s(d.orderStatus)}. Nothing is taken until the handover.`;
     case 'handover.code_shown':

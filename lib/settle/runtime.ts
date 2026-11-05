@@ -4,7 +4,7 @@
 
 import { PayPalApiError } from '../paypal';
 import { ChatError } from './chat';
-import { DealError } from './deals';
+import { DealError, withDevice } from './deals';
 import { PgDealStore } from './pg-store';
 import { MemoryDealStore, type DealStore } from './store';
 
@@ -23,8 +23,11 @@ export function publicHost(request: Request): string {
   return (process.env.SETTLE_PUBLIC_HOST || new URL(request.url).origin).replace(/\/$/, '');
 }
 
-/** The caller's link key. It lives in the page's URL fragment, so it never reaches server logs. */
-export const linkKey = (request: Request) => request.headers.get('x-settle-key');
+/**
+ * The caller's link key, plus this device's secret once the link was claimed (DECISIONS #22). The
+ * key lives in the page's URL fragment and the secret in the browser, so neither reaches server logs.
+ */
+export const linkKey = (request: Request) => withDevice(request.headers.get('x-settle-key'), request.headers.get('x-settle-device'));
 
 /**
  * At most `limit` calls per `windowMs` per client address and bucket, in memory per instance.

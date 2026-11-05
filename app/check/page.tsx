@@ -45,6 +45,9 @@ export default function CheckPage() {
         <p className="mt-2 max-w-prose text-pp-muted">
           Each person opens their own link. Keep your link private: it lets whoever has it confirm the card for you.
         </p>
+        <p className="mt-2 max-w-prose border-l-4 border-pp-warning bg-pp-surface px-4 py-3 text-sm">
+          Each link locks to the first device that opens it. Open only your own, and send the other one without opening it: if you open it, it won&apos;t work for them. For a meet-up, the buyer should open theirs on the phone they&apos;ll bring.
+        </p>
         <div className="mt-8 space-y-4">
           <LinkRow who="Seller" url={`${base}#k=${created.keys.seller}`} />
           <LinkRow who="Buyer" url={`${base}#k=${created.keys.buyer}`} />

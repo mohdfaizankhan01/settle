@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { payerOnThisPhone, rememberPayer } from './handover-panel';
+import { keyHeaders } from './link-auth';
 
 // PayPal JS SDK v6 (sandbox). The browser only asks our server to create the order from the
 // locked card and, after approval, to capture it; it never sends an amount or payee.
@@ -65,7 +66,7 @@ export function PayButton(props: { dealId: string; getKey: () => string; checkou
     const post = async (path: string, body: unknown) => {
       const res = await fetch(`/api/deals/${dealId}${path}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-settle-key': callbacks.current.getKey(), 'x-settle-payer': payerOnThisPhone(dealId) ?? '' },
+        headers: { 'Content-Type': 'application/json', ...keyHeaders(callbacks.current.getKey()), 'x-settle-payer': payerOnThisPhone(dealId) ?? '' },
         body: JSON.stringify(body),
       });
       const out = await res.json();
@@ -106,7 +107,7 @@ export function PayButton(props: { dealId: string; getKey: () => string; checkou
   async function pay() {
     if (!session.current) return;
     setState('paying');
-    const order = fetch(`/api/deals/${dealId}/order`, { method: 'POST', headers: { 'x-settle-key': callbacks.current.getKey(), 'x-settle-payer': payerOnThisPhone(dealId) ?? '' } }).then(async (res) => {
+    const order = fetch(`/api/deals/${dealId}/order`, { method: 'POST', headers: { ...keyHeaders(callbacks.current.getKey()), 'x-settle-payer': payerOnThisPhone(dealId) ?? '' } }).then(async (res) => {
       const out = await res.json();
       if (!res.ok) throw new Error(out.error ?? 'The order could not be created.');
       // Meet-up deals: this phone is now the payer's; only it can confirm the handover later.
