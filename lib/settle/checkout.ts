@@ -5,12 +5,12 @@
 // as confirming payment: that still needs a verified webhook plus a fresh GET (M3).
 
 import * as paypal from '../paypal';
-import { cardHash, isLocked, moneyOf } from './card';
+import { cardHash, isHandoverDeal, isLocked, moneyOf } from './card';
 import { roleFor, DealError } from './deals';
 import { StaleWriteError, type DealStore } from './store';
 import type { Deal } from './types';
 
-export type PayPalDeps = Pick<typeof paypal, 'createOrder' | 'getOrder' | 'captureOrder'>;
+export type PayPalDeps = Pick<typeof paypal, 'createOrder' | 'getOrder' | 'captureOrder'> & Partial<Pick<typeof paypal, 'authorizeOrder'>>;
 export type CheckoutDeps = { store: DealStore; paypal?: PayPalDeps; publicHost: string; now?: () => Date };
 
 const now = (deps: CheckoutDeps) => (deps.now ?? (() => new Date()))().toISOString();
@@ -67,6 +67,8 @@ export async function startCheckout(dealId: string, key: string | null, deps: Ch
         ...feeLine,
       ],
       physical: delivery!.value !== 'digital',
+      // In-person deals: PayPal holds the money until the buyer confirms the handover (DECISIONS #20).
+      ...(isHandoverDeal(deal) ? { intent: 'AUTHORIZE' as const } : {}),
       returnUrl: `${deps.publicHost}/d/${deal.id}`,
       cancelUrl: `${deps.publicHost}/d/${deal.id}`,
     },
@@ -134,9 +136,13 @@ export async function captureCheckout(dealId: string, key: string | null, orderI
   }
 
   let captured = fresh;
+  const hold = isHandoverDeal(deal);
   if (!alreadyCaptured) {
     try {
-      captured = await pp.captureOrder(orderId, `settle-capture-${orderId}`);
+      // A meet-up deal places a hold; the money is taken only at the handover (handover.ts).
+      captured = hold
+        ? await (pp.authorizeOrder ?? paypal.authorizeOrder)(orderId, `settle-authorize-${orderId}`)
+        : await pp.captureOrder(orderId, `settle-capture-${orderId}`);
     } catch (error) {
       await deps.store.addReceipt({ dealId, kind: 'capture.failed', at: now(deps), data: { orderId, debugId: debugIdOf(error) ?? null } });
       // The capture may have gone through with its answer lost: read PayPal before giving up.
@@ -146,7 +152,8 @@ export async function captureCheckout(dealId: string, key: string | null, orderI
     }
   }
   const capture = captured.data.purchase_units?.[0]?.payments?.captures?.[0];
-  const status = captured.data.status === 'COMPLETED' ? 'CAPTURE_REQUESTED' : captured.data.status;
+  const authorization = captured.data.purchase_units?.[0]?.payments?.authorizations?.[0];
+  const status = captured.data.status === 'COMPLETED' ? (hold ? 'HOLD_REQUESTED' : 'CAPTURE_REQUESTED') : captured.data.status;
   for (let attempt = 0; ; attempt++) {
     const latest = (await deps.store.getDeal(dealId))!;
     try {
@@ -160,9 +167,11 @@ export async function captureCheckout(dealId: string, key: string | null, orderI
   }
   await deps.store.addReceipt({
     dealId,
-    kind: 'order.capture_requested',
+    kind: hold ? 'order.hold_requested' : 'order.capture_requested',
     at: now(deps),
-    data: { orderId, orderStatus: captured.data.status, captureId: capture?.id ?? null, captureStatus: capture?.status ?? null, debugId: captured.debugId ?? null },
+    data: hold
+      ? { orderId, orderStatus: captured.data.status, authorizationId: authorization?.id ?? null, authorizationStatus: authorization?.status ?? null, debugId: captured.debugId ?? null }
+      : { orderId, orderStatus: captured.data.status, captureId: capture?.id ?? null, captureStatus: capture?.status ?? null, debugId: captured.debugId ?? null },
   });
-  return { status, captureStatus: capture?.status };
+  return { status, captureStatus: capture?.status, authorizationStatus: authorization?.status };
 }

@@ -96,6 +96,12 @@ export type OrderRead =
       trackers?: string[];
       /** Item names on the PayPal order, for not-as-described disputes. */
       items?: string[];
+      /** Meet-up deals (intent AUTHORIZE): the hold PayPal shows on the order. */
+      authorizationId?: string;
+      authorizationStatus?: string;
+      authorizationExpires?: string;
+      /** When PayPal placed the hold (the authorization's create_time). */
+      authorizationCreated?: string;
       /** Why the order doesn't match the card. Empty when it matches. */
       mismatches: string[];
       debugId?: string;
@@ -106,6 +112,8 @@ export type OrderRead =
 export type Payment = {
   /** The verified PAYMENT.CAPTURE.COMPLETED event for this deal's capture (CLAUDE.md: the only confirmation). */
   webhook?: { eventId: string; captureId: string; at: string };
+  /** Meet-up deals: the verified PAYMENT.AUTHORIZATION.CREATED event for this deal's hold. */
+  holdWebhook?: { eventId: string; authorizationId: string; at: string };
   /** The latest successful read, or the failure if no read has succeeded yet. */
   read?: OrderRead;
   /** A read that failed after a good one. Newer than `read` means "can't check" right now. */
@@ -127,6 +135,20 @@ export type Shipping = {
     at: string;
     debugId?: string;
   };
+};
+
+/**
+ * Meet-up deals (DECISIONS #20): the handover. The seller shows a one-time code; the buyer scans it
+ * on their own deal link and confirms, and only then is the held money taken. Walking away, or the
+ * meet-by date passing, releases the hold. Only the token's hash is stored.
+ */
+export type Handover = {
+  token?: { hash: string; createdAt: string; expiresAt: string };
+  /** A capture or void sent to PayPal whose answer isn't recorded yet. A re-read decides. */
+  inFlight?: { kind: 'release' | 'void'; at: string };
+  outcome?: { kind: 'released' | 'voided'; at: string; by: 'buyer' | 'seller' | 'meet_by_passed'; debugId?: string; captureId?: string };
+  /** The last capture or void PayPal refused, shown to both sides. */
+  failed?: { kind: 'release' | 'void'; at: string; reason: string; debugId?: string };
 };
 
 /** A PayPal dispute on this deal's payment, as last read from PayPal (M4). */
@@ -181,6 +203,7 @@ export type Deal = {
   /** Filled in after capture by verified webhooks and fresh GETs of the order (M3). */
   payment?: Payment;
   shipping?: Shipping;
+  handover?: Handover;
   disputes?: DisputeRecord[];
   /** Dispute responses sent (or being sent) with the seller's approval, by request hash. */
   submissions?: { disputeId: string; rel: string; hash: string; state: 'sending' | 'sent' | 'failed' | 'unknown'; at: string; debugId?: string; status?: number }[];

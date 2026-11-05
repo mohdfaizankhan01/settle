@@ -27,6 +27,15 @@ const BUYER_SEES = new Set([
   'tracking.added',
   'shipping.delivered',
   'dispute.read',
+  // Meet-up mode: both sides see every step of the hold and the handover.
+  'order.hold_requested',
+  'handover.code_shown',
+  'handover.blocked',
+  'handover.release_requested',
+  'handover.released',
+  'handover.release_failed',
+  'handover.voided',
+  'handover.void_failed',
 ]);
 
 const s = (v: unknown) => (typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v));
@@ -62,11 +71,31 @@ export function describe(r: Receipt, role: Role = 'seller'): string {
       return `Capture refused before calling PayPal: ${s(d.reason) || ((d.reasons as string[] | undefined) ?? []).join('; ')}.`;
     case 'capture.failed':
       return 'The capture request to PayPal failed; PayPal was read again to settle it.';
+    case 'order.hold_requested':
+      return `Hold requested; PayPal said ${s(d.authorizationStatus) || s(d.orderStatus)}. Nothing is taken until the handover.`;
+    case 'handover.code_shown':
+      return 'The seller showed a handover code (valid 10 minutes).';
+    case 'handover.blocked':
+      return `Handover refused: ${s(d.reason)}`;
+    case 'handover.release_requested':
+      return 'The buyer scanned the code and confirmed the handover; Settle asked PayPal to take the held money.';
+    case 'handover.released':
+      return `PayPal took the held money (capture ${s(d.captureId)}, ${s(d.captureStatus) || 'status unknown'}). Payment counts once PayPal's verified notification arrives.`;
+    case 'handover.release_failed':
+      return `PayPal did not take the money (${s(d.reason)}); it stays held.`;
+    case 'handover.voided':
+      return d.by === 'meet_by_passed'
+        ? "No handover within PayPal's 3-day hold, so Settle released it. The buyer was not charged."
+        : `The ${s(d.by)} called it off and PayPal released the hold. The buyer was not charged.`;
+    case 'handover.void_failed':
+      return `Releasing the hold failed (${s(d.reason)}); the money is still held.`;
     case 'order.capture_requested':
       return `Capture requested; PayPal said ${s(d.captureStatus) || s(d.orderStatus)}. This is not yet confirmation.`;
     case 'payment.checked':
       return d.paid
         ? `Payment confirmed: ${d.trigger === 'webhook' ? 'verified PayPal webhook' : 'PayPal'} plus a fresh read of the order that matches the card.`
+        : d.held
+          ? 'Hold confirmed: a verified PayPal notification plus a fresh read of the order that matches the card. Nothing taken yet.'
         : !d.readOk
           ? "Couldn't read the order from PayPal; payment not confirmed."
           : `Order read from PayPal: ${s(d.captureStatus) || s(d.orderStatus)}${(d.mismatches as string[]).length ? `, but ${(d.mismatches as string[]).join('; ')}` : ''}${d.ignored ? ` (event ignored: ${s(d.ignored)})` : ''}.`;

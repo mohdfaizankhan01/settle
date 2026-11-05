@@ -196,6 +196,9 @@ export function applyAnswer(card: DealCard, question: Question, optionId: string
   return next;
 }
 
+/** Deals handed over in person: paid as a PayPal hold, taken at the handover (DECISIONS #20). */
+export const isHandoverDeal = (deal: { card: DealCard }) => deal.card.delivery?.value === 'meetup' || deal.card.delivery?.value === 'collect';
+
 /** Warnings that follow from the card itself: collect and meet-up (SP-INPERSON, PP-COLLECT). */
 export function termWarnings(card: DealCard): Warning[] {
   const d = card.delivery?.value;

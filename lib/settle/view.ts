@@ -2,7 +2,7 @@
 // with its advice template, citations and the message it was found in. Wording rules
 // (DECISIONS #7): "No warning signs found" only when the check ran; never "safe".
 
-import { blockers, cardHash, formatMoney, isLocked, moneyOf } from './card';
+import { blockers, cardHash, formatMoney, isHandoverDeal, isLocked, moneyOf } from './card';
 import { CARRIERS } from './carriers';
 import { REPLAY_NOTE } from './demo-paypal';
 import { caseFile, REASON_LABELS } from './case-file';
@@ -13,6 +13,7 @@ import type { Role } from './chat';
 import { payBlocker } from './checkout';
 import { DECLINE_REASONS } from './deals';
 import { FEE_RATES } from './fees';
+import { CODE_TTL_MS, holdDeadline, HOLD_DAYS, isHeld } from './handover';
 import { isPaid, readFailedLast, shipGate } from './ship-gate';
 import { shownTo, signalById, TERM_SIGNALS } from './signals';
 import { CURRENCY_OF, type Currency, type Deal, type TermKey, type TermSource } from './types';
@@ -87,9 +88,12 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
     : [];
   const warnings = [...declineWarning, ...bySignal.values()];
 
+  const handover = isHandoverDeal(deal);
   const terms = (['item', 'price', 'delivery', 'shipBy', 'feePayer'] as const).map((key) => {
     const t = deal.card[key];
-    return { key, label: TERM_LABELS[key], display: t?.display ?? null, source: t ? sourceView(deal, t.source) : null };
+    // In-person deals: the agreed date is when they meet, not when something ships.
+    const label = key === 'shipBy' && handover ? 'Meet by' : TERM_LABELS[key];
+    return { key, label, display: t?.display ?? null, source: t ? sourceView(deal, t.source) : null };
   });
 
   const other: Role = role === 'seller' ? 'buyer' : 'seller';
@@ -155,7 +159,7 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
     // browser never sends an amount or payee back; the server builds the order from the card.
     checkout:
       role === 'buyer' && !deal.demo && isLocked(deal) && deal.payeeMerchantId && moneyOf(deal)
-        ? { clientId: process.env.PAYPAL_CLIENT_ID ?? '', merchantId: deal.payeeMerchantId, amount: moneyOf(deal)!.total, currency: deal.card.price!.value.currency }
+        ? { clientId: process.env.PAYPAL_CLIENT_ID ?? '', merchantId: deal.payeeMerchantId, amount: moneyOf(deal)!.total, currency: deal.card.price!.value.currency, hold: handover }
         : null,
     // After payment (PLAN M3): what PayPal confirmed, and for the seller, the ship gate.
     afterPayment: deal.order && deal.order.status !== 'CREATED' ? afterPaymentView(deal, role, receipts) : null,
@@ -165,12 +169,49 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
   };
 }
 
+/** Meet-up deals (DECISIONS #20): where the hold and the handover stand, for both sides. */
+function handoverView(deal: Deal, role: Role) {
+  const h = deal.handover;
+  const total = moneyOf(deal) ? formatMoney(moneyOf(deal)!.total, CURRENCY_OF[deal.country]) : null;
+  const deadline = holdDeadline(deal);
+  const state = h?.outcome?.kind ?? (h?.inFlight ? (h.inFlight.kind === 'release' ? 'releasing' : 'releasing_hold') : isHeld(deal) ? 'held' : 'waiting');
+  return {
+    state,
+    total,
+    holdDays: HOLD_DAYS,
+    deadline: deadline?.toISOString() ?? null,
+    by: h?.outcome?.by ?? null,
+    at: h?.outcome?.at ?? null,
+    debugId: h?.outcome?.debugId ?? null,
+    failed: h?.failed ? { kind: h.failed.kind, reason: h.failed.reason, at: h.failed.at, debugId: h.failed.debugId ?? null } : null,
+    // A code shown in the last few minutes, so the seller's screen can say one is live.
+    codeLive: role === 'seller' && !!h?.token && Date.parse(h.token.expiresAt) > Date.now(),
+    codeMinutes: CODE_TTL_MS / 60_000,
+    canShowCode: role === 'seller' && isHeld(deal),
+    canCancel: isHeld(deal),
+  };
+}
+
 function afterPaymentView(deal: Deal, role: Role, receipts: readonly Receipt[]) {
   const read = deal.payment?.read;
   const paid = isPaid(deal) && !readFailedLast(deal);
   const c = CURRENCY_OF[deal.country];
   const estimate = moneyOf(deal)?.fee;
-  const payment = readFailedLast(deal)
+  const handover = isHandoverDeal(deal) ? handoverView(deal, role) : null;
+  const total = moneyOf(deal) ? formatMoney(moneyOf(deal)!.total, c) : '';
+  const holdPayment =
+    !handover || paid || readFailedLast(deal)
+      ? null
+      : handover.state === 'voided'
+        ? { state: 'voided' as const, text: 'PayPal released the hold. The buyer was not charged.' }
+        : handover.state === 'released'
+          ? { state: 'waiting' as const, text: "The money was taken at the handover. Waiting for PayPal's verified payment notification before it counts." }
+          : handover.state === 'held' || handover.state === 'releasing' || handover.state === 'releasing_hold'
+            ? { state: 'held' as const, text: `PayPal holds ${total} on the buyer's account: confirmed by a verified PayPal notification and a fresh read of the order. Nothing is taken until the buyer scans the seller's code at the handover.` }
+            : read?.ok && read.mismatches.length > 0
+              ? { state: 'problem' as const, text: `The PayPal order doesn't match the card: ${read.mismatches.join('; ')}.` }
+              : { state: 'waiting' as const, text: "Waiting for PayPal to confirm the hold. Don't meet to hand over until it does." };
+  const payment = holdPayment ?? (readFailedLast(deal)
     ? { state: 'cant_check' as const, text: "Couldn't reach PayPal on the last check. That isn't the same as unpaid; Settle tries again when the page reloads." }
     : paid
     ? { state: 'paid' as const, text: 'PayPal confirmed the payment: a verified PayPal notification and a fresh read of the order both match the card.' }
@@ -180,15 +221,17 @@ function afterPaymentView(deal: Deal, role: Role, receipts: readonly Receipt[]) 
         ? { state: 'problem' as const, text: read.mismatches.length > 0 ? `The PayPal order doesn't match the card: ${read.mismatches.join('; ')}.` : `PayPal shows the payment as ${read.captureStatus}.` }
         : read?.ok && read.captureStatus === 'COMPLETED'
           ? { state: 'waiting' as const, text: "PayPal's order shows the payment completed. Waiting for PayPal's verified payment notification before it counts; the seller shouldn't ship until then." }
-          : { state: 'waiting' as const, text: "Waiting for PayPal's payment notification. The seller shouldn't ship until PayPal confirms it." };
+          : { state: 'waiting' as const, text: "Waiting for PayPal's payment notification. The seller shouldn't ship until PayPal confirms it." });
   const seller = role === 'seller';
   return {
     payment,
     checkedAt: read?.at ?? null,
     // PayPal's actual fee from the capture, next to Settle's estimate (docs/fees.md).
     fee: seller && read?.ok && read.fee ? { actual: formatMoney(read.fee, c), estimate: estimate ? formatMoney(estimate, c) : null, net: read.net ? formatMoney(read.net, c) : null } : null,
-    gate: seller ? shipGate(deal) : null,
-    shipTo: seller && read?.ok ? (read.shipTo ?? null) : null,
+    // Meet-up deals have no ship gate; the handover panel takes its place.
+    gate: seller && !handover ? shipGate(deal) : null,
+    handover,
+    shipTo: seller && !handover && read?.ok ? (read.shipTo ?? null) : null,
     labelPostcode: seller ? (deal.shipping?.labelPostcode?.value ?? null) : null,
     tracking: deal.shipping?.tracking ? { carrier: CARRIERS[deal.country].find((x) => x.id === deal.shipping!.tracking!.carrier)?.label ?? deal.shipping.tracking.carrier, number: deal.shipping.tracking.number, state: deal.shipping.tracking.state } : null,
     carriers: seller ? CARRIERS[deal.country].map((x) => ({ id: x.id as string, label: x.label })) : [],

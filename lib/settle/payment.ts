@@ -17,6 +17,8 @@ export type PaymentPayPal = Pick<typeof paypal, 'getOrder'>;
 export type PaymentDeps = { store: DealStore; paypal?: PaymentPayPal; now?: () => Date; disputes?: DisputePayPal };
 
 const CAPTURE_COMPLETED = 'PAYMENT.CAPTURE.COMPLETED';
+/** Meet-up deals: PayPal placed the hold (DECISIONS #20, spike D4). */
+const HOLD_CREATED = 'PAYMENT.AUTHORIZATION.CREATED';
 /** The page-load fallback reads PayPal at most this often per deal. */
 export const FALLBACK_INTERVAL_MS = 60_000;
 
@@ -43,6 +45,13 @@ export function readOrder(deal: Deal, order: paypal.Order, at: string, debugId?:
     mismatches.push('captured amount does not match the order');
   }
   const b = capture?.seller_receivable_breakdown;
+  const auths = order.purchase_units?.[0]?.payments?.authorizations ?? [];
+  const auth = auths[0];
+  // One hold per order: a second authorization is not something Settle created.
+  if (auths.length > 1) mismatches.push('order has more than one hold');
+  if (auth?.amount && (auth.amount.value !== order.purchase_units?.[0]?.amount?.value || auth.amount.currency_code !== order.purchase_units?.[0]?.amount?.currency_code)) {
+    mismatches.push('held amount does not match the order');
+  }
   return {
     ok: true,
     at,
@@ -54,20 +63,21 @@ export function readOrder(deal: Deal, order: paypal.Order, at: string, debugId?:
     shipTo: shipToOf(order),
     trackers: (order.purchase_units?.[0]?.shipping?.trackers ?? []).map((t) => t.id),
     items: (order.purchase_units?.[0]?.items ?? []).map((i) => i.name),
+    ...(auth ? { authorizationId: auth.id, authorizationStatus: auth.status, authorizationExpires: auth.expiration_time, authorizationCreated: auth.create_time } : {}),
     mismatches,
     debugId,
   };
 }
 
 export type Trigger =
-  | { kind: 'webhook'; eventId: string; eventType: string; captureId?: string }
+  | { kind: 'webhook'; eventId: string; eventType: string; captureId?: string; authorizationId?: string }
   | { kind: 'page' }
   // Re-read after the seller added tracking, to see the tracker on the order.
   | { kind: 'tracking' };
 
 const summary = (p: Payment | undefined, paid: boolean) => {
   const r = p?.read;
-  return JSON.stringify([paid, !!p?.webhook, r?.ok, r?.ok && r.orderStatus, r?.ok && r.captureStatus, r?.ok && r.mismatches, r?.ok && r.trackers, !!p?.failed]);
+  return JSON.stringify([paid, !!p?.webhook, !!p?.holdWebhook, r?.ok, r?.ok && r.orderStatus, r?.ok && r.captureStatus, r?.ok && r.authorizationStatus, r?.ok && r.mismatches, r?.ok && r.trackers, !!p?.failed]);
 };
 
 /**
@@ -103,6 +113,13 @@ export async function refreshPayment(dealId: string, trigger: Trigger, deps: Pay
     else ignored = 'event is for another capture';
   }
 
+  // Meet-up deals: only a verified hold webhook naming the hold this GET shows counts as held.
+  let holdWebhook = deal.payment?.holdWebhook;
+  if (read?.ok && read.authorizationId && !holdWebhook && trigger.kind === 'webhook' && trigger.eventType === HOLD_CREATED) {
+    if (trigger.authorizationId === read.authorizationId) holdWebhook = { eventId: trigger.eventId, authorizationId: read.authorizationId, at };
+    else ignored = 'event is for another hold';
+  }
+
   const { before: prev, after: saved } = await updateWithRetry(deps.store, dealId, (latest) => {
     const old = latest.payment;
     // A failed read keeps the last good one beside the failure; with none, the failure is the read.
@@ -110,7 +127,12 @@ export async function refreshPayment(dealId: string, trigger: Trigger, deps: Pay
     return {
       ...latest,
       // Never drop a confirmation already recorded by a concurrent run.
-      payment: { webhook: old?.webhook ?? webhook, read: nextRead, ...(read ? {} : old?.read?.ok ? { failed } : {}) },
+      payment: {
+        webhook: old?.webhook ?? webhook,
+        ...((old?.holdWebhook ?? holdWebhook) ? { holdWebhook: old?.holdWebhook ?? holdWebhook } : {}),
+        read: nextRead,
+        ...(read ? {} : old?.read?.ok ? { failed } : {}),
+      },
       order: { ...latest.order!, status: read?.ok ? read.orderStatus : latest.order!.status },
     };
   });
@@ -132,6 +154,9 @@ export async function refreshPayment(dealId: string, trigger: Trigger, deps: Pay
         orderStatus: read?.ok ? read.orderStatus : null,
         captureId: read?.ok ? (read.captureId ?? null) : null,
         captureStatus: read?.ok ? (read.captureStatus ?? null) : null,
+        authorizationId: read?.ok ? (read.authorizationId ?? null) : null,
+        authorizationStatus: read?.ok ? (read.authorizationStatus ?? null) : null,
+        held: !!saved.payment?.holdWebhook && read?.ok === true && read.authorizationStatus === 'CREATED',
         mismatches: read?.ok ? read.mismatches : [],
         paid,
         debugId: read?.debugId ?? failed?.debugId ?? null,
@@ -159,7 +184,7 @@ export type EventResult = { handled: boolean; dealId?: string; reason?: string }
  */
 export async function applyVerifiedEvent(event: paypal.WebhookEvent, deps: PaymentDeps): Promise<EventResult> {
   if (await deps.store.hasEvent(event.id)) return { handled: false, reason: 'already processed' };
-  let result: EventResult = { handled: false, reason: 'not a capture or dispute event' };
+  let result: EventResult = { handled: false, reason: 'not a payment or dispute event' };
   if (event.event_type.startsWith('CUSTOMER.DISPUTE.')) {
     const named = dealOfDisputeEvent(event);
     const stored = named ? await deps.store.getDeal(named.dealId) : undefined;
@@ -168,13 +193,15 @@ export async function applyVerifiedEvent(event: paypal.WebhookEvent, deps: Payme
       await refreshDispute(named.dealId, named.disputeId, event.event_type, { store: deps.store, paypal: deps.disputes, now: deps.now });
       result = { handled: true, dealId: named.dealId };
     }
-  } else if (event.event_type.startsWith('PAYMENT.CAPTURE.')) {
+  } else if (event.event_type.startsWith('PAYMENT.CAPTURE.') || event.event_type.startsWith('PAYMENT.AUTHORIZATION.')) {
     const dealId = dealIdOfEvent(event);
     const stored = dealId ? await deps.store.getDeal(dealId) : undefined;
-    if (!stored?.value.order) result = { handled: false, reason: 'no Settle deal for this capture' };
+    if (!stored?.value.order) result = { handled: false, reason: 'no Settle deal for this payment' };
     else {
-      const captureId = event.event_type === CAPTURE_COMPLETED ? (event.resource as { id?: string } | undefined)?.id : undefined;
-      await refreshPayment(dealId!, { kind: 'webhook', eventId: event.id, eventType: event.event_type, captureId }, deps);
+      const resourceId = (event.resource as { id?: string } | undefined)?.id;
+      const captureId = event.event_type === CAPTURE_COMPLETED ? resourceId : undefined;
+      const authorizationId = event.event_type === HOLD_CREATED ? resourceId : undefined;
+      await refreshPayment(dealId!, { kind: 'webhook', eventId: event.id, eventType: event.event_type, captureId, authorizationId }, deps);
       result = { handled: true, dealId };
     }
   }

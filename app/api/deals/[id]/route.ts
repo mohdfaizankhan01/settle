@@ -1,5 +1,6 @@
 import { DealError, roleFor } from '@/lib/settle/deals';
 import { maybeRefreshDisputes } from '@/lib/settle/disputes';
+import { releaseExpiredHold } from '@/lib/settle/handover';
 import { maybeRefreshOnLoad } from '@/lib/settle/payment';
 import { api, getStore, linkKey } from '@/lib/settle/runtime';
 import { dealView } from '@/lib/settle/view';
@@ -15,6 +16,8 @@ export async function GET(request: Request, ctx: RouteContext<'/api/deals/[id]'>
     // isn't confirmed. Only for a valid link, so strangers can't make us call PayPal.
     let deal = await maybeRefreshOnLoad(stored.value, { store: getStore() });
     deal = await maybeRefreshDisputes(deal, { store: getStore() });
+    // Meet-up deals: a hold past PayPal's 3-day guarantee without a handover is released.
+    deal = await releaseExpiredHold(deal, { store: getStore() });
     return dealView(deal, role, await getStore().listReceipts(id));
   });
 }

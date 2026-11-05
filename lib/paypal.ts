@@ -406,6 +406,8 @@ export type OrderRequest = {
   physical: boolean;
   returnUrl: string;
   cancelUrl: string;
+  /** AUTHORIZE for meet-up deals (DECISIONS #20): PayPal holds the money until the handover. */
+  intent?: 'CAPTURE' | 'AUTHORIZE';
 };
 
 export type PayPalAddress = {
@@ -424,6 +426,16 @@ export type Capture = {
   seller_receivable_breakdown?: { gross_amount?: Money; paypal_fee?: Money; net_amount?: Money };
 };
 
+/** A hold on the buyer's funds (intent AUTHORIZE). Valid 29 days; reauthorize once, day 4 to 29 (D4). */
+export type Authorization = {
+  id: string;
+  status: string;
+  amount?: Money;
+  custom_id?: string;
+  expiration_time?: string;
+  create_time?: string;
+};
+
 export type Order = {
   id: string;
   status: string;
@@ -435,7 +447,7 @@ export type Order = {
     payee?: { merchant_id?: string; email_address?: string };
     items?: { name: string; description?: string; quantity: string; unit_amount: Money }[];
     shipping?: { name?: { full_name?: string }; address?: PayPalAddress; trackers?: { id: string; status?: string }[] };
-    payments?: { captures?: Capture[] };
+    payments?: { captures?: Capture[]; authorizations?: Authorization[] };
   }[];
   links?: { rel: string; href: string }[];
 };
@@ -446,7 +458,7 @@ export async function createOrder(o: OrderRequest, requestId: string): Promise<W
     'POST',
     '/v2/checkout/orders',
     {
-      intent: 'CAPTURE',
+      intent: o.intent ?? 'CAPTURE',
       purchase_units: [
         {
           reference_id: o.dealId,
@@ -466,7 +478,8 @@ export async function createOrder(o: OrderRequest, requestId: string): Promise<W
         paypal: {
           experience_context: {
             brand_name: 'Settle Link',
-            user_action: 'PAY_NOW',
+            // A hold isn't a payment yet: PayPal's button says Continue, not Pay Now.
+            user_action: o.intent === 'AUTHORIZE' ? 'CONTINUE' : 'PAY_NOW',
             shipping_preference: o.physical ? 'GET_FROM_FILE' : 'NO_SHIPPING',
             return_url: o.returnUrl,
             cancel_url: o.cancelUrl,
@@ -488,6 +501,39 @@ export function getOrder(orderId: string, sellerMerchantId: string): Promise<Wit
 /** Captures an approved order. The request ID makes a repeated capture the same request. */
 export function captureOrder(orderId: string, requestId: string): Promise<WithDebugId<Order>> {
   return send<Order>('POST', `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {}, requestId);
+}
+
+// --- Holds for meet-up deals (D4, DECISIONS #20) -------------------------------------------
+// Authorize works with the platform's own token; void needs PayPal-Auth-Assertion (D4: 403
+// without it). Settle sends the assertion on every call that acts on the hold.
+
+/** Turns the buyer's approval into a hold on their funds. The request ID makes a repeat the same call. */
+export function authorizeOrder(orderId: string, requestId: string): Promise<WithDebugId<Order>> {
+  return send<Order>('POST', `/v2/checkout/orders/${encodeURIComponent(orderId)}/authorize`, {}, requestId);
+}
+
+/** A fresh read of a hold, as the connected seller. */
+export function getAuthorization(authorizationId: string, sellerMerchantId: string): Promise<WithDebugId<Authorization>> {
+  return send<Authorization>('GET', `/v2/payments/authorizations/${encodeURIComponent(authorizationId)}`, undefined, undefined, {
+    'PayPal-Auth-Assertion': authAssertion(sellerMerchantId),
+  });
+}
+
+/** Takes the held money at the handover. Final: nothing more can be captured from this hold. */
+export function captureAuthorization(authorizationId: string, requestId: string, sellerMerchantId: string): Promise<WithDebugId<Capture>> {
+  return send<Capture>('POST', `/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/capture`, { final_capture: true }, requestId, {
+    'PayPal-Auth-Assertion': authAssertion(sellerMerchantId),
+    Prefer: 'return=representation',
+  });
+}
+
+/** Releases the hold: the buyer is never charged. */
+export function voidAuthorization(authorizationId: string, requestId: string, sellerMerchantId: string): Promise<WithDebugId<Authorization>> {
+  // Without return=representation PayPal answers 204 with no body; D4 used it and got the hold back.
+  return send<Authorization>('POST', `/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/void`, undefined, requestId, {
+    'PayPal-Auth-Assertion': authAssertion(sellerMerchantId),
+    Prefer: 'return=representation',
+  });
 }
 
 // --- Disputes (D2, DECISIONS: only actions in the dispute's own links) ---------------------
