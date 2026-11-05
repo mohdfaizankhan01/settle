@@ -202,7 +202,7 @@ export const TERM_SIGNALS = {
     advice: {
       means:
         'Items handed over in person are not eligible for PayPal Seller Protection (unless paid by PayPal QR code in person, which Settle doesn\'t use), and the buyer can\'t make an Item Not Received claim for an item collected in person.',
-      todo: 'Seller: the "delivery method covered" check will fail for this deal. Buyer: check the item before you pay, or agree tracked delivery instead.',
+      todo: "Settle uses a PayPal hold for this deal: PayPal holds the buyer's money before you meet, and it's taken only when the buyer has checked the item and scans the seller's code. Seller: hand the item over only when your own deal page says Handed over. Buyer: if the item isn't right, don't scan.",
     },
   },
 };

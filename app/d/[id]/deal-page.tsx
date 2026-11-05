@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { Shell } from '@/app/components/shell';
 import type { DealView, SourceView } from '@/lib/settle/view';
 import { PayButton } from './pay-button';
+import { HandoverPanel, rememberBuyerKey } from './handover-panel';
 
 const keyFromHash = () => new URLSearchParams(window.location.hash.slice(1)).get('k') ?? '';
 
@@ -28,6 +29,9 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? 'This deal could not be loaded.');
       setView(body);
+      // Meet-up deals: the buyer scans the seller's code with this phone's camera, which opens the
+      // handover page without the link key, so this phone remembers it (handover-panel.tsx).
+      if (body.role === 'buyer') rememberBuyerKey(dealId, k);
     },
     [dealId],
   );
@@ -473,7 +477,7 @@ const DECISION_TONE: Record<Gate['decision'], string> = {
 
 function AfterPayment({ view, busy, act }: { view: DealView; busy: boolean; act: Act }) {
   const a = view.afterPayment!;
-  const tone = a.payment.state === 'paid' ? 'text-pp-success' : a.payment.state === 'waiting' ? 'text-pp-muted' : 'text-pp-danger';
+  const tone = a.payment.state === 'paid' || a.payment.state === 'held' ? 'text-pp-success' : a.payment.state === 'waiting' || a.payment.state === 'voided' ? 'text-pp-muted' : 'text-pp-danger';
   // Once tracking is on the PayPal order the parcel has gone: "ship or hold" no longer applies,
   // and the checklist as it stood at shipping is in the receipts and the evidence pack.
   const shipped = a.tracking?.state === 'sent';
@@ -494,6 +498,7 @@ function AfterPayment({ view, busy, act }: { view: DealView; busy: boolean; act:
         )}
       </section>
       {a.disputes.map((d) => (view.role === 'seller' ? <DisputePanel key={d.id} d={d} busy={busy} act={act} dealId={view.id} judge={view.realness.mode === 'judge'} /> : <BuyerDispute key={d.id} d={d} />))}
+      {a.handover && <HandoverPanel dealId={view.id} role={view.role} h={a.handover} judge={view.realness.mode === 'judge'} busy={busy} act={act} />}
       {a.gate && (shipped ? <ShippedPanel a={a} busy={busy} act={act} /> : <ShipPanel a={a} gate={a.gate} busy={busy} act={act} />)}
       {view.role === 'seller' && !shipped && <PaidCheckBox busy={busy} act={act} />}
       <AddMessages view={view} busy={busy} act={act} />

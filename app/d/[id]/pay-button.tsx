@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { payerOnThisPhone, rememberPayer } from './handover-panel';
 
 // PayPal JS SDK v6 (sandbox). The browser only asks our server to create the order from the
 // locked card and, after approval, to capture it; it never sends an amount or payee.
@@ -8,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const SDK_URL = 'https://www.sandbox.paypal.com/web-sdk/v6/core';
 
-type Checkout = { clientId: string; merchantId: string; amount: string; currency: string };
+type Checkout = { clientId: string; merchantId: string; amount: string; currency: string; hold?: boolean };
 
 type PayPalSession = { start: (opts: { presentationMode: string }, order: Promise<{ orderId: string }>) => Promise<void> };
 type PayPalSdk = {
@@ -64,7 +65,7 @@ export function PayButton(props: { dealId: string; getKey: () => string; checkou
     const post = async (path: string, body: unknown) => {
       const res = await fetch(`/api/deals/${dealId}${path}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-settle-key': callbacks.current.getKey() },
+        headers: { 'Content-Type': 'application/json', 'x-settle-key': callbacks.current.getKey(), 'x-settle-payer': payerOnThisPhone(dealId) ?? '' },
         body: JSON.stringify(body),
       });
       const out = await res.json();
@@ -105,9 +106,11 @@ export function PayButton(props: { dealId: string; getKey: () => string; checkou
   async function pay() {
     if (!session.current) return;
     setState('paying');
-    const order = fetch(`/api/deals/${dealId}/order`, { method: 'POST', headers: { 'x-settle-key': callbacks.current.getKey() } }).then(async (res) => {
+    const order = fetch(`/api/deals/${dealId}/order`, { method: 'POST', headers: { 'x-settle-key': callbacks.current.getKey(), 'x-settle-payer': payerOnThisPhone(dealId) ?? '' } }).then(async (res) => {
       const out = await res.json();
       if (!res.ok) throw new Error(out.error ?? 'The order could not be created.');
+      // Meet-up deals: this phone is now the payer's; only it can confirm the handover later.
+      if (typeof out.payerSecret === 'string') rememberPayer(dealId, out.payerSecret);
       return { orderId: out.orderId as string };
     });
     try {
@@ -121,9 +124,11 @@ export function PayButton(props: { dealId: string; getKey: () => string; checkou
 
   return (
     <section className="rounded-md border border-pp-border bg-pp-surface p-4">
-      <h2 className="font-semibold">Pay with PayPal</h2>
+      <h2 className="font-semibold">{checkout.hold ? 'Hold the payment with PayPal' : 'Pay with PayPal'}</h2>
       <p className="mt-1 text-sm text-pp-muted">
-        PayPal charges exactly the total on the confirmed card (“Buyer pays” above), paid to the seller&apos;s own PayPal account. Sandbox only: use a sandbox buyer login.
+        {checkout.hold
+          ? "PayPal holds exactly the total on the confirmed card on your account. Nothing goes to the seller until you've checked the item and scanned their code at the meet-up. Do this on the phone you'll bring: only it can confirm the handover. Sandbox only: use a sandbox buyer login."
+          : 'PayPal charges exactly the total on the confirmed card (“Buyer pays” above), paid to the seller\'s own PayPal account. Sandbox only: use a sandbox buyer login.'}
       </p>
       {state === 'ineligible' ? (
         <p className="mt-3 text-sm text-pp-warning">PayPal checkout isn&apos;t available for this amount or currency.</p>
