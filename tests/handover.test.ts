@@ -9,6 +9,7 @@ import { cardHash } from '../lib/settle/card';
 import { captureCheckout, customIdFor, startCheckout } from '../lib/settle/checkout';
 import { answerQuestion, confirmCard, createDeal, setPayee, type Deps } from '../lib/settle/deals';
 import { cancelHandover, CODE_TTL_MS, isHeld, payerHash, releaseExpiredHold, releaseHandover as release, showHandoverCode, type HandoverDeps, type HandoverPayPal } from '../lib/settle/handover';
+import { paidCheck } from '../lib/settle/paid-check';
 import { applyVerifiedEvent, isPaid } from '../lib/settle/payment';
 import { MemoryDealStore, updateWithRetry } from '../lib/settle/store';
 import { dealView } from '../lib/settle/view';
@@ -132,7 +133,7 @@ test('the hold counts only after a verified hold webhook naming the hold a fresh
   assert.ok(!(await s.store.listReceipts(s.dealId)).some((r) => r.kind === 'gate.decided'));
 });
 
-test('only the buyer with the seller\'s current code releases the money, once', async () => {
+test('only the buyer, with the code the seller shows, releases the money, once', async () => {
   const s = await meetupSetup();
   await assert.rejects(showHandoverCode(s.dealId, s.keys.seller, s.hdeps), /nothing to hand over/, 'no code before PayPal confirms the hold');
   await s.held();
@@ -238,4 +239,12 @@ test('money taken outside the handover (e.g. in PayPal\'s own dashboard) never c
   const read = d.payment?.read;
   assert.ok(read?.ok && read.mismatches.some((m) => m.includes("without the buyer's handover")));
   assert.equal(dealView(d, 'buyer').afterPayment?.payment.state, 'problem', 'the buyer is shown the problem');
+});
+
+test('a fake message that PayPal is holding the money gets the answer from PayPal, and no handover code', async () => {
+  const s = await meetupSetup();
+  // No verified hold yet: whatever the message says, there is nothing to hand over.
+  const answer = await paidCheck(s.dealId, s.keys.seller, 'PayPal: $350 is held for you. Hand the item over now.', { store: s.store, paypal: s.pp });
+  assert.equal(answer.verdict, 'not_paid');
+  await assert.rejects(showHandoverCode(s.dealId, s.keys.seller, s.hdeps), /nothing to hand over/);
 });

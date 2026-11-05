@@ -41,10 +41,10 @@ export function AttackLab() {
         </p>
         <h1 className="mt-4 text-[28px] font-semibold text-pp-navy">Try to fool it</h1>
         <p className="mt-1 max-w-2xl text-pp-muted">
-          Seven ways people try to cheat a stranger deal. Each one runs now, against the same code a live deal uses. The result comes from what the code did, with the rule that stopped it and the test that proves it.
+          Ten ways people try to cheat a stranger deal. Each one runs now, against the same code a live deal uses. The result comes from what the code did, with the rule that stopped it and the test that proves it.
         </p>
         <button onClick={run} disabled={busy} className="mt-6 rounded-full bg-pp-blue px-5 py-2 font-semibold text-white disabled:opacity-40">
-          {busy ? 'Running seven attacks…' : results ? 'Run them again' : 'Run the attacks'}
+          {busy ? 'Running ten attacks…' : results ? 'Run them again' : 'Run the attacks'}
         </button>
         {error && (
           <p role="alert" className="mt-4 text-pp-danger">

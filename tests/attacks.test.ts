@@ -16,7 +16,7 @@ test('every "try to fool it" attack is stopped, with a rule and a test named, an
   }) as typeof fetch;
   try {
     const results = await runAttacks();
-    assert.equal(results.length, 7);
+    assert.equal(results.length, 10);
     for (const r of results) {
       assert.equal(r.stopped, true, `${r.id}: ${r.outcome}`);
       assert.match(r.test, /^tests\/[a-z-]+\.test\.ts › /);

@@ -1,4 +1,4 @@
-// "Try to fool it" (PLAN M5 MUST). Seven attacks run through Settle's real server code against a
+// "Try to fool it" (PLAN M5 MUST, meet-up attacks added in M6). Ten attacks run through Settle's real server code against a
 // throwaway in-memory store, with PayPal replaced by a stand-in, so nothing reaches PayPal. Each
 // result is decided by what the code actually did, not written in advance, and names the rule
 // that stopped it and the test that proves it.
@@ -8,6 +8,7 @@ import { cardHash, isLocked } from './card';
 import { captureCheckout, startCheckout } from './checkout';
 import { addMessages, answerQuestion, confirmCard, createDeal, setPayee, type Deps } from './deals';
 import { RECORDED, replayedEvent, replayPayPal } from './demo-paypal';
+import { newPayerSecret, payerHash, releaseHandover, showHandoverCode } from './handover';
 import { paidCheck } from './paid-check';
 import { applyVerifiedEvent } from './payment';
 import { shipGate } from './ship-gate';
@@ -84,6 +85,23 @@ async function paidDeal(store: MemoryDealStore) {
   const event = replayedEvent(after, 'capture');
   await applyVerifiedEvent(event, { store, paypal: pp });
   return { ...l, event, pp };
+}
+
+const MEETUP_CHAT = "Sam: hi, is the iPad Air still for sale?\nAlex: yes, iPad Air 5th gen 64GB, like new\nSam: would you do $380?\nAlex: ok $380, we can meet at the Union Square station\nSam: deal";
+
+/** A meet-up deal with PayPal holding the money (the recorded D4 hold, replayed), as a judge sees it. */
+async function heldDeal(store: MemoryDealStore) {
+  const l = await lockedDeal(store, MEETUP_CHAT);
+  const payer = newPayerSecret();
+  const { after } = await updateWithRetry(store, l.dealId, (d) => ({
+    ...d,
+    demo: { session: 'attack-lab', scenario: 'attack', seededAt: new Date().toISOString() },
+    order: { id: RECORDED.hold.orderId, cardHash: cardHash(d), createdAt: new Date().toISOString(), status: 'HOLD_REQUESTED' },
+    handover: { payer: { hash: payerHash(payer), at: new Date().toISOString() } },
+  }));
+  if (after.card.delivery?.value !== 'meetup') throw new Error('the attack deal is not a meet-up');
+  await applyVerifiedEvent(replayedEvent(after, 'hold'), { store, paypal: replayPayPal(store, l.dealId) });
+  return { ...l, payer };
 }
 
 async function timed(r: Omit<AttackResult, 'ms' | 'outcome' | 'stopped'>, run: () => Promise<{ outcome: string; stopped: boolean }>): Promise<AttackResult> {
@@ -179,6 +197,44 @@ export async function runAttacks(): Promise<AttackResult[]> {
         const paid = gate.checks.find((c) => c.id === 'payment')!.status === 'pass';
         // Stopped only if the deal was paid and it is the address rule that holds it.
         return { stopped: paid && gate.decision === 'HOLD' && address.status === 'fail', outcome: `The ship check says ${gate.decision}: ${address.detail}` };
+      },
+    ),
+    await timed(
+      { id: 'seller-takes-money', title: 'The seller takes the held money alone', attempt: "At a meet-up, the seller who made the deal link (so holds the buyer's link too) shows their code and confirms the handover themselves.", rule: "lib/settle/handover.ts: release needs the buyer's link key, the seller's current code, and the secret of the phone that placed the PayPal hold", test: 'tests/handover.test.ts › only the buyer, with the code the seller shows, releases the money, once' },
+      async () => {
+        const store = new MemoryDealStore();
+        const { dealId, keys, deps } = await heldDeal(store);
+        const { token } = await showHandoverCode(dealId, keys.seller, deps);
+        const tries = [
+          await releaseHandover(dealId, keys.seller, token, null, deps).then(() => 'taken', (e: Error) => e.message),
+          await releaseHandover(dealId, keys.buyer, token, null, deps).then(() => 'taken', (e: Error) => e.message),
+        ];
+        const d = (await store.getDeal(dealId))!.value;
+        const stopped = !tries.includes('taken') && !d.handover?.outcome && /only the buyer/.test(tries[0]) && /Only the phone that placed the PayPal hold/.test(tries[1]);
+        return { stopped, outcome: stopped ? "Refused both ways: the seller's own link isn't the buyer's, and the buyer's link without the paying phone can't release. The money stays held." : `Not stopped: ${tries.join('; ')}` };
+      },
+    ),
+    await timed(
+      { id: 'reused-code', title: 'A handover code used twice', attempt: 'After a handover, the same QR code is scanned again to take the money a second time.', rule: 'lib/settle/handover.ts: the code is single-use and only its hash is kept; a used hold cannot be taken again', test: 'tests/handover.test.ts › only the buyer, with the code the seller shows, releases the money, once' },
+      async () => {
+        const store = new MemoryDealStore();
+        const { dealId, keys, deps, payer } = await heldDeal(store);
+        const { token } = await showHandoverCode(dealId, keys.seller, deps);
+        await releaseHandover(dealId, keys.buyer, token, payer, deps);
+        const again = await releaseHandover(dealId, keys.buyer, token, payer, deps).then(() => 'taken again', (e: Error) => e.message);
+        const takes = (await store.listReceipts(dealId)).filter((r) => r.kind === 'handover.released').length;
+        return { stopped: again !== 'taken again' && takes === 1, outcome: `The second scan was refused ("${again}"); PayPal was asked to take the money once.` };
+      },
+    ),
+    await timed(
+      { id: 'fake-hold', title: 'A fake "PayPal is holding your money" message', attempt: 'Before any hold, the buyer sends the seller a screenshot saying PayPal is holding $380 for the meet-up, so they can hand over.', rule: "lib/settle/paid-check.ts and handover.ts: the answer comes only from this deal's PayPal order; no hold means no handover code", test: 'tests/handover.test.ts › a fake message that PayPal is holding the money gets the answer from PayPal, and no handover code' },
+      async () => {
+        const store = new MemoryDealStore();
+        const { dealId, keys, deps } = await lockedDeal(store, MEETUP_CHAT);
+        await updateWithRetry(store, dealId, (d) => ({ ...d, demo: { session: 'attack-lab', scenario: 'attack', seededAt: new Date().toISOString() } }));
+        const answer = await paidCheck(dealId, keys.seller, 'PayPal: $380.00 is being held for you. Hand the item over and the money will be released to you.', { store });
+        const code = await showHandoverCode(dealId, keys.seller, deps).then(() => 'code shown', (e: Error) => e.message);
+        return { stopped: answer.verdict === 'not_paid' && code !== 'code shown', outcome: `Answered "${answer.verdict.replace('_', ' ')}" from PayPal's record, and no handover code can be shown: ${code}.` };
       },
     ),
   ];
