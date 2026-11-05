@@ -133,3 +133,17 @@ Findings:
 - **Timing:** the authorization is valid for 29 days. Reauthorizing is allowed **once, from day 4 to day 29**, not inside the first 3 days. So: a meet-by date within 3 days needs no reauthorization; a later one needs one reauthorization on day 4 or later, which may fail if the buyer's funding changed. Plan for that as HOLD, never as "paid".
 - `seller_protection: ELIGIBLE` on the authorization does **not** change SP-INPERSON. Settle doesn't show it as protection for a handover.
 - **Webhooks:** our webhook `14T357433V893904A` isn't subscribed to `PAYMENT.AUTHORIZATION.CREATED` or `PAYMENT.AUTHORIZATION.VOIDED`. `CHECKOUT.ORDER.APPROVED` for order A appeared in the event log. Before building: add both types to the webhook and confirm a verified event arrives (then the "payment held" rule is the same as today: verified webhook plus a fresh GET of the authorization).
+
+### D4 live check on Render — run 2026-11-05 (after commit 1f99909)
+
+A real meet-up deal end to end on https://settle-ulya.onrender.com, PayPal sandbox, USD 10.00 ("iPad Air", "meet at the Union Square station"; read as Meet up in person). The seller side was driven through the API; the user played the buyer in their browser.
+
+| Step | Result | Debug ID |
+| --- | --- | --- |
+| Each link claimed by the first device to open it | seller link on the API client, buyer link in the user's browser | — |
+| Seller connected through Partner Referrals | `RRBVDNUTQMAXN` | f514771ed5041 |
+| Both confirmed; order created from the locked card, `intent: AUTHORIZE` | order `0NX663001G8895145` | ca55ee4920d61 |
+| Buyer approved; authorize | hold CREATED | f33798875ad5c |
+| Verified `PAYMENT.AUTHORIZATION.CREATED` plus a fresh GET | "PayPal holds $10.00" (the event carries our `custom_id`) | f97913108f57f |
+| Seller showed the code; buyer opened it on the paying browser and confirmed | capture `5BA07833XB888404F` COMPLETED | f667901a2475c |
+| Verified `PAYMENT.CAPTURE.COMPLETED` plus a fresh GET | paid | f349969ef30ef |
