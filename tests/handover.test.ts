@@ -248,3 +248,16 @@ test('a fake message that PayPal is holding the money gets the answer from PayPa
   assert.equal(answer.verdict, 'not_paid');
   await assert.rejects(showHandoverCode(s.dealId, s.keys.seller, s.hdeps), /nothing to hand over/);
 });
+
+test('a capture that appears while a release of the hold is being sent is still flagged', async () => {
+  const s = await meetupSetup();
+  await s.held();
+  // Settle is releasing the hold (void in flight) when PayPal shows a capture instead.
+  await updateWithRetry(s.store, s.dealId, (d) => ({ ...d, handover: { ...d.handover, inFlight: { kind: 'void', at: clock.at.toISOString() } } }));
+  s.state.auth = 'CAPTURED';
+  s.state.capture = { id: 'CAP-ROGUE', status: 'COMPLETED', amount: { currency_code: 'GBP', value: '350.00' } };
+  await applyVerifiedEvent({ ...s.captureEvent('WH-ROGUE-2'), resource: { id: 'CAP-ROGUE', status: 'COMPLETED', custom_id: customIdFor(s.locked) } }, s.hdeps);
+  const read = (await s.get()).payment?.read;
+  assert.ok(read?.ok && read.mismatches.some((m) => m.includes("without the buyer's handover")));
+  assert.equal(isPaid(await s.get()), false);
+});

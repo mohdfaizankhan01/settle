@@ -49,7 +49,8 @@ export function readOrder(deal: Deal, order: paypal.Order, at: string, debugId?:
   // Meet-up deals: money may only be taken by the buyer's handover (security review, Nov 5). A
   // capture Settle didn't record, e.g. taken in PayPal's own dashboard, never counts as paid.
   const h = deal.handover;
-  if (capture && isHandoverDeal(deal) && !h?.inFlight && !(h?.outcome?.kind === 'released' && h.outcome.captureId === capture.id)) {
+  // Only a release in flight may briefly show a capture Settle hasn't recorded yet; never a void.
+  if (capture && isHandoverDeal(deal) && h?.inFlight?.kind !== 'release' && !(h?.outcome?.kind === 'released' && h.outcome.captureId === capture.id)) {
     mismatches.push("the money was taken without the buyer's handover confirmation");
   }
   const auths = order.purchase_units?.[0]?.payments?.authorizations ?? [];
