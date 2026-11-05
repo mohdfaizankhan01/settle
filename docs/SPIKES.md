@@ -108,3 +108,28 @@ Proposed decision **D2**: disputes run through the API for the connected seller.
 - PayPal sandbox webhook `14T357433V893904A` → `/api/paypal/webhook`, 11 events (order approved, capture completed/denied/pending/refunded/reversed, dispute created/updated/resolved, merchant onboarding completed, partner consent revoked).
 - **Verified webhook received:** a $1 refund on the seller's capture (made with `PayPal-Auth-Assertion`, debug f59915509156f) produced `PAYMENT.CAPTURE.REFUNDED`, logged as `{"status":200,"outcome":"verified","eventId":"WH-9AJ45519YM173530G-6T229948JJ436592U"}`. So events for a connected seller's payments reach our webhook.
 - Free-tier limits (render.com/docs/free): spins down after 15 minutes idle, about 1 minute to wake (PayPal retries webhooks; wake the site before a demo); ephemeral filesystem, so receipts go to Postgres; free Postgres expires 30 days after creation and only one per workspace; 750 instance hours a month.
+
+## D4: meet-up mode, authorize then capture for the connected seller — run 2026-11-05
+
+Question (DECISIONS #20): can our Platform app run Orders v2 with `intent: AUTHORIZE` when the connected seller (`RRBVDNUTQMAXN`) is the payee, then capture or void later? Throwaway script (plain fetch, outside the repo), same accounts as D1. Two orders, USD 10.00, `payee.merchant_id` = seller, `custom_id` = tag + 64 hex. The sandbox buyer approved both in the browser.
+
+| Step | Assertion | Status | Debug ID | Result |
+| --- | --- | --- | --- | --- |
+| Create A and B, `intent: AUTHORIZE` | none | 200 | f16323157a106, f337127b46c20 | `PAYER_ACTION_REQUIRED`, payee and `custom_id` kept |
+| Authorize A and B (`/v2/checkout/orders/{id}/authorize`) | none | **201** | f784679c2e62e, f48573867bafc | order `COMPLETED`; authorization `CREATED`, `expiration_time` 29 days later (2026-12-04), `seller_protection: ELIGIBLE` |
+| GET authorization A | seller | 200 | f6370999c7477 | `CREATED` |
+| Capture A (`/v2/payments/authorizations/{id}/capture`, `final_capture: true`) | none | **201** | f316499aa1dd7 | capture `3G062671F6794610L` `COMPLETED` |
+| Capture A again | seller | 422 | f129303926c8f | `AUTHORIZATION_ALREADY_CAPTURED` (no double capture) |
+| GET order A | seller | 200 | f454376f8a31d | authorization `CAPTURED`, capture `COMPLETED` |
+| Reauthorize B on day 0 | seller | 422 | f385376f75a99 | `REAUTHORIZATION_TOO_SOON`: "only allowed once from Day 4 to Day 29" |
+| Void B | none | **403** | f5033000dd049 | `PERMISSION_DENIED` |
+| Void B | seller | **200** | f83420130b6b2 | `VOIDED` |
+| Capture B after void | seller | 422 | f262069f6fbeb | `AUTHORIZATION_VOIDED` |
+
+Findings:
+
+- **Meet-up mode works for the connected seller.** No new Partner Referrals feature is needed: the existing grant (PAYMENT, REFUND, …) covers authorize, capture and void.
+- **Void needs `PayPal-Auth-Assertion`; capture works with or without it.** Settle sends the assertion on both, as for refunds and tracking.
+- **Timing:** the authorization is valid for 29 days. Reauthorizing is allowed **once, from day 4 to day 29**, not inside the first 3 days. So: a meet-by date within 3 days needs no reauthorization; a later one needs one reauthorization on day 4 or later, which may fail if the buyer's funding changed. Plan for that as HOLD, never as "paid".
+- `seller_protection: ELIGIBLE` on the authorization does **not** change SP-INPERSON. Settle doesn't show it as protection for a handover.
+- **Webhooks:** our webhook `14T357433V893904A` isn't subscribed to `PAYMENT.AUTHORIZATION.CREATED` or `PAYMENT.AUTHORIZATION.VOIDED`. `CHECKOUT.ORDER.APPROVED` for order A appeared in the event log. Before building: add both types to the webhook and confirm a verified event arrives (then the "payment held" rule is the same as today: verified webhook plus a fresh GET of the authorization).
