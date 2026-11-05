@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Shell } from '@/app/components/shell';
 import { findSpeakers } from '@/lib/settle/chat';
+import { SHARED_CHAT_SLOT } from '@/lib/settle/share';
 
 type Created = { dealId: string; keys: { seller: string; buyer: string } };
 
@@ -13,6 +14,24 @@ export default function CheckPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Created | null>(null);
+
+  const [shared, setShared] = useState(false);
+
+  // Shared from the phone's share sheet (app/share): the chat waits in this tab, read once.
+  useEffect(() => {
+    let text: string | null = null;
+    try {
+      text = sessionStorage.getItem(SHARED_CHAT_SLOT);
+      sessionStorage.removeItem(SHARED_CHAT_SLOT);
+    } catch {
+      return;
+    }
+    if (!text) return;
+    void Promise.resolve().then(() => {
+      setChat(text);
+      setShared(true);
+    });
+  }, []);
 
   const speakers = useMemo(() => findSpeakers(chat), [chat]);
   const sellerName = speakers.includes(seller) ? seller : '';
@@ -67,7 +86,11 @@ export default function CheckPage() {
       <form onSubmit={submit} className="mt-8 space-y-6">
         <label className="block">
           <span className="font-semibold">The chat</span>
-          <span className="mt-1 block text-sm text-pp-muted">One message per line, as “Name: message”. WhatsApp exports work as they are.</span>
+          <span className="mt-1 block text-sm text-pp-muted">
+            {shared
+              ? 'Shared from your phone. Check it holds the messages where you agreed the deal; nothing is saved until you make the link.'
+              : 'One message per line, as “Name: message”. WhatsApp exports work as they are. On Android, install Settle Link from the browser menu and share messages straight to it.'}
+          </span>
           <textarea
             value={chat}
             onChange={(e) => setChat(e.target.value)}
@@ -116,6 +139,12 @@ export default function CheckPage() {
 
 function LinkRow({ who, url }: { who: string; url: string }) {
   const [copied, setCopied] = useState(false);
+  // Straight back into the chat with the phone's own share sheet; the chat shows the deal's card.
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  const send = () =>
+    navigator
+      .share({ title: 'Settle Link deal', text: `Here's the ${who.toLowerCase()}'s link for our deal. Pay only through PayPal on it, never Friends and Family.`, url })
+      .catch(() => undefined);
   return (
     <div className="rounded-md border border-pp-border bg-pp-surface p-4">
       <div className="flex items-center justify-between gap-4">
@@ -128,8 +157,13 @@ function LinkRow({ who, url }: { who: string; url: string }) {
           >
             {copied ? 'Copied' : 'Copy link'}
           </button>
-          <a href={url} target="_blank" rel="noreferrer" className="rounded-full bg-pp-navy px-4 py-1.5 text-sm font-semibold text-white">
-            Open as {who.toLowerCase()}
+          {canShare && (
+            <button type="button" onClick={send} className="rounded-full border border-pp-border px-4 py-1.5 text-sm font-semibold hover:border-pp-blue">
+              Send
+            </button>
+          )}
+          <a href={url} target="_blank" rel="noreferrer" className="rounded-full bg-pp-navy px-4 py-1.5 text-sm font-semibold text-white" title="Locks this link to this device">
+            Open on this device
           </a>
         </div>
       </div>
