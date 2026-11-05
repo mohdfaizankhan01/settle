@@ -82,3 +82,17 @@ test('a shared chat is capped, keeps a separately shared URL, and cannot close t
   assert.equal(sharedChat(big).length, 20_000);
   assert.equal(sharedChat(new FormData()), '');
 });
+
+test('an item with a postcode, ZIP, date or link is left out; one with only a price is kept', async () => {
+  const s = await deal('Sam: hi\nAlex: yes\nSam: deal', 'Alex');
+  const withItem = async (value: string) => {
+    await updateWithRetry(s.store, s.id, (d) => ({ ...d, card: { ...d.card, item: { value, display: value, source: { kind: 'message', messageId: 'm2' } } } }));
+    return previewFor(await s.get()).item;
+  };
+  assert.equal(await withItem('PS5, collect from LS1 1AA'), null);
+  assert.equal(await withItem('Road bike, pickup 95131'), null);
+  assert.equal(await withItem('Tickets for 12 Nov'), null);
+  assert.equal(await withItem('Lamp, see https://example.com/lamp'), null);
+  assert.equal(await withItem('PS5 Slim, worth £450 new'), 'PS5 Slim, worth £450 new');
+  assert.equal(await withItem('RTX 4090, 24GB'), 'RTX 4090, 24GB');
+});

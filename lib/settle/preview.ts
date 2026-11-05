@@ -29,8 +29,8 @@ const ITEM_MAX = 60;
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-/** What redaction leaves where it removed a name or a contact or payment detail. */
-const REMOVED = /\[(?:SELLER|BUYER|NAME|EMAIL|PHONE|ADDRESS|CARD|IBAN|SORTCODE|WALLET|NUMBER|LINK_\d+[^\]]*)\]/;
+/** Any placeholder redaction leaves: a removed detail ([PHONE]) or a token ([POSTCODE_1], [ZIP_2]). */
+const PLACEHOLDER = /\[[A-Z]+(?:_\d+)?[^\]]*\]/;
 
 /**
  * The item for a public preview. The card's item can fall back to a whole chat message, so it goes
@@ -42,7 +42,12 @@ export function previewItem(deal: Deal): string | null {
   if (!raw) return null;
   const speakers = [...new Set(deal.messages.map((m) => m.speaker))];
   const [m] = redactChat([{ id: 'item', role: 'seller', speaker: speakers[0] ?? '', text: raw }], speakers).messages;
-  return REMOVED.test(m.text) ? null : clip(raw.trim(), ITEM_MAX);
+  // Only a price may be tokenized; any other change (a name, contact detail, postcode, ZIP, date,
+  // link) drops the item from the public preview.
+  // Also 5+ digits in a row (a ZIP or reference the redactor had no context for); model numbers
+  // like "RTX 4090" or "256GB" stay.
+  const changed = PLACEHOLDER.test(m.text.replace(/\[PRICE_\d+\]/g, ''));
+  return changed || /\d{5,}/.test(raw) ? null : clip(raw.trim(), ITEM_MAX);
 }
 
 /** Where the deal stands, in a few words both sides can read. */
