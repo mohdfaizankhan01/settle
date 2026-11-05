@@ -183,6 +183,8 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
             </section>
           )}
           {view.afterPayment && <AfterPayment view={view} busy={busy} act={act} />}
+          {/* Before payment is when a fake "you've been paid" email usually arrives. */}
+          {me === 'seller' && !view.afterPayment && <PaidCheckBox busy={busy} act={act} />}
           <History view={view} />
         </div>
 
@@ -472,6 +474,9 @@ const DECISION_TONE: Record<Gate['decision'], string> = {
 function AfterPayment({ view, busy, act }: { view: DealView; busy: boolean; act: Act }) {
   const a = view.afterPayment!;
   const tone = a.payment.state === 'paid' ? 'text-pp-success' : a.payment.state === 'waiting' ? 'text-pp-muted' : 'text-pp-danger';
+  // Once tracking is on the PayPal order the parcel has gone: "ship or hold" no longer applies,
+  // and the checklist as it stood at shipping is in the receipts and the evidence pack.
+  const shipped = a.tracking?.state === 'sent';
   return (
     <div className="space-y-8">
       <section aria-label="Payment" className="text-sm">
@@ -489,8 +494,8 @@ function AfterPayment({ view, busy, act }: { view: DealView; busy: boolean; act:
         )}
       </section>
       {a.disputes.map((d) => (view.role === 'seller' ? <DisputePanel key={d.id} d={d} busy={busy} act={act} dealId={view.id} judge={view.realness.mode === 'judge'} /> : <BuyerDispute key={d.id} d={d} />))}
-      {a.gate && <ShipPanel a={a} gate={a.gate} busy={busy} act={act} />}
-      {view.role === 'seller' && <PaidCheckBox busy={busy} act={act} />}
+      {a.gate && (shipped ? <ShippedPanel a={a} busy={busy} act={act} /> : <ShipPanel a={a} gate={a.gate} busy={busy} act={act} />)}
+      {view.role === 'seller' && !shipped && <PaidCheckBox busy={busy} act={act} />}
       <AddMessages view={view} busy={busy} act={act} />
     </div>
   );
@@ -556,6 +561,19 @@ function ShipPanel({ a, gate, busy, act }: { a: After; gate: Gate; busy: boolean
       </div>
 
       <TrackingForm a={a} busy={busy} act={act} />
+    </section>
+  );
+}
+
+function ShippedPanel({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
+  return (
+    <section aria-label="Shipped" className="space-y-3 text-sm">
+      <h2 className="text-lg font-semibold">Shipped</h2>
+      <p>
+        Tracking <span className="font-mono">{a.tracking!.number}</span> ({a.tracking!.carrier}) is on the PayPal order
+        {a.shipTo && `, to the PayPal address (${a.shipTo.postalCode})`}. The ship check as it stood when you shipped is in the deal history and the evidence pack.
+      </p>
+      <DeliveredForm a={a} busy={busy} act={act} />
     </section>
   );
 }
