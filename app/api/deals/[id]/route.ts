@@ -1,6 +1,7 @@
 import { claimLink, DealError, roleFor } from '@/lib/settle/deals';
 import { maybeRefreshDisputes } from '@/lib/settle/disputes';
 import { releaseExpiredHold } from '@/lib/settle/handover';
+import { refreshMemory } from '@/lib/settle/memory';
 import { maybeRefreshOnLoad } from '@/lib/settle/payment';
 import { api, getStore, linkKey } from '@/lib/settle/runtime';
 import { dealView } from '@/lib/settle/view';
@@ -20,6 +21,8 @@ export async function GET(request: Request, ctx: RouteContext<'/api/deals/[id]'>
     deal = await maybeRefreshDisputes(deal, { store: getStore() });
     // Meet-up deals: a hold past PayPal's 3-day guarantee without a handover is released.
     deal = await releaseExpiredHold(deal, { store: getStore() });
+    // Scam memory: has another deal reported this deal's PayPal account, postcode or script?
+    deal = await refreshMemory(deal, { store: getStore() });
     const view = dealView(deal, role, await getStore().listReceipts(id));
     // Sent once, to the device that claimed the link; the browser keeps it and sends it back.
     return claim ? { ...view, claim } : view;

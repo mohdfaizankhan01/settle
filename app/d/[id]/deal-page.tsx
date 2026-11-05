@@ -196,7 +196,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
         </div>
 
         <aside className={`order-1 space-y-8 ${embedded ? '' : 'lg:order-2'}`}>
-          <Warnings view={view} />
+          <Warnings view={view} act={act} />
           {view.check.status === 'failed' && (
             <button disabled={busy} onClick={() => act('/recheck')} className="rounded-full border border-pp-border bg-pp-surface px-5 py-2 font-semibold disabled:opacity-40">
               {busy ? 'Checking…' : 'Run the check again'}
@@ -367,7 +367,7 @@ function EnterTerms({ view, busy, act }: { view: DealView; busy: boolean; act: (
   );
 }
 
-function Warnings({ view }: { view: DealView }) {
+function Warnings({ view, act }: { view: DealView; act?: Act }) {
   return (
     <section aria-label="Warnings">
       <p className={`text-lg font-semibold ${view.check.status === 'failed' ? 'text-pp-danger' : view.warnings.length ? 'text-pp-warning' : 'text-pp-success'}`}>
@@ -387,15 +387,36 @@ function Warnings({ view }: { view: DealView }) {
             <p className="mt-2 text-xs text-pp-muted">
               {w.found
                 .map((f) =>
-                  f.by === 'jev' ? `Jev ${Math.round((f.probability ?? 0) * 100)}%` : f.by === 'model' ? `Settle Link model ${Math.round((f.probability ?? 0) * 100)}%` : f.by.startsWith('rule') ? `keyword “${f.matched}”` : f.by === 'decline' ? 'their decline' : 'from the card',
+                  f.by === 'jev' ? `Jev ${Math.round((f.probability ?? 0) * 100)}%` : f.by === 'model' ? `Settle Link model ${Math.round((f.probability ?? 0) * 100)}%` : f.by.startsWith('rule') ? `keyword “${f.matched}”` : f.by === 'decline' ? 'their decline' : f.by === 'memory' ? 'scam memory: reports from other deals, kept as one-way hashes' : 'from the card',
                 )
                 .join(', ')}
               {w.cites.length > 0 && ` · PayPal terms: ${w.cites.join(', ')}`}
             </p>
+            {w.canAnswer && act && <WarningAnswer signalId={w.signalId} act={act} />}
           </li>
         ))}
       </ul>
     </section>
+  );
+}
+
+/** "Was this a scam?" Kept as a receipt; "Yes" also reports the other side to scam memory. */
+function WarningAnswer({ signalId, act }: { signalId: string; act: Act }) {
+  const [answered, setAnswered] = useState<string | null>(null);
+  const answer = async (verdict: 'scam' | 'not_scam' | 'unsure') => {
+    const out = (await act('/warning', { signalId, verdict })) as { reported?: boolean } | undefined;
+    if (out) setAnswered(verdict === 'scam' ? (out.reported ? 'Thanks. Reported: if their account or this message turns up in other deals, those people will be warned.' : 'Thanks, noted.') : 'Thanks, noted.');
+  };
+  if (answered) return <p className="mt-2 text-xs text-pp-success">{answered}</p>;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+      <span className="text-pp-muted">Was this a scam?</span>
+      {(['scam', 'not_scam', 'unsure'] as const).map((v) => (
+        <button key={v} type="button" onClick={() => answer(v)} className="rounded-full border border-pp-border px-3 py-1 font-semibold hover:border-pp-blue">
+          {v === 'scam' ? 'Yes' : v === 'not_scam' ? 'No' : 'Not sure'}
+        </button>
+      ))}
+    </div>
   );
 }
 

@@ -4,7 +4,7 @@
 
 import postgres, { type JSONValue, type Sql } from 'postgres';
 import { makeReceipt, type Receipt, type ReceiptInput } from './receipts';
-import { StaleWriteError, type DealStore, type DemoSession, type SellerLink, type Stored, type WebhookEventRecord } from './store';
+import { StaleWriteError, type DealStore, type DemoSession, type MemoryEntry, type SellerLink, type Stored, type WebhookEventRecord } from './store';
 import type { Deal } from './types';
 
 const SCHEMA = `
@@ -34,7 +34,16 @@ CREATE TABLE IF NOT EXISTS demo_sessions (
 CREATE TABLE IF NOT EXISTS webhook_events (
   id text PRIMARY KEY,
   doc jsonb NOT NULL
-);`;
+);
+CREATE TABLE IF NOT EXISTS scam_memory (
+  namespace text NOT NULL,
+  kind text NOT NULL,
+  hash text NOT NULL,
+  deal_id text NOT NULL,
+  at timestamptz NOT NULL,
+  PRIMARY KEY (namespace, kind, hash, deal_id)
+);
+CREATE INDEX IF NOT EXISTS scam_memory_lookup ON scam_memory (namespace, hash, at);`;
 
 const json = (sql: Sql, value: unknown) => sql.json(value as JSONValue);
 
@@ -123,6 +132,25 @@ export class PgDealStore implements DealStore {
       ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc WHERE webhook_events.doc->>'dealId' IS NULL`;
   }
 
+  async addMemory(entries: MemoryEntry[]) {
+    if (entries.length === 0) return;
+    await this.schema();
+    for (const e of entries) {
+      await this.sql`
+        INSERT INTO scam_memory (namespace, kind, hash, deal_id, at) VALUES (${e.namespace}, ${e.kind}, ${e.hash}, ${e.dealId}, ${e.at})
+        ON CONFLICT DO NOTHING`;
+    }
+  }
+
+  async findMemory(namespace: string, hashes: string[], since: string) {
+    if (hashes.length === 0) return [];
+    await this.schema();
+    const rows = await this.sql<{ namespace: string; kind: string; hash: string; deal_id: string; at: Date }[]>`
+      SELECT namespace, kind, hash, deal_id, at FROM scam_memory
+      WHERE namespace = ${namespace} AND hash IN ${this.sql(hashes)} AND at >= ${since}`;
+    return rows.map((r) => ({ namespace: r.namespace, kind: r.kind, hash: r.hash, dealId: r.deal_id, at: new Date(r.at).toISOString() }));
+  }
+
   async saveDemoSession(session: DemoSession) {
     await this.schema();
     await this.sql`
@@ -151,6 +179,8 @@ export class PgDealStore implements DealStore {
         await tx`DELETE FROM webhook_events WHERE doc->>'dealId' IN ${tx(list)}`;
         await tx`DELETE FROM deals WHERE id IN ${tx(list)} AND doc ? 'demo'`;
       }
+      // A judge session's own scam memory goes with it.
+      await tx`DELETE FROM scam_memory WHERE namespace IN (SELECT 'demo:' || id FROM demo_sessions WHERE created_at < ${before})`;
       await tx`DELETE FROM demo_sessions WHERE created_at < ${before}`;
       return list.length;
     }) as Promise<number>;

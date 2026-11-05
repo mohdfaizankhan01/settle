@@ -24,7 +24,18 @@ export class StaleWriteError extends Error {
   }
 }
 
+/**
+ * One report in scam memory (DECISIONS #20): a keyed hash of one identifier, never the value.
+ * namespace: 'live', or 'demo:<session>' for a judge session (never shared with real deals).
+ * dealId: the deal that reported it, so each deal counts once and never matches itself.
+ */
+export type MemoryEntry = { namespace: string; kind: string; hash: string; dealId: string; at: string };
+
 export interface DealStore {
+  /** Adds reports; a deal reporting the same identifier again changes nothing. */
+  addMemory(entries: MemoryEntry[]): Promise<void>;
+  /** Reports in a namespace for any of these hashes since `since`. */
+  findMemory(namespace: string, hashes: string[], since: string): Promise<MemoryEntry[]>;
   createDeal(deal: Deal): Promise<void>;
   getDeal(id: string): Promise<Stored<Deal> | undefined>;
   /** Replaces the deal if it is still at `version`; otherwise throws StaleWriteError. */
@@ -70,6 +81,19 @@ export class MemoryDealStore implements DealStore {
   private sellers = new Map<string, SellerLink>();
   private events = new Map<string, WebhookEventRecord>();
   private demo = new Map<string, DemoSession>();
+  private memory = new Map<string, MemoryEntry>();
+
+  async addMemory(entries: MemoryEntry[]) {
+    for (const e of entries) {
+      const k = `${e.namespace}|${e.kind}|${e.hash}|${e.dealId}`;
+      if (!this.memory.has(k)) this.memory.set(k, clone(e));
+    }
+  }
+
+  async findMemory(namespace: string, hashes: string[], since: string) {
+    const want = new Set(hashes);
+    return [...this.memory.values()].filter((e) => e.namespace === namespace && want.has(e.hash) && e.at >= since).map(clone);
+  }
 
   async createDeal(deal: Deal) {
     if (this.deals.has(deal.id)) throw new Error('deal already exists');
@@ -138,6 +162,7 @@ export class MemoryDealStore implements DealStore {
         n++;
       }
       this.demo.delete(id);
+      for (const [k, e] of this.memory) if (e.namespace === `demo:${id}`) this.memory.delete(k);
     }
     return n;
   }

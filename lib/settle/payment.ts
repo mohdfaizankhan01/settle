@@ -72,6 +72,7 @@ export function readOrder(deal: Deal, order: paypal.Order, at: string, debugId?:
     trackers: (order.purchase_units?.[0]?.shipping?.trackers ?? []).map((t) => t.id),
     items: (order.purchase_units?.[0]?.items ?? []).map((i) => i.name),
     ...(auth ? { authorizationId: auth.id, authorizationStatus: auth.status, authorizationExpires: auth.expiration_time, authorizationCreated: auth.create_time } : {}),
+    ...(order.payer?.payer_id ? { payerId: order.payer.payer_id } : {}),
     mismatches,
     debugId,
   };

@@ -9,6 +9,7 @@ import { engineFor, type CheckEngine } from '../model/engine';
 import { applyAnswer, blockers, buildCard, cardHash, formatMoney, isLocked, termWarnings } from './card';
 import { sha256Hex } from './canonical';
 import { ChatError, parseChat, parseMore, type Role } from './chat';
+import { reportOtherSide } from './memory';
 import { MAX_CHAT_CHARS } from './policy';
 import { redactChat } from './redact';
 import { ruleWarnings } from './rules';
@@ -289,8 +290,17 @@ export async function declineDeal(dealId: string, key: string | null, reason: st
     };
   });
   await deps.store.addReceipt({ dealId, kind: 'deal.declined', at, data: { by: role, reason, cardHash: cardHash(stored.value) } });
+  // Declined because the other side wanted to leave PayPal: scam memory remembers that side.
+  const signals = SCAM_DECLINES[reason as DeclineReason];
+  if (signals) await reportOtherSide(stored.value, role, 'declined', { store: deps.store, now: deps.now }, signals).catch(() => undefined);
   return stored;
 }
+
+/** Decline reasons that report the other side to scam memory, with the warnings they match. */
+const SCAM_DECLINES: Partial<Record<DeclineReason, string[]>> = {
+  wants_ff: ['ff_payment'],
+  wants_other_payment: ['off_paypal', 'move_off_chat', 'code_request', 'fee_to_release', 'overpayment_refund'],
+};
 
 /** Takes back your own decline. */
 export async function withdrawDecline(dealId: string, key: string | null, deps: Deps) {

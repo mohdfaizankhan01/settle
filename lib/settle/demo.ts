@@ -13,6 +13,7 @@ import { replayedEvent, replayPayPal, replaySdk, RECORDED } from './demo-paypal'
 import { applyVerifiedEvent } from './payment';
 import { addTracking, markDelivered, setLabelPostcode } from './shipping';
 import { newPayerSecret, payerHash } from './handover';
+import { seedDemoMemory } from './memory';
 import { updateWithRetry, type DealStore, type DemoKeys, type DemoSession } from './store';
 
 /** Judge sessions (and their demo deals) are deleted after this long. */
@@ -39,7 +40,7 @@ export const SCENARIOS: Scenario[] = [
     id: 'fake-email',
     title: 'Seller warned about a fake payment email',
     side: 'seller',
-    shows: "The buyer claims PayPal is holding the money until the seller ships. Paste the 'email' into 'Got a payment received message?' to see Settle answer from PayPal.",
+    shows: "The buyer claims PayPal is holding the money until the seller ships. Paste the 'email' into 'Got a payment received message?' to see Settle answer from PayPal. Scam memory also recognises the message: two earlier deals (seeded demo reports) reported the same script.",
     seller: 'Alex',
     chat: "Sam: is the Sony A7 III camera still available?\nAlex: yes, $450, posted tracked\nSam: deal\nSam: I've paid already, PayPal emailed you. The money is on hold until you send me the tracking number, so ship it first",
   },
@@ -85,7 +86,12 @@ async function seedOne(store: DealStore, session: string, s: Scenario, start: Da
   const keys: DemoKeys = { ...made };
   created(deal.id, keys);
   await updateWithRetry(store, deal.id, (d) => ({ ...d, demo: { session, scenario: s.id, seededAt: start.toISOString() } }));
-  if (s.id === 'ff' || s.id === 'fake-email') return { dealId: deal.id, keys };
+  if (s.id === 'fake-email') {
+    // Scam memory: two earlier (seeded) reports of the same scam message, in this session only.
+    await seedDemoMemory((await store.getDeal(deal.id))!.value, { store, now });
+    return { dealId: deal.id, keys };
+  }
+  if (s.id === 'ff') return { dealId: deal.id, keys };
 
   // Both answer the fee question, the seller is connected, both confirm the same card.
   step('confirm');

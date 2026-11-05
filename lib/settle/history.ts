@@ -72,6 +72,14 @@ export function describe(r: Receipt, role: Role = 'seller'): string {
       return `Capture refused before calling PayPal: ${s(d.reason) || ((d.reasons as string[] | undefined) ?? []).join('; ')}.`;
     case 'capture.failed':
       return 'The capture request to PayPal failed; PayPal was read again to settle it.';
+    case 'memory.reported':
+      return `The ${s(d.by)} reported the ${s(d.about)} to scam memory (${d.reason === 'declined' ? 'declined the deal' : 'marked a warning as a scam'}): ${(d.kinds as string[]).length ? (d.kinds as string[]).join(', ') : 'nothing to remember yet'}, kept as one-way hashes.`;
+    case 'memory.matched':
+      return (d.hits as unknown[]).length
+        ? `Scam memory: ${(d.hits as { kind: string; about: string; count: number }[]).map((h) => `the ${h.about}'s ${h.kind} was reported by ${h.count} other deals`).join('; ')}.`
+        : 'Scam memory: no reports match this deal now.';
+    case 'warning.answered':
+      return `The ${s(d.by)} answered "was this a scam?" for ${s(d.signal)}: ${s(d.verdict).replace('_', ' ')}.`;
     case 'link.claimed':
       return `The ${s(d.role)}'s link was opened, and now works only on that device.`;
     case 'order.hold_requested':

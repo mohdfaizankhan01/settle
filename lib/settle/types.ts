@@ -102,6 +102,8 @@ export type OrderRead =
       authorizationExpires?: string;
       /** When PayPal placed the hold (the authorization's create_time). */
       authorizationCreated?: string;
+      /** The buyer's PayPal payer ID on the order, for scam memory (stored only as a keyed hash there). */
+      payerId?: string;
       /** Why the order doesn't match the card. Empty when it matches. */
       mismatches: string[];
       debugId?: string;
@@ -136,6 +138,12 @@ export type Shipping = {
     debugId?: string;
   };
 };
+
+/**
+ * A scam memory match: one identifier of the `about` side that at least two other deals reported in
+ * the last 90 days. A caution shown to the other side; it never blocks, approves or decides.
+ */
+export type MemoryHit = { kind: 'payee' | 'payer' | 'postcode' | 'message'; about: 'buyer' | 'seller'; count: number; signalId?: string; messageId?: string };
 
 /**
  * Meet-up deals (DECISIONS #20): the handover. The seller shows a one-time code; the buyer scans it
@@ -217,6 +225,8 @@ export type Deal = {
   payment?: Payment;
   shipping?: Shipping;
   handover?: Handover;
+  /** Scam memory matches (DECISIONS #20): identifiers of one side that other deals reported. */
+  memory?: { hits: MemoryHit[]; checkedAt: string };
   disputes?: DisputeRecord[];
   /** Dispute responses sent (or being sent) with the seller's approval, by request hash. */
   submissions?: { disputeId: string; rel: string; hash: string; state: 'sending' | 'sent' | 'failed' | 'unknown'; at: string; debugId?: string; status?: number }[];

@@ -43,6 +43,13 @@ function sourceView(deal: Deal, source: TermSource): SourceView {
   return { kind: 'entered', by: source.by };
 }
 
+const MEMORY_TITLES: Record<NonNullable<Deal['memory']>['hits'][number]['kind'], string> = {
+  payee: "This seller's PayPal account was reported before",
+  payer: "This buyer's PayPal account was reported before",
+  postcode: 'This delivery postcode was reported before',
+  message: 'This message was reported before',
+};
+
 export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = []) {
   const hash = cardHash(deal);
 
@@ -86,7 +93,27 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
         quote: null,
       }]
     : [];
-  const warnings = [...declineWarning, ...bySignal.values()];
+  // Scam memory (DECISIONS #20): identifiers of the other side that other deals reported. A report
+  // from other people, never proof; shown only to the side that could be hurt.
+  const memoryWarnings = (deal.memory?.hits ?? [])
+    .filter((h) => h.about !== role)
+    .map((h) => {
+      const m = h.messageId ? deal.messages.find((x) => x.id === h.messageId) : undefined;
+      return {
+        signalId: `memory-${h.kind}${h.messageId ? `-${h.messageId}` : ''}`,
+        title: MEMORY_TITLES[h.kind],
+        means: `${h.count} other deals in the last 90 days reported ${h.kind === 'message' ? 'this exact message' : 'it'}: declined for wanting to leave PayPal, or marked as a scam. That's a report from other people, not proof.${deal.demo ? ' Judge mode: the earlier reports are seeded demo data.' : ''}`,
+        todo:
+          role === 'buyer'
+            ? 'Pay only through the PayPal checkout on this page, and stop if they push you to pay any other way.'
+            : "Don't ship or hand anything over until this page says PayPal confirmed the payment, and only to PayPal's address.",
+        cites: [] as string[],
+        found: [{ by: 'memory', probability: null as number | null, matched: null as string | null }],
+        quote: m ? { messageId: m.id, from: m.role, text: m.text } : null,
+        canAnswer: false,
+      };
+    });
+  const warnings = [...declineWarning.map((w) => ({ ...w, canAnswer: false })), ...memoryWarnings, ...[...bySignal.values()].map((w) => ({ ...w, canAnswer: true }))];
 
   const handover = isHandoverDeal(deal);
   const terms = (['item', 'price', 'delivery', 'shipBy', 'feePayer'] as const).map((key) => {
