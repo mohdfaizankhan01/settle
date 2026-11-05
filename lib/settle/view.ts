@@ -4,7 +4,7 @@
 
 import { blockers, cardHash, formatMoney, isHandoverDeal, isLocked, moneyOf } from './card';
 import { CARRIERS } from './carriers';
-import { REPLAY_NOTE } from './demo-paypal';
+import { HOLD_REPLAY_NOTE, REPLAY_NOTE } from './demo-paypal';
 import { caseFile, REASON_LABELS } from './case-file';
 import { ADVICE_LABEL, disputePlan } from './dispute-plan';
 import { history } from './history';
@@ -109,7 +109,7 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
     // warning check ran and which model ran it.
     realness: {
       mode: deal.demo ? ('judge' as const) : ('live' as const),
-      paypal: deal.demo ? REPLAY_NOTE : 'PayPal: live calls to the PayPal sandbox. No real money moves.',
+      paypal: deal.demo ? (isHandoverDeal(deal) ? HOLD_REPLAY_NOTE : REPLAY_NOTE) : 'PayPal: live calls to the PayPal sandbox. No real money moves.',
       check:
         deal.check.status === 'ran'
           ? `Warning check: ran on ${deal.check.at.slice(0, 10)} with ${deal.check.model?.startsWith('jev') ? 'Jev (TypeSafe)' : `Settle Link's own model (${deal.check.model ?? 'local'})`} plus keyword rules, over a redacted copy of the chat.`
@@ -174,13 +174,16 @@ function handoverView(deal: Deal, role: Role) {
   const h = deal.handover;
   const total = moneyOf(deal) ? formatMoney(moneyOf(deal)!.total, CURRENCY_OF[deal.country]) : null;
   const deadline = holdDeadline(deal);
-  const state = h?.outcome?.kind ?? (h?.inFlight ? (h.inFlight.kind === 'release' ? 'releasing' : 'releasing_hold') : isHeld(deal) ? 'held' : 'waiting');
+  // Released but not COMPLETED (e.g. PENDING): the money hasn't moved, so it isn't "handed over".
+  const pending = h?.outcome?.kind === 'released' && h.outcome.captureStatus !== undefined && h.outcome.captureStatus !== 'COMPLETED';
+  const state = pending ? 'pending' : (h?.outcome?.kind ?? (h?.inFlight ? (h.inFlight.kind === 'release' ? 'releasing' : 'releasing_hold') : isHeld(deal) ? 'held' : 'waiting'));
   return {
     state,
     total,
     holdDays: HOLD_DAYS,
     deadline: deadline?.toISOString() ?? null,
     by: h?.outcome?.by ?? null,
+    captureStatus: h?.outcome?.captureStatus ?? null,
     at: h?.outcome?.at ?? null,
     debugId: h?.outcome?.debugId ?? null,
     failed: h?.failed ? { kind: h.failed.kind, reason: h.failed.reason, at: h.failed.at, debugId: h.failed.debugId ?? null } : null,
@@ -204,6 +207,8 @@ function afterPaymentView(deal: Deal, role: Role, receipts: readonly Receipt[]) 
       ? null
       : handover.state === 'voided'
         ? { state: 'voided' as const, text: 'PayPal released the hold. The buyer was not charged.' }
+        : handover.state === 'pending'
+          ? { state: 'problem' as const, text: `PayPal shows the payment as ${handover.captureStatus}, not completed. Don't hand the item over until it is.` }
         : handover.state === 'released'
           ? { state: 'waiting' as const, text: "The money was taken at the handover. Waiting for PayPal's verified payment notification before it counts." }
           : handover.state === 'held' || handover.state === 'releasing' || handover.state === 'releasing_hold'

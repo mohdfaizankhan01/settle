@@ -15,8 +15,8 @@ import * as paypal from '../paypal';
 import { cardHash, isHandoverDeal, isLocked } from './card';
 import { orderMismatches } from './checkout';
 import { roleFor, DealError } from './deals';
-import { paypalFor } from './demo-paypal';
-import { refreshPayment, type PaymentDeps } from './payment';
+import { paypalFor, replayedEvent } from './demo-paypal';
+import { applyVerifiedEvent, refreshPayment, type PaymentDeps } from './payment';
 import { updateWithRetry, type DealStore } from './store';
 import type { Deal } from './types';
 
@@ -60,6 +60,22 @@ export function holdDeadline(deal: Deal): Date | undefined {
   return created ? new Date(Date.parse(created) + HOLD_DAYS * DAY_MS) : undefined;
 }
 
+/** A new payer secret for the device starting a meet-up checkout. Only its hash is stored. */
+export const newPayerSecret = () => randomBytes(24).toString('base64url');
+export const payerHash = (secret: string) => sha256(secret);
+
+/** True when `secret` is the secret of the device that started this deal's hold checkout. */
+export function payerMatches(deal: Deal, secret: string | null | undefined): boolean {
+  const p = deal.handover?.payer;
+  if (!p || !secret) return false;
+  const a = Buffer.from(sha256(secret), 'hex');
+  const b = Buffer.from(p.hash, 'hex');
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+export const OTHER_DEVICE =
+  "This payment was started on another device. If that wasn't you, don't pay: someone else may have opened your deal link. Ask the seller for a new link.";
+
 async function load(store: DealStore, dealId: string) {
   const stored = await store.getDeal(dealId);
   if (!stored) throw new DealError('no such deal', 404);
@@ -95,7 +111,7 @@ function tokenMatches(deal: Deal, token: string, at: Date): string | undefined {
  * the order must still match the card and show the hold, then PayPal takes the money. Payment is
  * confirmed afterwards the usual way (verified capture webhook plus a fresh GET), not by this call.
  */
-export async function releaseHandover(dealId: string, key: string | null, token: string, deps: HandoverDeps) {
+export async function releaseHandover(dealId: string, key: string | null, token: string, payer: string | null, deps: HandoverDeps) {
   const deal = await load(deps.store, dealId);
   if (roleFor(deal, key) !== 'buyer') throw new DealError('only the buyer can release the money at the handover', 403);
   const at = nowOf(deps);
@@ -105,6 +121,8 @@ export async function releaseHandover(dealId: string, key: string | null, token:
     throw new DealError(reason, 409);
   };
   if (!isHandoverDeal(deal)) return refuse('This deal is not handed over in person.');
+  // The buyer link alone isn't enough (its maker holds both links): only the phone that paid.
+  if (!payerMatches(deal, payer)) return refuse('Only the phone that placed the PayPal hold can confirm the handover. Scan the code with that phone.');
   const wrong = tokenMatches(deal, token, at);
   if (wrong) return refuse(wrong);
   if (!isLocked(deal) || deal.order?.cardHash !== cardHash(deal)) return refuse('The card changed after payment, so the money stays held.');
@@ -133,7 +151,8 @@ export async function releaseHandover(dealId: string, key: string | null, token:
 
   try {
     const captured = await pp.captureAuthorization(auth!.id, `settle-handover-${auth!.id}`, deal.payeeMerchantId!);
-    await finish(deps, dealId, { kind: 'released', at: iso, by: 'buyer', debugId: captured.debugId, captureId: captured.data.id });
+    // The hold is used up either way; only COMPLETED means the money moved (PENDING: not yet).
+    await finish(deps, dealId, { kind: 'released', at: iso, by: 'buyer', debugId: captured.debugId, captureId: captured.data.id, captureStatus: captured.data.status });
     await deps.store.addReceipt({ dealId, kind: 'handover.released', at: iso, data: { authorizationId: auth!.id, captureId: captured.data.id, captureStatus: captured.data.status, debugId: captured.debugId ?? null } });
   } catch (error) {
     // The answer may be lost after PayPal took the money: a re-read decides, never a guess.
@@ -141,7 +160,7 @@ export async function releaseHandover(dealId: string, key: string | null, token:
     const a = after?.data.purchase_units?.[0]?.payments?.authorizations?.[0];
     const cap = after?.data.purchase_units?.[0]?.payments?.captures?.[0];
     if (a?.status === 'CAPTURED' && cap) {
-      await finish(deps, dealId, { kind: 'released', at: iso, by: 'buyer', debugId: after?.debugId, captureId: cap.id });
+      await finish(deps, dealId, { kind: 'released', at: iso, by: 'buyer', debugId: after?.debugId, captureId: cap.id, captureStatus: cap.status });
       await deps.store.addReceipt({ dealId, kind: 'handover.released', at: iso, data: { authorizationId: a.id, captureId: cap.id, captureStatus: cap.status, recovered: true, debugId: after?.debugId ?? null } });
     } else {
       const reason = error instanceof paypal.PayPalApiError ? `PayPal refused (${error.status})` : 'PayPal did not answer';
@@ -151,7 +170,8 @@ export async function releaseHandover(dealId: string, key: string | null, token:
     }
   }
   await refreshAfter(deps, dealId);
-  return { released: true };
+  const outcome = (await deps.store.getDeal(dealId))?.value.handover?.outcome;
+  return { released: true, captureStatus: outcome?.captureStatus ?? null };
 }
 
 async function finish(deps: HandoverDeps, dealId: string, outcome: NonNullable<NonNullable<Deal['handover']>['outcome']>) {
@@ -160,7 +180,11 @@ async function finish(deps: HandoverDeps, dealId: string, outcome: NonNullable<N
 
 /** A fresh read after a capture or void, so both screens show PayPal's own state. Best effort. */
 async function refreshAfter(deps: HandoverDeps, dealId: string) {
-  await refreshPayment(dealId, { kind: 'page' }, { store: deps.store, paypal: deps.paypal as PaymentDeps['paypal'], now: deps.now }).catch(() => undefined);
+  const pdeps = { store: deps.store, paypal: deps.paypal as PaymentDeps['paypal'], now: deps.now };
+  const deal = (await deps.store.getDeal(dealId))?.value;
+  // Judge mode: replay PayPal's recorded capture notification (D4), as the live webhook would arrive.
+  if (deal?.demo && deal.handover?.outcome?.kind === 'released') await applyVerifiedEvent(replayedEvent(deal, 'hold-capture'), pdeps).catch(() => undefined);
+  else await refreshPayment(dealId, { kind: 'page' }, pdeps).catch(() => undefined);
 }
 
 /**

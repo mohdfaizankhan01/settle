@@ -6,6 +6,7 @@
 // callbacks, screenshots and emails never count. Any error leaves the deal unconfirmed.
 
 import * as paypal from '../paypal';
+import { isHandoverDeal } from './card';
 import { orderMismatches } from './checkout';
 import { dealOfDisputeEvent, refreshDispute, type DisputePayPal } from './disputes';
 import { paypalFor } from './demo-paypal';
@@ -45,6 +46,12 @@ export function readOrder(deal: Deal, order: paypal.Order, at: string, debugId?:
     mismatches.push('captured amount does not match the order');
   }
   const b = capture?.seller_receivable_breakdown;
+  // Meet-up deals: money may only be taken by the buyer's handover (security review, Nov 5). A
+  // capture Settle didn't record, e.g. taken in PayPal's own dashboard, never counts as paid.
+  const h = deal.handover;
+  if (capture && isHandoverDeal(deal) && !h?.inFlight && !(h?.outcome?.kind === 'released' && h.outcome.captureId === capture.id)) {
+    mismatches.push("the money was taken without the buyer's handover confirmation");
+  }
   const auths = order.purchase_units?.[0]?.payments?.authorizations ?? [];
   const auth = auths[0];
   // One hold per order: a second authorization is not something Settle created.

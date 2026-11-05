@@ -9,6 +9,7 @@ export async function POST(request: Request, ctx: RouteContext<'/api/deals/[id]/
   return api(async () => {
     if (rateLimited(request, 'handover-release', 20)) throw new DealError('too many tries; wait a few minutes', 400);
     const body = await jsonBody(request);
-    return releaseHandover(id, linkKey(request), str(body.token, 'token'), { store: getStore() });
+    // The payer secret: only the device that started the hold checkout has it.
+    return releaseHandover(id, linkKey(request), str(body.token, 'token'), request.headers.get('x-settle-payer'), { store: getStore() });
   });
 }

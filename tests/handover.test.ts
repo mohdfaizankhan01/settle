@@ -8,13 +8,16 @@ import { PayPalApiError, type Authorization, type Capture, type Order, type Orde
 import { cardHash } from '../lib/settle/card';
 import { captureCheckout, customIdFor, startCheckout } from '../lib/settle/checkout';
 import { answerQuestion, confirmCard, createDeal, setPayee, type Deps } from '../lib/settle/deals';
-import { cancelHandover, CODE_TTL_MS, isHeld, releaseExpiredHold, releaseHandover, showHandoverCode, type HandoverPayPal } from '../lib/settle/handover';
+import { cancelHandover, CODE_TTL_MS, isHeld, payerHash, releaseExpiredHold, releaseHandover as release, showHandoverCode, type HandoverDeps, type HandoverPayPal } from '../lib/settle/handover';
 import { applyVerifiedEvent, isPaid } from '../lib/settle/payment';
 import { MemoryDealStore, updateWithRetry } from '../lib/settle/store';
 import { dealView } from '../lib/settle/view';
 import { askWith, clock, tick } from './helpers/paid-deal';
 
 const now = () => clock.at;
+/** The secret the buyer's phone got when it started the hold checkout. */
+const PAYER = 'payer-secret-of-the-buyers-phone';
+const releaseHandover = (dealId: string, key: string, token: string, deps: HandoverDeps, payer: string | null = PAYER) => release(dealId, key, token, payer, deps);
 
 async function meetupSetup() {
   clock.at = new Date('2026-11-05T12:00:00Z');
@@ -29,10 +32,10 @@ async function meetupSetup() {
   await confirmCard(deal.id, keys.seller, cardHash(s.value), deps);
   const c = await confirmCard(deal.id, keys.buyer, cardHash(s.value), deps);
   const locked = c.value;
-  await store.updateDeal(deal.id, c.version, { ...locked, order: { id: 'ORDER-1', cardHash: cardHash(locked), createdAt: clock.at.toISOString(), status: 'HOLD_REQUESTED' } });
+  await store.updateDeal(deal.id, c.version, { ...locked, order: { id: 'ORDER-1', cardHash: cardHash(locked), createdAt: clock.at.toISOString(), status: 'HOLD_REQUESTED' }, handover: { payer: { hash: payerHash(PAYER), at: clock.at.toISOString() } } });
 
   // PayPal, in memory: one order with one hold that can be captured or voided once.
-  const state = { auth: 'CREATED', capture: undefined as Capture | undefined, failCapture: undefined as 'refuse' | 'lost' | undefined };
+  const state = { auth: 'CREATED', capture: undefined as Capture | undefined, failCapture: undefined as 'refuse' | 'lost' | undefined, captureStatus: 'COMPLETED' };
   const calls: string[] = [];
   const order = (): Order => ({
     id: 'ORDER-1',
@@ -57,7 +60,7 @@ async function meetupSetup() {
       calls.push(`capture ${id} as ${seller} (${requestId})`);
       if (state.failCapture === 'refuse') throw new PayPalApiError(422, `/v2/payments/authorizations/${id}/capture`, 'no', 'dbg-refused');
       state.auth = 'CAPTURED';
-      state.capture = { id: 'CAP-1', status: 'COMPLETED', amount: { currency_code: 'GBP', value: '350.00' } };
+      state.capture = { id: 'CAP-1', status: state.captureStatus, amount: { currency_code: 'GBP', value: '350.00' } };
       if (state.failCapture === 'lost') throw new PayPalApiError(500, `/v2/payments/authorizations/${id}/capture`, 'lost', 'dbg-lost');
       return { data: state.capture, debugId: 'dbg-capture' };
     },
@@ -78,7 +81,7 @@ async function meetupSetup() {
 test('a meet-up deal pays as a PayPal hold: AUTHORIZE order, then authorize (never capture) after approval', async () => {
   const s = await meetupSetup();
   // Back to before checkout.
-  await updateWithRetry(s.store, s.dealId, (d) => ({ ...d, order: undefined }));
+  await updateWithRetry(s.store, s.dealId, (d) => ({ ...d, order: undefined, handover: undefined }));
   let sent: OrderRequest | undefined;
   const calls: string[] = [];
   const paypal = {
@@ -99,9 +102,16 @@ test('a meet-up deal pays as a PayPal hold: AUTHORIZE order, then authorize (nev
     },
   };
   const deps = { store: s.store, paypal, publicHost: 'https://x.test', now };
-  await startCheckout(s.dealId, s.keys.buyer, deps);
+  const first = await startCheckout(s.dealId, s.keys.buyer, deps);
   assert.equal(sent?.intent, 'AUTHORIZE');
-  const out = await captureCheckout(s.dealId, s.keys.buyer, 'ORDER-2', deps);
+  assert.ok(first.payerSecret, 'the device that starts checkout gets the payer secret');
+  assert.ok(!JSON.stringify(await s.get()).includes(first.payerSecret!), 'only its hash is stored');
+  // Someone else holding the buyer link (its maker has both links) is refused before any hold.
+  await assert.rejects(startCheckout(s.dealId, s.keys.buyer, deps), /started on another device/);
+  await assert.rejects(captureCheckout(s.dealId, s.keys.buyer, 'ORDER-2', deps, 'guess'), /started on another device/);
+  assert.deepEqual(calls, []);
+  assert.equal((await startCheckout(s.dealId, s.keys.buyer, deps, first.payerSecret)).orderId, 'ORDER-2', 'the same device carries on');
+  const out = await captureCheckout(s.dealId, s.keys.buyer, 'ORDER-2', deps, first.payerSecret);
   assert.deepEqual(calls, ['authorize ORDER-2']);
   assert.equal(out.status, 'HOLD_REQUESTED');
   assert.ok((await s.store.listReceipts(s.dealId)).some((r) => r.kind === 'order.hold_requested'));
@@ -131,6 +141,9 @@ test('only the buyer with the seller\'s current code releases the money, once', 
   assert.ok(!JSON.stringify(await s.get()).includes(token), 'only the hash is stored');
 
   await assert.rejects(releaseHandover(s.dealId, s.keys.seller, token, s.hdeps), /only the buyer/, 'the seller can never take the money alone');
+  // The buyer link without the paying phone's secret: e.g. the seller who made the link.
+  await assert.rejects(releaseHandover(s.dealId, s.keys.buyer, token, s.hdeps, null), /Only the phone that placed the PayPal hold/);
+  await assert.rejects(releaseHandover(s.dealId, s.keys.buyer, token, s.hdeps, 'another-phone'), /Only the phone that placed the PayPal hold/);
   await assert.rejects(releaseHandover(s.dealId, s.keys.buyer, 'not-the-code', s.hdeps), /isn't the seller's current one/);
   assert.ok(!s.calls.some((c) => c.startsWith('capture')));
 
@@ -198,4 +211,31 @@ test('walking away releases the hold; so does passing PayPal\'s 3-day guarantee'
   tick(24 * 3600_000 + 60_000);
   await releaseExpiredHold(await e.get(), e.hdeps);
   assert.equal((await e.get()).handover?.outcome?.by, 'meet_by_passed');
+});
+
+test('a PENDING capture is recorded as not completed, so nobody is told to hand over', async () => {
+  const s = await meetupSetup();
+  await s.held();
+  s.state.captureStatus = 'PENDING';
+  const { token } = await showHandoverCode(s.dealId, s.keys.seller, s.hdeps);
+  const out = await releaseHandover(s.dealId, s.keys.buyer, token, s.hdeps);
+  assert.equal(out.captureStatus, 'PENDING');
+  assert.equal((await s.get()).handover?.outcome?.captureStatus, 'PENDING');
+  const seller = dealView(await s.get(), 'seller').afterPayment!;
+  assert.equal(seller.handover?.state, 'pending');
+  assert.notEqual(seller.payment.state, 'paid');
+});
+
+test('money taken outside the handover (e.g. in PayPal\'s own dashboard) never counts as paid', async () => {
+  const s = await meetupSetup();
+  await s.held();
+  // PayPal shows a capture Settle never asked for.
+  s.state.auth = 'CAPTURED';
+  s.state.capture = { id: 'CAP-ROGUE', status: 'COMPLETED', amount: { currency_code: 'GBP', value: '350.00' } };
+  await applyVerifiedEvent({ ...s.captureEvent('WH-ROGUE'), resource: { id: 'CAP-ROGUE', status: 'COMPLETED', custom_id: customIdFor(s.locked) } }, s.hdeps);
+  const d = await s.get();
+  assert.equal(isPaid(d), false);
+  const read = d.payment?.read;
+  assert.ok(read?.ok && read.mismatches.some((m) => m.includes("without the buyer's handover")));
+  assert.equal(dealView(d, 'buyer').afterPayment?.payment.state, 'problem', 'the buyer is shown the problem');
 });

@@ -143,10 +143,17 @@ export type Shipping = {
  * meet-by date passing, releases the hold. Only the token's hash is stored.
  */
 export type Handover = {
+  /**
+   * The device that started the PayPal checkout for the hold (security review, Nov 5). Whoever
+   * makes a deal link holds both links, so the buyer link alone doesn't prove who pays. Placing the
+   * hold and releasing it need this device's secret; only its hash is kept.
+   */
+  payer?: { hash: string; at: string };
   token?: { hash: string; createdAt: string; expiresAt: string };
   /** A capture or void sent to PayPal whose answer isn't recorded yet. A re-read decides. */
   inFlight?: { kind: 'release' | 'void'; at: string };
-  outcome?: { kind: 'released' | 'voided'; at: string; by: 'buyer' | 'seller' | 'meet_by_passed'; debugId?: string; captureId?: string };
+  /** captureStatus: PayPal's status for the capture; only COMPLETED means the money moved. */
+  outcome?: { kind: 'released' | 'voided'; at: string; by: 'buyer' | 'seller' | 'meet_by_passed'; debugId?: string; captureId?: string; captureStatus?: string };
   /** The last capture or void PayPal refused, shown to both sides. */
   failed?: { kind: 'release' | 'void'; at: string; reason: string; debugId?: string };
 };

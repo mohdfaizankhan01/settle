@@ -7,6 +7,7 @@
 import * as paypal from '../paypal';
 import { cardHash, isHandoverDeal, isLocked, moneyOf } from './card';
 import { roleFor, DealError } from './deals';
+import { newPayerSecret, OTHER_DEVICE, payerHash, payerMatches } from './handover';
 import { StaleWriteError, type DealStore } from './store';
 import type { Deal } from './types';
 
@@ -34,17 +35,45 @@ async function buyerDeal(store: DealStore, dealId: string, key: string | null) {
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-export async function startCheckout(dealId: string, key: string | null, deps: CheckoutDeps) {
+/**
+ * Meet-up deals: the first device to start checkout becomes the payer device and gets a secret
+ * (security review, Nov 5). Any other device is refused before PayPal holds anything, so a link
+ * opened by someone else can't place, or later release, the buyer's hold.
+ */
+async function claimPayer(deps: CheckoutDeps, dealId: string, payer: string | null | undefined): Promise<string | undefined> {
+  const stored = (await deps.store.getDeal(dealId))!;
+  const deal = stored.value;
+  if (!isHandoverDeal(deal)) return undefined;
+  if (deal.handover?.payer) {
+    if (!payerMatches(deal, payer)) {
+      await deps.store.addReceipt({ dealId, kind: 'capture.blocked', at: now(deps), data: { reason: 'checkout started on another device' } });
+      throw new DealError(OTHER_DEVICE, 409);
+    }
+    return payer!;
+  }
+  const secret = newPayerSecret();
+  try {
+    await deps.store.updateDeal(dealId, stored.version, { ...deal, handover: { ...deal.handover, payer: { hash: payerHash(secret), at: now(deps) } } });
+  } catch (error) {
+    if (error instanceof StaleWriteError) throw new DealError('the deal changed; reload and try again', 409);
+    throw error;
+  }
+  return secret;
+}
+
+export async function startCheckout(dealId: string, key: string | null, deps: CheckoutDeps, payer?: string | null) {
   const pp = deps.paypal ?? paypal;
   const stored = await buyerDeal(deps.store, dealId, key);
-  const deal = stored.value;
-  if (deal.demo) throw new DealError('judge mode never takes a payment; this is a demo deal', 409);
-  const blocked = payBlocker(deal);
+  if (stored.value.demo) throw new DealError('judge mode never takes a payment; this is a demo deal', 409);
+  const blocked = payBlocker(stored.value);
   if (blocked) throw new DealError(blocked, 409);
+  const payerSecret = await claimPayer(deps, dealId, payer);
+  const fresh = (await deps.store.getDeal(dealId))!;
+  const deal = fresh.value;
 
   const hash = cardHash(deal);
   // Reuse an open order for the same card; a changed card never reuses an old order.
-  if (deal.order && deal.order.cardHash === hash && deal.order.status === 'CREATED') return { orderId: deal.order.id };
+  if (deal.order && deal.order.cardHash === hash && deal.order.status === 'CREATED') return { orderId: deal.order.id, ...(payerSecret ? { payerSecret } : {}) };
 
   const { item, price, delivery } = deal.card;
   const money = moneyOf(deal)!;
@@ -77,7 +106,7 @@ export async function startCheckout(dealId: string, key: string | null, deps: Ch
   );
   const next: Deal = { ...deal, order: { id: order.data.id, cardHash: hash, createdAt: now(deps), status: 'CREATED', debugId: order.debugId } };
   try {
-    await deps.store.updateDeal(dealId, stored.version, next);
+    await deps.store.updateDeal(dealId, fresh.version, next);
   } catch (error) {
     // The card changed while the order was being created: don't hand out an order for an old card.
     if (error instanceof StaleWriteError) throw new DealError('the deal changed; reload and try again', 409);
@@ -89,7 +118,7 @@ export async function startCheckout(dealId: string, key: string | null, deps: Ch
     at: now(deps),
     data: { orderId: order.data.id, cardHash: hash, amount: money.total, currency: currency_code, feePayer: deal.card.feePayer!.value, payee: deal.payeeMerchantId!, debugId: order.debugId ?? null },
   });
-  return { orderId: order.data.id };
+  return { orderId: order.data.id, ...(payerSecret ? { payerSecret } : {}) };
 }
 
 /** Compares a fresh PayPal order with the locked card. Returns the mismatches. */
@@ -108,11 +137,15 @@ export function orderMismatches(deal: Deal, order: paypal.Order): string[] {
   return out;
 }
 
-export async function captureCheckout(dealId: string, key: string | null, orderId: string, deps: CheckoutDeps) {
+export async function captureCheckout(dealId: string, key: string | null, orderId: string, deps: CheckoutDeps, payer?: string | null) {
   const pp = deps.paypal ?? paypal;
   const stored = await buyerDeal(deps.store, dealId, key);
   const deal = stored.value;
   if (deal.demo) throw new DealError('judge mode never takes a payment; this is a demo deal', 409);
+  if (isHandoverDeal(deal) && !payerMatches(deal, payer)) {
+    await deps.store.addReceipt({ dealId, kind: 'capture.blocked', at: now(deps), data: { orderId, reason: 'hold requested from another device' } });
+    throw new DealError(OTHER_DEVICE, 409);
+  }
   if (!deal.order || deal.order.id !== orderId) throw new DealError('that order is not this deal\'s order', 409);
   if (!isLocked(deal) || deal.order.cardHash !== cardHash(deal)) {
     await deps.store.addReceipt({ dealId, kind: 'capture.blocked', at: now(deps), data: { orderId, reason: 'card changed after the order was created' } });

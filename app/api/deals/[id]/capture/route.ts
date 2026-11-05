@@ -7,6 +7,6 @@ export async function POST(request: Request, ctx: RouteContext<'/api/deals/[id]/
   const { id } = await ctx.params;
   return api(async () => {
     const body = await jsonBody(request);
-    return captureCheckout(id, linkKey(request), str(body.orderId, 'orderId'), { store: getStore(), publicHost: publicHost(request) });
+    return captureCheckout(id, linkKey(request), str(body.orderId, 'orderId'), { store: getStore(), publicHost: publicHost(request) }, request.headers.get('x-settle-payer'));
   });
 }
