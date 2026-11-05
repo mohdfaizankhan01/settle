@@ -70,7 +70,7 @@ test('a session only sees its own deals; unknown or malformed session IDs see no
   const store = new MemoryDealStore();
   const a = await startDemo(store, now);
   const b = await startDemo(store, now);
-  const va = (await demoView(store, a.id))!;
+  const va = (await demoView(store, a.id, now))!;
   assert.deepEqual(va.deals.map((d) => d.dealId), a.deals.map((d) => d.dealId));
   assert.ok(va.deals.every((d) => !b.deals.some((x) => x.dealId === d.dealId)));
   assert.equal(await demoView(store, 'x'.repeat(32)), undefined);
@@ -101,5 +101,6 @@ test('a failed seed still records the deals it created, so the purge can remove 
   assert.equal(await store.purgeDemo('2026-11-02T00:00:00Z'), SCENARIOS.length);
 
   const ok = await startDemo(store, () => t0);
-  assert.equal(await demoView(store, ok.id), undefined, 'created days before now, so expired');
+  assert.equal(await demoView(store, ok.id, () => new Date('2026-11-03T00:00:00Z')), undefined, 'created two days before, so expired');
+  assert.ok(await demoView(store, ok.id, () => new Date('2026-11-01T12:00:00Z')), 'still live within the day');
 });

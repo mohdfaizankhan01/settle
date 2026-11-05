@@ -129,11 +129,11 @@ export async function startDemo(store: DealStore, now: () => Date = () => new Da
 }
 
 /** The session's deals with their links. Only the cookie's own session is ever read. */
-export async function demoView(store: DealStore, id: string | undefined) {
+export async function demoView(store: DealStore, id: string | undefined, now: () => Date = () => new Date()) {
   if (!id || !/^[A-Za-z0-9_-]{32}$/.test(id)) return undefined;
   const session = await store.getDemoSession(id);
   // Expired sessions are gone even before the purge runs.
-  if (!session || Date.parse(session.createdAt) + DEMO_TTL_MS < Date.now()) return undefined;
+  if (!session || Date.parse(session.createdAt) + DEMO_TTL_MS < now().getTime()) return undefined;
   return {
     createdAt: session.createdAt,
     expiresAt: new Date(Date.parse(session.createdAt) + DEMO_TTL_MS).toISOString(),
