@@ -29,6 +29,10 @@ export default function Scheduler({ data }: { data: TimelineData }) {
         rowHeight={84}
         barMargin={10}
         eventStyle="rounded"
+        // Several events can share a day (confirmed, paid, ship-by). Measure the milestone labels so
+        // the layout stacks them instead of drawing one label over another.
+        milestoneLayoutMode="measure"
+        milestoneTextPosition="always-outside"
         resources={data.rows.map((r) => ({ id: r.id, name: r.name, title: r.title, status: r.status, eventColor: r.colour }))}
         events={data.events}
         columns={[
@@ -38,7 +42,8 @@ export default function Scheduler({ data }: { data: TimelineData }) {
             width: 300,
             htmlEncode: false,
             renderer: ({ record }: { record: { get: (f: string) => string } }) =>
-              `<div style="line-height:1.3;white-space:normal"><strong>${escapeHtml(record.get('name'))}</strong><br><span style="opacity:.75">${escapeHtml(record.get('title'))}</span><br><span>${escapeHtml(record.get('status'))}</span></div>`,
+              // One line each, cut with an ellipsis, so three lines always fit the row height.
+              `<div style="line-height:1.35;min-width:0;width:100%" title="${escapeHtml(record.get('name'))}: ${escapeHtml(record.get('title'))}">${['<strong>' + escapeHtml(record.get('name')) + '</strong>', '<span style="opacity:.75">' + escapeHtml(record.get('title')) + '</span>', escapeHtml(record.get('status'))].map((l) => `<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l}</div>`).join('')}</div>`,
           },
         ]}
         eventTooltipFeature={{ template: ({ eventRecord }: { eventRecord: { get: (f: string) => string; name: string } }) => `<b>${escapeHtml(eventRecord.name)}</b><br>${escapeHtml(eventRecord.get('detail'))}` }}
