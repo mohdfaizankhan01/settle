@@ -52,7 +52,12 @@ function pickDelivery(r: Redacted): { delivery: Pick; message: Pick } {
   const kinds = [...hits.keys()];
   if (kinds.length !== 1) return { delivery: pick('unclear', 0.5, options), message: pick('none', 0.5) };
   const kind = kinds[0];
-  return { delivery: pick(kind, 0.8, options), message: pick(hits.get(kind)!.at(-1)!, 0.8) };
+  // The quote is where delivery was offered: the seller's first message naming it, else the
+  // first message at all. Not the last one, which in a scam is often "send it as friends and
+  // family" or "ship it first" and would put the scammer's words on the card.
+  const ids = hits.get(kind)!;
+  const fromSeller = ids.find((id) => r.messages.find((m) => m.id === id)?.role === 'seller');
+  return { delivery: pick(kind, 0.8, options), message: pick(fromSeller ?? ids[0], 0.8) };
 }
 
 const ITEM = /\b(still (for sale|available|there)|for sale|selling|interested in|is the|the [a-z0-9]+ (still|available))\b/i;

@@ -79,3 +79,24 @@ test('a chat too long to check in full fails closed, never "no warning signs"', 
   assert.equal(r.run.status, 'failed');
   assert.match(r.run.status === 'failed' ? r.run.reason : '', /^ChatTooLongError/);
 });
+
+test('delivery term quotes where the seller offered it, not a later scam line', async () => {
+  const { localTermPicks } = await import('../lib/model/terms');
+  const ff = redactChat(parseChat(
+    'Ann: hi, is the Nintendo Switch OLED still for sale?\nSam: yes, $260 and I post it tracked\nAnn: great, I\'ll take it\nSam: please send it as friends and family so there are no fees',
+    'Sam',
+  ));
+  const picks = localTermPicks(ff);
+  assert.equal(picks.delivery?.id, 'post');
+  assert.equal(picks.deliveryMessage?.id, ff.messages[1].id);
+
+  const fake = redactChat(parseChat(
+    'Bo: is the Sony A7 III camera still available?\nCy: yes, $450, posted tracked\nBo: deal\nBo: I\'ve paid already, PayPal emailed you. The money is on hold until you send me the tracking number, so ship it first',
+    'Cy',
+  ));
+  assert.equal(localTermPicks(fake).deliveryMessage?.id, fake.messages[1].id);
+
+  // Only the buyer names delivery: fall back to the first message that does.
+  const buyerOnly = redactChat(parseChat('Bo: can you post it?\nCy: yes\nBo: and ship it tracked please', 'Cy'));
+  assert.equal(localTermPicks(buyerOnly).deliveryMessage?.id, buyerOnly.messages[0].id);
+});
