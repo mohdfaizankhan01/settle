@@ -17,7 +17,7 @@ test('a judge walks from the home page through every deal state', async ({ page 
   await page.getByRole('link', { name: 'Try it in judge mode' }).click();
   await expect(page).toHaveURL(/\/demo$/);
 
-  // A fresh private session with six demo deals.
+  // A fresh private session with seven demo deals.
   await page.getByRole('button', { name: /Start judge mode|Start over with fresh deals/ }).click();
   await expect(page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button')).toHaveCount(6, { timeout: 90_000 });
 

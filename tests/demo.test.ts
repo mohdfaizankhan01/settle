@@ -104,3 +104,28 @@ test('a failed seed still records the deals it created, so the purge can remove 
   assert.equal(await demoView(store, ok.id, () => new Date('2026-11-03T00:00:00Z')), undefined, 'created two days before, so expired');
   assert.ok(await demoView(store, ok.id, () => new Date('2026-11-01T12:00:00Z')), 'still live within the day');
 });
+
+test('the meet-up demo deal: held, handed over and paid on the recorded run alone, never live PayPal', async () => {
+  const { isHeld, releaseHandover, showHandoverCode } = await import('../lib/settle/handover');
+  const { applyVerifiedEvent, isPaid } = await import('../lib/settle/payment');
+  const { replayedEvent } = await import('../lib/settle/demo-paypal');
+  const store = new MemoryDealStore();
+  const s = await startDemo(store, now);
+  const m = s.deals.find((d) => d.scenario === 'meetup')!;
+  assert.ok(m.keys.payer, 'the judge browser gets the payer secret');
+  const get = async () => (await store.getDeal(m.dealId))!.value;
+  assert.equal((await get()).card.delivery?.value, 'meetup');
+  assert.equal(isHeld(await get()), true, 'held through the real webhook-plus-fresh-GET path');
+
+  // No PayPal client is passed: a demo deal always gets the replay.
+  const deps = { store, now };
+  const { token } = await showHandoverCode(m.dealId, m.keys.seller, deps);
+  await assert.rejects(releaseHandover(m.dealId, m.keys.buyer, token, null, deps), /Only the phone that placed the PayPal hold/);
+  const out = await releaseHandover(m.dealId, m.keys.buyer, token, m.keys.payer!, deps);
+  assert.equal(out.captureStatus, 'COMPLETED');
+  assert.match((await get()).handover!.outcome!.debugId!, /^rec-/);
+  // The recorded capture notification is replayed right after the handover.
+  assert.equal(isPaid(await get()), true);
+  assert.equal((await applyVerifiedEvent(replayedEvent(await get(), 'hold-capture'), deps)).reason, 'already processed');
+  assert.deepEqual(reached, []);
+});

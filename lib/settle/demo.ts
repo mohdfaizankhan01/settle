@@ -1,4 +1,4 @@
-// Judge mode (PLAN M5 MUST). "Start judge mode" makes a private session with six demo deals, one
+// Judge mode (PLAN M5 MUST). "Start judge mode" makes a private session with seven demo deals, one
 // per state, seeded through Settle's real code: the warning check runs on each chat, both sides
 // confirm, payment is confirmed by the real webhook-plus-fresh-GET path, the ship gate, tracking
 // and the dispute case file all run as they do live. Only PayPal is replaced, by a replay of the
@@ -12,7 +12,8 @@ import { answerQuestion, confirmCard, createDeal, addMessages, setPayee, type De
 import { replayedEvent, replayPayPal, replaySdk, RECORDED } from './demo-paypal';
 import { applyVerifiedEvent } from './payment';
 import { addTracking, markDelivered, setLabelPostcode } from './shipping';
-import { updateWithRetry, type DealStore, type DemoSession } from './store';
+import { newPayerSecret, payerHash } from './handover';
+import { updateWithRetry, type DealStore, type DemoKeys, type DemoSession } from './store';
 
 /** Judge sessions (and their demo deals) are deleted after this long. */
 export const DEMO_TTL_MS = 24 * 60 * 60 * 1000;
@@ -45,6 +46,14 @@ export const SCENARIOS: Scenario[] = [
   { id: 'awaiting', title: 'Confirmed, waiting for payment', side: 'buyer', shows: 'Both sides confirmed the same card; the buyer pays through PayPal checkout (judge mode never takes a payment).', seller: 'Alex', chat: BIKE() },
   { id: 'ready', title: 'Paid and ready to ship', side: 'seller', shows: 'Payment confirmed by a verified PayPal webhook plus a fresh read of the order; the label postcode matches; the ship check says ready.', seller: 'Alex', chat: BIKE() },
   { id: 'hold', title: 'Paid, then HOLD after an address change', side: 'seller', shows: "After payment the buyer asks to ship to a cousin. Settle's model flags it and the ship check turns to HOLD, naming the rule.", seller: 'Alex', chat: BIKE() },
+  {
+    id: 'meetup',
+    title: 'Meet-up: PayPal holds the money until the handover',
+    side: 'seller',
+    shows: "An in-person deal. PayPal holds the buyer's money; nothing is taken until the buyer checks the item and scans the seller's code. Show the code, then open the scan as the buyer.",
+    seller: 'Alex',
+    chat: "Sam: hi, is the iPad Air still for sale?\nAlex: yes, iPad Air 5th gen 64GB, like new\nSam: would you do $380?\nAlex: ok $380, we can meet at the Union Square station\nSam: deal, I'll pay through your Settle link",
+  },
   { id: 'dispute', title: 'A dispute with its evidence pack', side: 'seller', shows: 'The buyer opened an item-not-received dispute. The case file, the advice and the evidence pack come from the record; you approve the exact request.', seller: 'Alex', chat: BIKE() },
 ];
 
@@ -61,16 +70,19 @@ const STEPS: Record<string, Partial<Record<'chat' | 'confirm' | 'paid' | 'label'
   ready: { chat: 50, confirm: 48, paid: 47, label: 2 },
   hold: { chat: 74, confirm: 72, paid: 70, label: 20, message: 3 },
   dispute: { chat: 240, confirm: 238, paid: 236, label: 220, tracking: 216, delivered: 120, dispute: 24 },
+  meetup: { chat: 6, confirm: 5, paid: 4 },
 };
 
-async function seedOne(store: DealStore, session: string, s: Scenario, start: Date, engine: CheckEngine | undefined, created: (dealId: string, keys: { seller: string; buyer: string }) => void) {
+async function seedOne(store: DealStore, session: string, s: Scenario, start: Date, engine: CheckEngine | undefined, created: (dealId: string, keys: DemoKeys) => void) {
   const steps = STEPS[s.id];
   let at = start;
   const step = (name: keyof (typeof STEPS)[string]) => void (at = new Date(start.getTime() - (steps[name] ?? 0) * 3600_000));
   const now = () => at;
   const deps: Deps = { store, now, ...(engine ? { engine } : {}) };
   step('chat');
-  const { deal, keys } = await createDeal({ chat: s.chat, sellerName: s.seller, country: 'US' }, deps);
+  const { deal, keys: made } = await createDeal({ chat: s.chat, sellerName: s.seller, country: 'US' }, deps);
+  // The session keeps this object; a meet-up deal adds its payer secret below.
+  const keys: DemoKeys = { ...made };
   created(deal.id, keys);
   await updateWithRetry(store, deal.id, (d) => ({ ...d, demo: { session, scenario: s.id, seededAt: start.toISOString() } }));
   if (s.id === 'ff' || s.id === 'fake-email') return { dealId: deal.id, keys };
@@ -83,6 +95,22 @@ async function seedOne(store: DealStore, session: string, s: Scenario, start: Da
   await confirmCard(deal.id, keys.seller, cardHash(connected.value), deps);
   await confirmCard(deal.id, keys.buyer, cardHash(connected.value), deps);
   if (s.id === 'awaiting') return { dealId: deal.id, keys };
+
+  // Meet-up: the recorded hold, confirmed by the real webhook-plus-fresh-GET path (D4).
+  if (s.id === 'meetup') {
+    step('paid');
+    // As if the judge's browser had started the hold checkout: it holds the payer secret.
+    keys.payer = newPayerSecret();
+    const { after } = await updateWithRetry(store, deal.id, (d) => ({
+      ...d,
+      order: { id: RECORDED.hold.orderId, cardHash: cardHash(d), createdAt: at.toISOString(), status: 'HOLD_REQUESTED', debugId: `rec-${RECORDED.hold.authorizeDebugId}` },
+      handover: { payer: { hash: payerHash(keys.payer!), at: at.toISOString() } },
+    }));
+    await store.addReceipt({ dealId: deal.id, kind: 'order.created', at: at.toISOString(), data: { orderId: RECORDED.hold.orderId, cardHash: cardHash(after), replayed: true, debugId: `rec-${RECORDED.hold.authorizeDebugId}` } });
+    const pp = replayPayPal(store, deal.id);
+    await applyVerifiedEvent(replayedEvent(after, 'hold'), { store, paypal: pp, disputes: pp, now });
+    return { dealId: deal.id, keys };
+  }
 
   // Paid: the order as the recorded run created it, then the real confirmation path.
   step('paid');

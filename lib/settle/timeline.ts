@@ -3,7 +3,9 @@
 // recommended 7 days after payment, SP-SHIP-TIME), delivery, and the dispute's response window.
 // Each row is coloured by the ship check. Pure: built from the deals, nothing is invented.
 
+import { isHandoverDeal } from './card';
 import { REASON_LABELS } from './case-file';
+import { holdDeadline, HOLD_DAYS, isHeld } from './handover';
 import { isPaid, shipGate } from './ship-gate';
 import { signalById, shownTo } from './signals';
 import type { Deal } from './types';
@@ -20,6 +22,12 @@ export function rowStatus(deal: Deal): { status: string; colour: string } {
   if (!deal.order || deal.order.status === 'CREATED') {
     const warned = deal.warnings.some((w) => shownTo(w.audience, 'seller') || shownTo(w.audience, 'buyer'));
     return warned ? { status: 'Warning before payment', colour: 'orange' } : { status: 'Before payment', colour: 'blue' };
+  }
+  if (isHandoverDeal(deal)) {
+    const o = deal.handover?.outcome?.kind;
+    if (o === 'released') return { status: 'Handed over', colour: 'green' };
+    if (o === 'voided') return { status: 'Called off: hold released', colour: 'blue' };
+    return isHeld(deal) ? { status: 'Held by PayPal: meet to hand over', colour: 'green' } : { status: 'Waiting for the hold', colour: 'orange' };
   }
   const d = shipGate(deal).decision;
   return d === 'SHIP' ? { status: 'Ready to ship', colour: 'green' } : d === 'HOLD' ? { status: 'Hold', colour: 'red' } : { status: 'Review', colour: 'orange' };
@@ -55,6 +63,16 @@ export function timeline(deals: { deal: Deal; title: string; scenario: string }[
       // A completed shipment is green; an open window takes the row's current colour.
       if (t && t.state === 'sent') add('ship', `Shipped: ${t.number}`, paid, Date.parse(t.at), 'green', `Tracking added to PayPal on ${t.at.slice(0, 10)}.`);
       else add('ship', `Ship by ${iso(due).slice(0, 10)}`, paid, due, colour, deal.card.shipBy ? 'The ship-by date on the card.' : `PayPal recommends shipping within ${SHIP_WITHIN_DAYS} days of payment (SP-SHIP-TIME).`);
+    }
+    // Meet-up deals: the hold, the window PayPal guarantees it for, and the handover.
+    const heldAt = deal.payment?.holdWebhook?.at;
+    if (heldAt) {
+      const held = Date.parse(heldAt);
+      add('held', 'Held by PayPal', held, held, 'green', 'A verified PayPal hold notification plus a fresh read of the order that matched the card. Nothing taken yet.');
+      const o = deal.handover?.outcome;
+      const deadline = holdDeadline(deal)?.getTime() ?? held + HOLD_DAYS * DAY;
+      if (o) add('handover', o.kind === 'released' ? 'Handed over: PayPal took the money' : 'Called off: hold released', Date.parse(o.at), Date.parse(o.at), o.kind === 'released' ? 'green' : 'blue', o.kind === 'released' ? 'The buyer scanned the seller\'s code and confirmed.' : 'PayPal released the hold; the buyer was not charged.');
+      else add('meet', `Hand over by ${iso(deadline).slice(0, 10)}`, held, deadline, colour, `PayPal guarantees a hold for ${HOLD_DAYS} days; after that Settle releases it.`);
     }
     const delivered = deal.shipping?.delivered?.date;
     if (delivered) add('delivered', 'Delivered', Date.parse(`${delivered}T12:00:00Z`), Date.parse(`${delivered}T12:00:00Z`), 'teal', 'Entered by the seller from the carrier.');

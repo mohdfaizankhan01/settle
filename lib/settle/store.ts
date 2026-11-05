@@ -14,7 +14,9 @@ export type SellerLink = { trackingId: string; dealId: string; createdAt: string
 export type WebhookEventRecord = { id: string; type: string; dealId: string | null; at: string };
 
 /** A judge session: its demo deals and their link keys (demo deals only; real keys are never stored). */
-export type DemoSession = { id: string; createdAt: string; deals: { dealId: string; scenario: string; keys: { seller: string; buyer: string } }[] };
+/** payer: meet-up demo deals only, the payer-device secret the judge's browser uses for the handover. */
+export type DemoKeys = { seller: string; buyer: string; payer?: string };
+export type DemoSession = { id: string; createdAt: string; deals: { dealId: string; scenario: string; keys: DemoKeys }[] };
 
 export class StaleWriteError extends Error {
   constructor() {

@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { DealPage } from '@/app/d/[id]/deal-page';
+import { rememberPayer } from '@/app/d/[id]/handover-panel';
 
-type DemoDeal = { dealId: string; scenario: string; keys: { seller: string; buyer: string }; title: string; side: 'buyer' | 'seller'; shows: string };
+type DemoDeal = { dealId: string; scenario: string; keys: { seller: string; buyer: string; payer?: string }; title: string; side: 'buyer' | 'seller'; shows: string };
 type Session = { createdAt: string; expiresAt: string; deals: DemoDeal[] };
 
 export function JudgeMode() {
@@ -47,6 +48,10 @@ export function JudgeMode() {
   }, []);
 
   const current = session?.deals.find((d) => d.scenario === picked) ?? session?.deals[0];
+  // The meet-up demo deal: this browser plays the buyer's phone that placed the hold.
+  useEffect(() => {
+    for (const d of session?.deals ?? []) if (d.keys.payer) rememberPayer(d.dealId, d.keys.payer);
+  }, [session]);
   const pick = (d: DemoDeal) => {
     setPicked(d.scenario);
     setSide(d.side);
@@ -78,7 +83,7 @@ export function JudgeMode() {
               Proof
             </Link>
             <button onClick={start} disabled={busy} className="rounded-full bg-pp-blue px-5 py-2 font-semibold text-white disabled:opacity-40">
-              {busy ? 'Setting up six deals…' : session ? 'Start over with fresh deals' : 'Start judge mode'}
+              {busy ? 'Setting up seven deals…' : session ? 'Start over with fresh deals' : 'Start judge mode'}
             </button>
           </div>
         </header>
@@ -91,7 +96,7 @@ export function JudgeMode() {
         {session === undefined && <p className="mt-10 text-pp-muted">Loading…</p>}
         {session === null && (
           <p className="mt-10 max-w-2xl">
-            Starting judge mode creates six demo deals that only this browser can see. They expire after a day. Real deals are never shown or changed.
+            Starting judge mode creates seven demo deals that only this browser can see. They expire after a day. Real deals are never shown or changed.
           </p>
         )}
 

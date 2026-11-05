@@ -17,7 +17,12 @@ test('one row per demo deal, coloured by the ship check, with the events each de
   const t = timeline(deals, now);
   const row = (scenario: string) => t.rows.find((r) => r.scenario === scenario)!;
   const events = (scenario: string) => t.events.filter((e) => e.resourceId === row(scenario).id).map((e) => e.name);
-  assert.equal(t.rows.length, 6);
+  assert.equal(t.rows.length, 7);
+  // Meet-up: held by PayPal, with the window PayPal guarantees the hold for (D4).
+  assert.equal(row('meetup').status, 'Held by PayPal: meet to hand over');
+  assert.equal(row('meetup').colour, 'green');
+  assert.ok(events('meetup').includes('Held by PayPal'));
+  assert.ok(events('meetup').some((n) => n.startsWith('Hand over by ')));
   assert.equal(row('ready').colour, 'green');
   assert.equal(row('hold').colour, 'red');
   assert.equal(row('dispute').colour, 'red');

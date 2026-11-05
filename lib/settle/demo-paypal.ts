@@ -3,18 +3,21 @@
 // it is about (its amount, payee, custom_id, item and tracking) plus the recorded IDs and values,
 // so Settle's real code checks it exactly as it checks a live answer. Every debug ID it returns
 // starts with "rec-", so a replayed answer can never be mistaken for a live one. It never takes
-// a payment: order creation and capture are refused.
+// a payment: order creation and capture are refused. Meet-up deals replay the Nov 5 hold run (D4):
+// taking or releasing a demo hold only changes the demo deal; nothing is sent to PayPal.
 
 import { PaypalClient } from 'paypal';
 import recorded from '../../data/demo/recorded.json';
 import * as paypal from '../paypal';
-import { moneyOf } from './card';
+import { isHandoverDeal, moneyOf } from './card';
 import { customIdFor } from './checkout';
 import type { DealStore } from './store';
 import type { Deal } from './types';
 
 export const RECORDED = recorded;
 export const REPLAY_NOTE = `PayPal in judge mode: responses recorded from the PayPal sandbox on ${recorded.recordedAt}, replayed for this demo deal. Nothing is sent to PayPal.`;
+/** Meet-up demo deals replay the Nov 5 hold run (spike D4). */
+export const HOLD_REPLAY_NOTE = `PayPal in judge mode: the hold, capture and void recorded from the PayPal sandbox on ${recorded.hold.recordedAt}, replayed for this demo deal. Nothing is sent to PayPal.`;
 
 const rec = (debugId: string) => `rec-${debugId}`;
 const API = paypal.BASE_URL;
@@ -23,6 +26,7 @@ export class DemoRefused extends Error {}
 
 /** The order PayPal would return for this demo deal, built from the recorded run. */
 export function replayedOrder(deal: Deal): paypal.Order {
+  if (isHandoverDeal(deal)) return replayedHoldOrder(deal);
   const money = moneyOf(deal);
   const currency = deal.card.price?.value.currency ?? 'USD';
   const t = deal.shipping?.tracking;
@@ -60,6 +64,40 @@ export function replayedOrder(deal: Deal): paypal.Order {
   };
 }
 
+/** A meet-up demo deal's order: the recorded hold, taken or released as the demo deal says. */
+function replayedHoldOrder(deal: Deal): paypal.Order {
+  const h = recorded.hold;
+  const money = moneyOf(deal);
+  const currency = deal.card.price?.value.currency ?? 'USD';
+  const amount = { currency_code: currency, value: money?.total ?? '0.00' };
+  const outcome = deal.handover?.outcome?.kind;
+  const placed = deal.payment?.holdWebhook?.at ?? deal.order?.createdAt ?? new Date().toISOString();
+  return {
+    id: h.orderId,
+    status: 'COMPLETED',
+    payer: { payer_id: 'DEMOBUYER' },
+    purchase_units: [
+      {
+        reference_id: deal.id,
+        custom_id: customIdFor(deal),
+        amount,
+        payee: { merchant_id: deal.payeeMerchantId },
+        items: [{ name: deal.card.item?.value ?? '', quantity: '1', unit_amount: { currency_code: currency, value: deal.card.price?.value.amount ?? '0.00' } }],
+        payments: {
+          authorizations: [{
+            id: h.authorizationId,
+            status: outcome === 'released' ? 'CAPTURED' : outcome === 'voided' ? 'VOIDED' : 'CREATED',
+            amount,
+            create_time: placed,
+            expiration_time: new Date(Date.parse(placed) + 29 * 24 * 3600_000).toISOString(),
+          }],
+          ...(outcome === 'released' ? { captures: [{ id: h.captureId, status: 'COMPLETED', amount }] } : {}),
+        },
+      },
+    ],
+  };
+}
+
 /** The dispute PayPal would return for this demo deal (the recorded item-not-received case). */
 export function replayedDispute(deal: Deal): paypal.Dispute {
   const d = recorded.dispute;
@@ -81,7 +119,9 @@ export function replayedDispute(deal: Deal): paypal.Dispute {
 }
 
 /** The verified webhook event the demo replays for a capture or a dispute. */
-export function replayedEvent(deal: Deal, kind: 'capture' | 'dispute'): paypal.WebhookEvent {
+export function replayedEvent(deal: Deal, kind: 'capture' | 'dispute' | 'hold' | 'hold-capture'): paypal.WebhookEvent {
+  if (kind === 'hold') return { id: `rec-hold-${deal.id}`, event_type: 'PAYMENT.AUTHORIZATION.CREATED', resource: { id: recorded.hold.authorizationId, status: 'CREATED', custom_id: customIdFor(deal) } };
+  if (kind === 'hold-capture') return { id: `rec-hold-capture-${deal.id}`, event_type: 'PAYMENT.CAPTURE.COMPLETED', resource: { id: recorded.hold.captureId, status: 'COMPLETED', custom_id: customIdFor(deal) } };
   return kind === 'capture'
     ? { id: `${recorded.webhook.captureCompleted}-${deal.id}`, event_type: 'PAYMENT.CAPTURE.COMPLETED', resource: { id: recorded.capture.id, status: 'COMPLETED', custom_id: customIdFor(deal) } }
     : { id: `${recorded.webhook.disputeCreated}-${deal.id}`, event_type: 'CUSTOMER.DISPUTE.CREATED', resource: { dispute_id: recorded.dispute.id, disputed_transactions: [{ seller_transaction_id: recorded.capture.id, custom: customIdFor(deal) }] } };
@@ -96,7 +136,19 @@ export function replayPayPal(store: DealStore, dealId: string) {
   };
   return {
     async getOrder(): Promise<paypal.WithDebugId<paypal.Order>> {
-      return { data: replayedOrder(await current()), debugId: rec(recorded.order.debugId) };
+      const d = await current();
+      return { data: replayedOrder(d), debugId: rec(isHandoverDeal(d) ? recorded.hold.getDebugId : recorded.order.debugId) };
+    },
+    // Meet-up demo deals: the recorded capture or void of the D4 hold. The handover code records
+    // the outcome on the demo deal; the next replayed read shows it. Nothing reaches PayPal.
+    async captureAuthorization(): Promise<paypal.WithDebugId<paypal.Capture>> {
+      const d = await current();
+      const amount = { currency_code: d.card.price?.value.currency ?? 'USD', value: moneyOf(d)?.total ?? '0.00' };
+      return { data: { id: recorded.hold.captureId, status: 'COMPLETED', amount }, debugId: rec(recorded.hold.captureDebugId) };
+    },
+    async voidAuthorization(): Promise<paypal.WithDebugId<paypal.Authorization>> {
+      await current();
+      return { data: { id: recorded.hold.authorizationId, status: 'VOIDED' }, debugId: rec(recorded.hold.voidDebugId) };
     },
     async getDispute(): Promise<paypal.WithDebugId<paypal.Dispute>> {
       return { data: replayedDispute(await current()), debugId: rec(recorded.dispute.debugId) };

@@ -47,5 +47,16 @@
     "rel": "provide_supporting_info",
     "debugId": "f4289668a7883",
     "at": "2026-11-03T22:16:11.336Z"
+  },
+  "hold": {
+    "_note": "Meet-up spike D4, PayPal sandbox 2026-11-05 (docs/SPIKES.md): intent AUTHORIZE with the connected seller as payee. Order A was authorized then captured; order B was authorized then voided. Judge mode replays these IDs; amounts, custom_id and payee are set to the demo deal.",
+    "recordedAt": "2026-11-05",
+    "orderId": "3XL42820PU2829914",
+    "authorizeDebugId": "f784679c2e62e",
+    "authorizationId": "8UL47046EF8771829",
+    "getDebugId": "f454376f8a31d",
+    "captureId": "3G062671F6794610L",
+    "captureDebugId": "f316499aa1dd7",
+    "voidDebugId": "f83420130b6b2"
   }
 }
