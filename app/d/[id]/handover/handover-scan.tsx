@@ -37,8 +37,10 @@ export function HandoverScan({ dealId }: { dealId: string }) {
     Promise.resolve()
       .then(() => {
         if (!token.current) throw new Error("This page needs the seller's code. Scan it again from their phone.");
-        if (!key.current) throw new Error("This phone doesn't know you're the buyer yet. Open your own deal link on this phone first, then scan the seller's code again.");
-        if (!payerOnThisPhone(dealId)) throw new Error('Only the phone that placed the PayPal hold can confirm the handover. Scan the code with that phone.');
+        if (!key.current || !payerOnThisPhone(dealId))
+          throw new Error(
+            "This browser didn't place the PayPal hold, so it can't confirm the handover. Open your deal link in the browser you paid with (for example inside Instagram or Messenger if you paid there), and use the seller's \"open the scan\" link or scan from there.",
+          );
         return fetch(`/api/deals/${dealId}`, { headers: keyHeaders(key.current), cache: 'no-store' });
       })
       .then(async (res) => {
@@ -86,9 +88,9 @@ export function HandoverScan({ dealId }: { dealId: string }) {
       <h1 className="text-[28px] font-semibold text-pp-navy">Handover</h1>
       {state === 'done' ? (
         <div className="mt-6 border-l-4 border-pp-success bg-pp-surface px-5 py-4">
-          <p className="text-xl font-semibold text-pp-success">PayPal took the payment</p>
+          <p className="text-xl font-semibold text-pp-success">Payment sent through PayPal</p>
           <p className="mt-2">
-            {total} for {item}, paid to the seller&apos;s PayPal account. The seller&apos;s own page now shows Handed over; take the item once they see it.
+            {total} for {item}, to the seller&apos;s PayPal account. Take the item when the seller&apos;s own page says Handed over: that comes once PayPal confirms it, usually within seconds.
           </p>
           <p className="mt-2 text-sm text-pp-muted">
             It counts as paid once PayPal&apos;s verified notification arrives; your deal page shows it.{' '}

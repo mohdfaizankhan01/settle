@@ -47,8 +47,8 @@ export const namespaceOf = (deal: Deal) => (deal.demo ? `demo:${deal.demo.sessio
  * placeholders), placeholder numbers dropped, lowercased, spaces collapsed. The same script sent to
  * the next victim gives the same fingerprint; a reworded one doesn't.
  */
-export function messageFingerprint(deal: Deal, messageId: string): string | undefined {
-  const redacted = redactChat(deal.messages).messages.find((m) => m.id === messageId);
+export function messageFingerprint(deal: Deal, messageId: string, redactedChat = redactChat(deal.messages).messages): string | undefined {
+  const redacted = redactedChat.find((m) => m.id === messageId);
   if (!redacted) return undefined;
   const text = redacted.text
     .replace(/\[([A-Z]+)_\d+[^\]]*\]/g, '[$1]')
@@ -66,11 +66,14 @@ export function identifiersOf(deal: Deal, about: Role, signalIds?: string[]): Id
   if (about === 'buyer' && read?.payerId) out.push({ kind: 'payer', about, value: read.payerId });
   if (about === 'buyer' && read?.shipTo?.postalCode) out.push({ kind: 'postcode', about, value: `${deal.country}:${read.shipTo.postalCode.toUpperCase().replace(/\s+/g, '')}` });
   // Messages this side wrote that a warning flagged (all of them, or just the reported signals).
+  // The chat is redacted once per call, not once per warning (code review).
+  let redacted: ReturnType<typeof redactChat>['messages'] | undefined;
   for (const w of deal.warnings) {
     if (!w.messageId || (signalIds && !signalIds.includes(w.signalId))) continue;
     const m = deal.messages.find((x) => x.id === w.messageId);
     if (m?.role !== about) continue;
-    const fp = messageFingerprint(deal, m.id);
+    redacted ??= redactChat(deal.messages).messages;
+    const fp = messageFingerprint(deal, m.id, redacted);
     if (fp && !out.some((x) => x.kind === 'message' && x.value === fp)) out.push({ kind: 'message', about, value: fp, signalId: w.signalId, messageId: m.id });
   }
   return out;
@@ -114,8 +117,16 @@ export async function memoryHits(deal: Deal, deps: MemoryDeps): Promise<MemoryHi
 
 const key = (hits: MemoryHit[]) => JSON.stringify(hits.map((h) => [h.kind, h.about, h.count, h.messageId ?? null]).sort());
 
+/** A deal is re-matched at most this often per server instance; the page polls every 10 s. */
+export const MEMORY_RECHECK_MS = 60_000;
+const lastMatched = new Map<string, number>();
+
 /** On a page load: re-match the deal; records the result and a receipt only when it changed. */
-export async function refreshMemory(deal: Deal, deps: MemoryDeps): Promise<Deal> {
+export async function refreshMemory(deal: Deal, deps: MemoryDeps, force = false): Promise<Deal> {
+  const t = nowOf(deps).getTime();
+  if (!force && t - (lastMatched.get(deal.id) ?? 0) < MEMORY_RECHECK_MS) return deal;
+  lastMatched.set(deal.id, t);
+  if (lastMatched.size > 10_000) lastMatched.clear();
   let hits: MemoryHit[];
   try {
     hits = await memoryHits(deal, deps);
@@ -150,5 +161,5 @@ export async function seedDemoMemory(deal: Deal, deps: MemoryDeps): Promise<Deal
     [5, 2].map((days, n) => ({ namespace: namespaceOf(deal), kind: i.kind, hash: memoryHash(secret, i.kind, i.value), dealId: `demo-earlier-report-${n + 1}`, at: new Date(now - days * DAY_MS).toISOString() })),
   );
   await deps.store.addMemory(entries);
-  return refreshMemory(deal, deps);
+  return refreshMemory(deal, deps, true);
 }

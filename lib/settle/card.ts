@@ -199,6 +199,12 @@ export function applyAnswer(card: DealCard, question: Question, optionId: string
 /** Deals handed over in person: paid as a PayPal hold, taken at the handover (DECISIONS #20). */
 export const isHandoverDeal = (deal: { card: DealCard }) => deal.card.delivery?.value === 'meetup' || deal.card.delivery?.value === 'collect';
 
+/**
+ * The deal pays as a PayPal hold: a meet-up deal whose order (if any) was created as a hold. A
+ * meet-up deal paid by normal capture before holds existed keeps the normal rules (code review).
+ */
+export const paysByHold = (deal: { card: DealCard; order?: Deal['order'] }) => isHandoverDeal(deal) && (!deal.order || deal.order.intent === 'AUTHORIZE');
+
 /** Warnings that follow from the card itself: collect and meet-up (SP-INPERSON, PP-COLLECT). */
 export function termWarnings(card: DealCard): Warning[] {
   const d = card.delivery?.value;

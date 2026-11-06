@@ -33,7 +33,7 @@ async function meetupSetup() {
   await confirmCard(deal.id, keys.seller, cardHash(s.value), deps);
   const c = await confirmCard(deal.id, keys.buyer, cardHash(s.value), deps);
   const locked = c.value;
-  await store.updateDeal(deal.id, c.version, { ...locked, order: { id: 'ORDER-1', cardHash: cardHash(locked), createdAt: clock.at.toISOString(), status: 'HOLD_REQUESTED' }, handover: { payer: { hash: payerHash(PAYER), at: clock.at.toISOString() } } });
+  await store.updateDeal(deal.id, c.version, { ...locked, order: { id: 'ORDER-1', cardHash: cardHash(locked), createdAt: clock.at.toISOString(), status: 'HOLD_REQUESTED', intent: 'AUTHORIZE' }, handover: { payer: { hash: payerHash(PAYER), at: clock.at.toISOString() } } });
 
   // PayPal, in memory: one order with one hold that can be captured or voided once.
   const state = { auth: 'CREATED', capture: undefined as Capture | undefined, failCapture: undefined as 'refuse' | 'lost' | undefined, captureStatus: 'COMPLETED' };
@@ -260,4 +260,78 @@ test('a capture that appears while a release of the hold is being sent is still 
   const read = (await s.get()).payment?.read;
   assert.ok(read?.ok && read.mismatches.some((m) => m.includes("without the buyer's handover")));
   assert.equal(isPaid(await s.get()), false);
+});
+
+test('code review: a failed order creation claims nothing, so the buyer can simply try again', async () => {
+  const s = await meetupSetup();
+  await updateWithRetry(s.store, s.dealId, (d) => ({ ...d, order: undefined, handover: undefined }));
+  let fail = true;
+  const paypal = {
+    async createOrder() {
+      if (fail) throw new PayPalApiError(503, '/v2/checkout/orders', 'down', 'dbg-down');
+      return { data: { id: 'ORDER-3', status: 'PAYER_ACTION_REQUIRED' } as Order };
+    },
+    async getOrder(): Promise<never> { throw new Error('not used'); },
+    async captureOrder(): Promise<never> { throw new Error('not used'); },
+  };
+  const deps = { store: s.store, paypal, publicHost: 'https://x.test', now };
+  await assert.rejects(startCheckout(s.dealId, s.keys.buyer, deps), /down|503/);
+  assert.equal((await s.get()).handover?.payer, undefined, 'nothing claimed');
+  fail = false;
+  const ok = await startCheckout(s.dealId, s.keys.buyer, deps);
+  assert.ok(ok.payerSecret);
+  assert.equal((await s.get()).order?.intent, 'AUTHORIZE');
+  assert.ok((await s.store.listReceipts(s.dealId)).some((r) => r.kind === 'payer.claimed'), 'the claim writes a receipt');
+});
+
+test('code review: the seller is told "handed over" only after PayPal confirms the payment', async () => {
+  const s = await meetupSetup();
+  await s.held();
+  const { token } = await showHandoverCode(s.dealId, s.keys.seller, s.hdeps);
+  await releaseHandover(s.dealId, s.keys.buyer, token, s.hdeps);
+  // Captured, but no verified capture notification yet.
+  assert.equal(dealView(await s.get(), 'seller').afterPayment?.handover?.state, 'pending');
+  await applyVerifiedEvent(s.captureEvent(), s.hdeps);
+  assert.equal(dealView(await s.get(), 'seller').afterPayment?.handover?.state, 'released');
+});
+
+test('code review: a lost capture answer with a failed re-read is never a guess; the next read settles it', async () => {
+  const s = await meetupSetup();
+  await s.held();
+  const { resolveInFlight } = await import('../lib/settle/handover');
+  const { refreshPayment } = await import('../lib/settle/payment');
+  // PayPal takes the money, but its answer and the re-read are both lost.
+  let reads = 0;
+  const flaky: HandoverPayPal = {
+    ...s.pp,
+    async getOrder(id, seller) {
+      reads++;
+      if (reads === 2) throw new PayPalApiError(503, '/v2/checkout/orders', 'down', 'dbg-down');
+      return s.pp.getOrder(id, seller);
+    },
+  };
+  s.state.failCapture = 'lost';
+  const { token } = await showHandoverCode(s.dealId, s.keys.seller, s.hdeps);
+  await assert.rejects(releaseHandover(s.dealId, s.keys.buyer, token, { ...s.hdeps, paypal: flaky }), /Couldn't confirm with PayPal/);
+  assert.equal((await s.get()).handover?.inFlight?.kind, 'release', 'still checking, not "nothing taken"');
+  assert.equal((await s.get()).handover?.failed, undefined);
+  // The next fresh read shows the capture: recorded as released, and the capture isn't a mismatch.
+  await refreshPayment(s.dealId, { kind: 'page' }, s.hdeps);
+  await resolveInFlight(await s.get(), s.hdeps);
+  assert.equal((await s.get()).handover?.outcome?.kind, 'released');
+  await applyVerifiedEvent(s.captureEvent(), s.hdeps);
+  assert.equal(isPaid(await s.get()), true);
+});
+
+test('code review: a meet-up deal paid by normal capture before holds existed keeps the normal rules', async () => {
+  const s = await meetupSetup();
+  // An old order: no intent recorded, captured the usual way, no handover.
+  await updateWithRetry(s.store, s.dealId, (d) => ({ ...d, order: { ...d.order!, intent: undefined, status: 'CAPTURE_REQUESTED' }, handover: undefined }));
+  s.state.auth = 'CAPTURED';
+  s.state.capture = { id: 'CAP-1', status: 'COMPLETED', amount: { currency_code: 'GBP', value: '350.00' } };
+  await applyVerifiedEvent(s.captureEvent('WH-OLD'), s.hdeps);
+  const d = await s.get();
+  assert.equal(isPaid(d), true, 'no "taken without handover" mismatch');
+  assert.ok(dealView(d, 'seller').afterPayment?.gate, 'the ship gate is still there');
+  assert.equal(dealView(d, 'seller').afterPayment?.handover, null);
 });

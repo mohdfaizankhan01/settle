@@ -128,7 +128,7 @@ export function PayButton(props: { dealId: string; getKey: () => string; checkou
       <h2 className="font-semibold">{checkout.hold ? 'Hold the payment with PayPal' : 'Pay with PayPal'}</h2>
       <p className="mt-1 text-sm text-pp-muted">
         {checkout.hold
-          ? "PayPal holds exactly the total on the confirmed card on your account. Nothing goes to the seller until you've checked the item and scanned their code at the meet-up. Do this on the phone you'll bring: only it can confirm the handover. Sandbox only: use a sandbox buyer login."
+          ? "PayPal holds exactly the total on the confirmed card on your account. Nothing goes to the seller until you've checked the item and scanned their code at the meet-up. Do this on the phone you'll bring, in its main browser (if this opened inside Instagram, Messenger or Facebook, choose \"Open in browser\" first): only that browser can confirm the handover. Sandbox only: use a sandbox buyer login."
           : 'PayPal charges exactly the total on the confirmed card (“Buyer pays” above), paid to the seller\'s own PayPal account. Sandbox only: use a sandbox buyer login.'}
       </p>
       {state === 'ineligible' ? (

@@ -4,7 +4,7 @@
 // or unconfirmed payment always holds, and the AI's warnings can only add HOLD or REVIEW.
 // Wording (DECISIONS #7): never "protected" or "safe"; PayPal decides eligibility.
 
-import { isHandoverDeal } from './card';
+import { paysByHold } from './card';
 import { StaleWriteError, type DealStore } from './store';
 import type { Deal } from './types';
 
@@ -196,7 +196,7 @@ export async function syncGate(store: DealStore, dealId: string, at: string): Pr
   for (let attempt = 0; ; attempt++) {
     const stored = await store.getDeal(dealId);
     // Meet-up deals have no ship gate: the handover writes its own receipts (handover.ts).
-    if (!stored?.value.order || isHandoverDeal(stored.value)) return undefined;
+    if (!stored?.value.order || paysByHold(stored.value)) return undefined;
     const gate = shipGate(stored.value);
     const key = gateKey(gate);
     if (stored.value.gate?.key === key) return gate;

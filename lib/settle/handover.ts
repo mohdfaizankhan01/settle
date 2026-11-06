@@ -12,7 +12,7 @@
 
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import * as paypal from '../paypal';
-import { cardHash, isHandoverDeal, isLocked } from './card';
+import { cardHash, isHandoverDeal, isLocked, paysByHold } from './card';
 import { orderMismatches } from './checkout';
 import { roleFor, DealError } from './deals';
 import { paypalFor, replayedEvent } from './demo-paypal';
@@ -42,7 +42,7 @@ export { isHandoverDeal };
 export function isHeld(deal: Deal): boolean {
   const { holdWebhook, read } = deal.payment ?? {};
   return (
-    isHandoverDeal(deal) &&
+    paysByHold(deal) &&
     !!holdWebhook &&
     !!read?.ok &&
     read.authorizationId === holdWebhook.authorizationId &&
@@ -86,7 +86,7 @@ async function load(store: DealStore, dealId: string) {
 export async function showHandoverCode(dealId: string, key: string | null, deps: HandoverDeps) {
   const deal = await load(deps.store, dealId);
   if (roleFor(deal, key) !== 'seller') throw new DealError('only the seller shows the handover code', 403);
-  if (!isHandoverDeal(deal)) throw new DealError('this deal is not handed over in person', 409);
+  if (!paysByHold(deal)) throw new DealError('this deal is not paid as a PayPal hold', 409);
   if (!isHeld(deal)) throw new DealError('PayPal does not show the money held for this deal yet, so there is nothing to hand over', 409);
   const at = nowOf(deps);
   const token = randomBytes(24).toString('base64url');
@@ -120,7 +120,7 @@ export async function releaseHandover(dealId: string, key: string | null, token:
     await deps.store.addReceipt({ dealId, kind: 'handover.blocked', at: iso, data: { reason, debugId: debugId ?? null } });
     throw new DealError(reason, 409);
   };
-  if (!isHandoverDeal(deal)) return refuse('This deal is not handed over in person.');
+  if (!paysByHold(deal)) return refuse('This deal is not paid as a PayPal hold.');
   // The buyer link alone isn't enough (its maker holds both links): only the phone that paid.
   if (!payerMatches(deal, payer)) return refuse('Only the phone that placed the PayPal hold can confirm the handover. Scan the code with that phone.');
   const wrong = tokenMatches(deal, token, at);
@@ -162,6 +162,11 @@ export async function releaseHandover(dealId: string, key: string | null, token:
     if (a?.status === 'CAPTURED' && cap) {
       await finish(deps, dealId, { kind: 'released', at: iso, by: 'buyer', debugId: after?.debugId, captureId: cap.id, captureStatus: cap.status });
       await deps.store.addReceipt({ dealId, kind: 'handover.released', at: iso, data: { authorizationId: a.id, captureId: cap.id, captureStatus: cap.status, recovered: true, debugId: after?.debugId ?? null } });
+    } else if (!after) {
+      // Neither the capture's answer nor a re-read: Settle doesn't know whether PayPal took the
+      // money, so it stays "checking" and the next fresh read decides (resolveInFlight). Never a guess.
+      await deps.store.addReceipt({ dealId, kind: 'handover.unknown', at: iso, data: { authorizationId: auth!.id, kind: 'release', debugId: debugIdOf(error) ?? null } });
+      throw new DealError("Couldn't confirm with PayPal whether the money was taken. Settle checks again automatically; don't hand the item over until the seller's page says Handed over.", 409);
     } else {
       const reason = error instanceof paypal.PayPalApiError ? `PayPal refused (${error.status})` : 'PayPal did not answer';
       await updateWithRetry(deps.store, dealId, (d) => ({ ...d, handover: { ...d.handover, inFlight: undefined, failed: { kind: 'release', at: iso, reason, debugId: debugIdOf(error) } } }));
@@ -199,7 +204,7 @@ export async function voidHold(dealId: string, by: 'buyer' | 'seller' | 'meet_by
   const authorizationId = deal.payment!.holdWebhook!.authorizationId;
   await updateWithRetry(deps.store, dealId, (d) => {
     if (d.handover?.inFlight || d.handover?.outcome) throw new DealError('This handover is already being completed.', 409);
-    return { ...d, handover: { ...d.handover, token: undefined, inFlight: { kind: 'void', at: iso } } };
+    return { ...d, handover: { ...d.handover, token: undefined, inFlight: { kind: 'void', at: iso, by } } };
   });
   try {
     const voided = await pp.voidAuthorization(authorizationId, `settle-void-${authorizationId}`, deal.payeeMerchantId!);
@@ -211,6 +216,9 @@ export async function voidHold(dealId: string, by: 'buyer' | 'seller' | 'meet_by
     if (a?.status === 'VOIDED') {
       await finish(deps, dealId, { kind: 'voided', at: iso, by, debugId: after?.debugId });
       await deps.store.addReceipt({ dealId, kind: 'handover.voided', at: iso, data: { authorizationId, by, status: a.status, recovered: true, debugId: after?.debugId ?? null } });
+    } else if (!after) {
+      await deps.store.addReceipt({ dealId, kind: 'handover.unknown', at: iso, data: { authorizationId, kind: 'void', by, debugId: debugIdOf(error) ?? null } });
+      throw new DealError("Couldn't confirm with PayPal whether the hold was released. Settle checks again automatically.", 409);
     } else {
       const reason = error instanceof paypal.PayPalApiError ? `PayPal refused (${error.status})` : 'PayPal did not answer';
       await updateWithRetry(deps.store, dealId, (d) => ({ ...d, handover: { ...d.handover, inFlight: undefined, failed: { kind: 'void', at: iso, reason, debugId: debugIdOf(error) } } }));
@@ -235,5 +243,32 @@ export async function releaseExpiredHold(deal: Deal, deps: HandoverDeps): Promis
   const deadline = holdDeadline(deal);
   if (!isHeld(deal) || !deadline || nowOf(deps) < deadline) return deal;
   await voidHold(deal.id, 'meet_by_passed', deps).catch(() => undefined);
+  return (await deps.store.getDeal(deal.id))?.value ?? deal;
+}
+
+/** How long a capture or void with no known answer waits before a read showing the hold intact clears it. */
+export const IN_FLIGHT_GRACE_MS = 2 * 60_000;
+
+/**
+ * On a page load, after the fresh read: settles a capture or void whose answer was lost. PayPal's
+ * own state decides: the hold captured or voided means it happened; the hold still there after a
+ * grace period means it didn't. Without a good read nothing changes (code review, Nov 6).
+ */
+export async function resolveInFlight(deal: Deal, deps: HandoverDeps): Promise<Deal> {
+  const f = deal.handover?.inFlight;
+  const read = deal.payment?.read;
+  if (!f || !read?.ok || deal.payment?.failed) return deal;
+  const iso = nowOf(deps).toISOString();
+  if (f.kind === 'release' && read.authorizationStatus === 'CAPTURED' && read.captureId) {
+    await finish(deps, deal.id, { kind: 'released', at: f.at, by: 'buyer', debugId: read.debugId, captureId: read.captureId, captureStatus: read.captureStatus });
+    await deps.store.addReceipt({ dealId: deal.id, kind: 'handover.released', at: iso, data: { authorizationId: read.authorizationId ?? null, captureId: read.captureId, captureStatus: read.captureStatus ?? null, recovered: true, debugId: read.debugId ?? null } });
+  } else if (f.kind === 'void' && read.authorizationStatus === 'VOIDED') {
+    await finish(deps, deal.id, { kind: 'voided', at: f.at, by: f.by ?? 'buyer', debugId: read.debugId });
+    await deps.store.addReceipt({ dealId: deal.id, kind: 'handover.voided', at: iso, data: { authorizationId: read.authorizationId ?? null, by: f.by ?? null, status: 'VOIDED', recovered: true, debugId: read.debugId ?? null } });
+  } else if (read.authorizationStatus === 'CREATED' && Date.parse(read.at) - Date.parse(f.at) > IN_FLIGHT_GRACE_MS) {
+    const reason = f.kind === 'release' ? 'PayPal did not take the money' : 'PayPal did not release the hold';
+    await updateWithRetry(deps.store, deal.id, (d) => ({ ...d, handover: { ...d.handover, inFlight: undefined, failed: { kind: f.kind, at: iso, reason } } }));
+    await deps.store.addReceipt({ dealId: deal.id, kind: f.kind === 'release' ? 'handover.release_failed' : 'handover.void_failed', at: iso, data: { authorizationId: read.authorizationId ?? null, reason, recovered: true } });
+  } else return deal;
   return (await deps.store.getDeal(deal.id))?.value ?? deal;
 }

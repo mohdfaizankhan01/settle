@@ -9,7 +9,7 @@
 import { PaypalClient } from 'paypal';
 import recorded from '../../data/demo/recorded.json';
 import * as paypal from '../paypal';
-import { isHandoverDeal, moneyOf } from './card';
+import { moneyOf, paysByHold } from './card';
 import { customIdFor } from './checkout';
 import type { DealStore } from './store';
 import type { Deal } from './types';
@@ -26,7 +26,7 @@ export class DemoRefused extends Error {}
 
 /** The order PayPal would return for this demo deal, built from the recorded run. */
 export function replayedOrder(deal: Deal): paypal.Order {
-  if (isHandoverDeal(deal)) return replayedHoldOrder(deal);
+  if (paysByHold(deal)) return replayedHoldOrder(deal);
   const money = moneyOf(deal);
   const currency = deal.card.price?.value.currency ?? 'USD';
   const t = deal.shipping?.tracking;
@@ -137,7 +137,7 @@ export function replayPayPal(store: DealStore, dealId: string) {
   return {
     async getOrder(): Promise<paypal.WithDebugId<paypal.Order>> {
       const d = await current();
-      return { data: replayedOrder(d), debugId: rec(isHandoverDeal(d) ? recorded.hold.getDebugId : recorded.order.debugId) };
+      return { data: replayedOrder(d), debugId: rec(paysByHold(d) ? recorded.hold.getDebugId : recorded.order.debugId) };
     },
     // Meet-up demo deals: the recorded capture or void of the D4 hold. The handover code records
     // the outcome on the demo deal; the next replayed read shows it. Nothing reaches PayPal.

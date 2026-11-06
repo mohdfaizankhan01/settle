@@ -512,13 +512,6 @@ export function authorizeOrder(orderId: string, requestId: string): Promise<With
   return send<Order>('POST', `/v2/checkout/orders/${encodeURIComponent(orderId)}/authorize`, {}, requestId);
 }
 
-/** A fresh read of a hold, as the connected seller. */
-export function getAuthorization(authorizationId: string, sellerMerchantId: string): Promise<WithDebugId<Authorization>> {
-  return send<Authorization>('GET', `/v2/payments/authorizations/${encodeURIComponent(authorizationId)}`, undefined, undefined, {
-    'PayPal-Auth-Assertion': authAssertion(sellerMerchantId),
-  });
-}
-
 /** Takes the held money at the handover. Final: nothing more can be captured from this hold. */
 export function captureAuthorization(authorizationId: string, requestId: string, sellerMerchantId: string): Promise<WithDebugId<Capture>> {
   return send<Capture>('POST', `/v2/payments/authorizations/${encodeURIComponent(authorizationId)}/capture`, { final_capture: true }, requestId, {

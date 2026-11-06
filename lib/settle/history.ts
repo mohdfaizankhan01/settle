@@ -29,6 +29,7 @@ const BUYER_SEES = new Set([
   'dispute.read',
   // Meet-up mode: both sides see every step of the hold and the handover.
   'link.claimed',
+  'payer.claimed',
   'order.hold_requested',
   'handover.code_shown',
   'handover.blocked',
@@ -37,6 +38,7 @@ const BUYER_SEES = new Set([
   'handover.release_failed',
   'handover.voided',
   'handover.void_failed',
+  'handover.unknown',
 ]);
 
 const s = (v: unknown) => (typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v));
@@ -80,6 +82,8 @@ export function describe(r: Receipt, role: Role = 'seller'): string {
         : 'Scam memory: no reports match this deal now.';
     case 'warning.answered':
       return `The ${s(d.by)} answered "was this a scam?" for ${s(d.signal)}: ${s(d.verdict).replace('_', ' ')}.`;
+    case 'payer.claimed':
+      return "The buyer's device started the PayPal hold; only that device can place and release it.";
     case 'link.claimed':
       return `The ${s(d.role)}'s link was opened, and now works only on that device.`;
     case 'order.hold_requested':
@@ -98,6 +102,8 @@ export function describe(r: Receipt, role: Role = 'seller'): string {
       return d.by === 'meet_by_passed'
         ? "No handover within PayPal's 3-day hold, so Settle released it. The buyer was not charged."
         : `The ${s(d.by)} called it off and PayPal released the hold. The buyer was not charged.`;
+    case 'handover.unknown':
+      return `No answer from PayPal for the ${d.kind === 'release' ? 'capture' : 'release of the hold'}; Settle checks PayPal again before deciding.`;
     case 'handover.void_failed':
       return `Releasing the hold failed (${s(d.reason)}); the money is still held.`;
     case 'order.capture_requested':

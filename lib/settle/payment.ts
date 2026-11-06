@@ -6,7 +6,7 @@
 // callbacks, screenshots and emails never count. Any error leaves the deal unconfirmed.
 
 import * as paypal from '../paypal';
-import { isHandoverDeal } from './card';
+import { paysByHold } from './card';
 import { orderMismatches } from './checkout';
 import { dealOfDisputeEvent, refreshDispute, type DisputePayPal } from './disputes';
 import { paypalFor } from './demo-paypal';
@@ -50,7 +50,7 @@ export function readOrder(deal: Deal, order: paypal.Order, at: string, debugId?:
   // capture Settle didn't record, e.g. taken in PayPal's own dashboard, never counts as paid.
   const h = deal.handover;
   // Only a release in flight may briefly show a capture Settle hasn't recorded yet; never a void.
-  if (capture && isHandoverDeal(deal) && h?.inFlight?.kind !== 'release' && !(h?.outcome?.kind === 'released' && h.outcome.captureId === capture.id)) {
+  if (capture && paysByHold(deal) && h?.inFlight?.kind !== 'release' && !(h?.outcome?.kind === 'released' && h.outcome.captureId === capture.id)) {
     mismatches.push("the money was taken without the buyer's handover confirmation");
   }
   const auths = order.purchase_units?.[0]?.payments?.authorizations ?? [];

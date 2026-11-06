@@ -96,7 +96,7 @@ async function heldDeal(store: MemoryDealStore) {
   const { after } = await updateWithRetry(store, l.dealId, (d) => ({
     ...d,
     demo: { session: 'attack-lab', scenario: 'attack', seededAt: new Date().toISOString() },
-    order: { id: RECORDED.hold.orderId, cardHash: cardHash(d), createdAt: new Date().toISOString(), status: 'HOLD_REQUESTED' },
+    order: { id: RECORDED.hold.orderId, cardHash: cardHash(d), createdAt: new Date().toISOString(), status: 'HOLD_REQUESTED', intent: 'AUTHORIZE' },
     handover: { payer: { hash: payerHash(payer), at: new Date().toISOString() } },
   }));
   if (after.card.delivery?.value !== 'meetup') throw new Error('the attack deal is not a meet-up');

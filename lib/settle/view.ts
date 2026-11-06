@@ -2,7 +2,7 @@
 // with its advice template, citations and the message it was found in. Wording rules
 // (DECISIONS #7): "No warning signs found" only when the check ran; never "safe".
 
-import { blockers, cardHash, formatMoney, isHandoverDeal, isLocked, moneyOf } from './card';
+import { blockers, cardHash, formatMoney, isHandoverDeal, isLocked, moneyOf, paysByHold } from './card';
 import { CARRIERS } from './carriers';
 import { HOLD_REPLAY_NOTE, REPLAY_NOTE } from './demo-paypal';
 import { caseFile, REASON_LABELS } from './case-file';
@@ -136,7 +136,7 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
     // warning check ran and which model ran it.
     realness: {
       mode: deal.demo ? ('judge' as const) : ('live' as const),
-      paypal: deal.demo ? (isHandoverDeal(deal) ? HOLD_REPLAY_NOTE : REPLAY_NOTE) : 'PayPal: live calls to the PayPal sandbox. No real money moves.',
+      paypal: deal.demo ? (paysByHold(deal) ? HOLD_REPLAY_NOTE : REPLAY_NOTE) : 'PayPal: live calls to the PayPal sandbox. No real money moves.',
       check:
         deal.check.status === 'ran'
           ? `Warning check: ran on ${deal.check.at.slice(0, 10)} with ${deal.check.model?.startsWith('jev') ? 'Jev (TypeSafe)' : `Settle Link's own model (${deal.check.model ?? 'local'})`} plus keyword rules, over a redacted copy of the chat.`
@@ -197,12 +197,14 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
 }
 
 /** Meet-up deals (DECISIONS #20): where the hold and the handover stand, for both sides. */
-function handoverView(deal: Deal, role: Role) {
+function handoverView(deal: Deal) {
   const h = deal.handover;
   const total = moneyOf(deal) ? formatMoney(moneyOf(deal)!.total, CURRENCY_OF[deal.country]) : null;
   const deadline = holdDeadline(deal);
   // Released but not COMPLETED (e.g. PENDING): the money hasn't moved, so it isn't "handed over".
-  const pending = h?.outcome?.kind === 'released' && h.outcome.captureStatus !== undefined && h.outcome.captureStatus !== 'COMPLETED';
+  // Released, but not yet confirmed the way every payment is (verified webhook plus a fresh read):
+  // nobody is told to hand over until it is (code review: a capture answer alone isn't enough).
+  const pending = h?.outcome?.kind === 'released' && !(isPaid(deal) && !readFailedLast(deal));
   const state = pending ? 'pending' : (h?.outcome?.kind ?? (h?.inFlight ? (h.inFlight.kind === 'release' ? 'releasing' : 'releasing_hold') : isHeld(deal) ? 'held' : 'waiting'));
   return {
     state,
@@ -215,9 +217,7 @@ function handoverView(deal: Deal, role: Role) {
     debugId: h?.outcome?.debugId ?? null,
     failed: h?.failed ? { kind: h.failed.kind, reason: h.failed.reason, at: h.failed.at, debugId: h.failed.debugId ?? null } : null,
     // A code shown in the last few minutes, so the seller's screen can say one is live.
-    codeLive: role === 'seller' && !!h?.token && Date.parse(h.token.expiresAt) > Date.now(),
     codeMinutes: CODE_TTL_MS / 60_000,
-    canShowCode: role === 'seller' && isHeld(deal),
     canCancel: isHeld(deal),
   };
 }
@@ -227,7 +227,7 @@ function afterPaymentView(deal: Deal, role: Role, receipts: readonly Receipt[]) 
   const paid = isPaid(deal) && !readFailedLast(deal);
   const c = CURRENCY_OF[deal.country];
   const estimate = moneyOf(deal)?.fee;
-  const handover = isHandoverDeal(deal) ? handoverView(deal, role) : null;
+  const handover = paysByHold(deal) ? handoverView(deal) : null;
   const total = moneyOf(deal) ? formatMoney(moneyOf(deal)!.total, c) : '';
   const holdPayment =
     !handover || paid || readFailedLast(deal)
@@ -235,7 +235,9 @@ function afterPaymentView(deal: Deal, role: Role, receipts: readonly Receipt[]) 
       : handover.state === 'voided'
         ? { state: 'voided' as const, text: 'PayPal released the hold. The buyer was not charged.' }
         : handover.state === 'pending'
-          ? { state: 'problem' as const, text: `PayPal shows the payment as ${handover.captureStatus}, not completed. Don't hand the item over until it is.` }
+          ? handover.captureStatus && handover.captureStatus !== 'COMPLETED'
+            ? { state: 'problem' as const, text: `PayPal shows the payment as ${handover.captureStatus}, not completed. Don't hand the item over until it is.` }
+            : { state: 'waiting' as const, text: "The buyer confirmed and PayPal took the money. Waiting for PayPal's verified payment notification: don't hand the item over until this page says Handed over." }
         : handover.state === 'released'
           ? { state: 'waiting' as const, text: "The money was taken at the handover. Waiting for PayPal's verified payment notification before it counts." }
           : handover.state === 'held' || handover.state === 'releasing' || handover.state === 'releasing_hold'

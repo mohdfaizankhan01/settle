@@ -90,7 +90,7 @@ Related hackathon entries we looked at: AI-verified escrow on PayPal holds (for 
 
 ## Proof
 
-- **222 tests** (`npm test`), with PayPal and the model mocked, and a Playwright walk of the judge path on the deployed app (`npm run e2e`).
+- **226 tests** (`npm test`), with PayPal and the model mocked, and a Playwright walk of the judge path on the deployed app (`npm run e2e`).
 - **10 of 10 attacks stopped** on [/demo/attacks](https://settle-ulya.onrender.com/demo/attacks), each tied to a named test.
 - **Warning check on 73 held-out chats** (model plus rules): precision 67%, recall 92%, versus 33% recall for keyword rules alone. Weakest: "ship somewhere else" (recall 60%) and "move to another app" (67%). A missed warning never makes a deal safe: payment and shipping are still checked against PayPal's records.
 - **Live sandbox runs** with PayPal debug IDs in [`docs/SPIKES.md`](docs/SPIKES.md): seller onboarding, capture, tracking, refunds, a dispute answered with an evidence PDF, and a full meet-up (hold, QR handover, capture), each confirmed by verified webhooks.
@@ -108,7 +108,7 @@ Related hackathon entries we looked at: AI-verified escrow on PayPal holds (for 
 - The warning check is trained and tested on chats we wrote; real chats will be messier.
 - In-person handovers stay outside PayPal Seller Protection and Item Not Received; meet-up mode makes the payment real before you meet, it doesn't add cover.
 - Sharing a chat *into* Settle Link works on Android (installed from Chrome's menu); on iPhone, copy and paste. Link previews work everywhere.
-- Scam memory matches the same script word for word (after names, prices and links are removed), not reworded versions, and needs two reporting deals before it says anything.
+- Scam memory matches the same script word for word (after names, prices and links are removed), not reworded versions, and needs two reporting deals before it says anything. Two deals aren't proof of two different people: one person could make two deals and report a script. That's why memory only adds a caution and never blocks.
 - A deal link locks to the first device that opens it; switching phones means asking for a new link.
 
 ## Tools used

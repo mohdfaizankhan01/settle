@@ -4,7 +4,7 @@
 // contact details, addresses or warnings (warnings are for one side only). Pure, so it's easy to
 // test that nothing else leaks.
 
-import { formatMoney, isHandoverDeal, isLocked, moneyOf } from './card';
+import { formatMoney, isLocked, moneyOf, paysByHold } from './card';
 import { isHeld } from './handover';
 import { redactChat } from './redact';
 import { isPaid } from './ship-gate';
@@ -54,7 +54,7 @@ export function previewItem(deal: Deal): string | null {
 export function previewStatus(deal: Deal): string {
   const h = deal.handover;
   if (h?.outcome?.kind === 'voided') return 'Called off: PayPal released the hold';
-  if (isPaid(deal)) return isHandoverDeal(deal) ? 'Handed over and paid through PayPal' : 'Paid through PayPal';
+  if (isPaid(deal)) return paysByHold(deal) ? 'Handed over and paid through PayPal' : 'Paid through PayPal';
   if (isHeld(deal)) return 'Held by PayPal for the meet-up';
   if (deal.order && deal.order.status !== 'CREATED') return 'Waiting for PayPal to confirm';
   if ((deal.declines ?? []).length > 0) return 'Declined by one side';

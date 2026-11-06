@@ -109,7 +109,7 @@ async function seedOne(store: DealStore, session: string, s: Scenario, start: Da
     keys.payer = newPayerSecret();
     const { after } = await updateWithRetry(store, deal.id, (d) => ({
       ...d,
-      order: { id: RECORDED.hold.orderId, cardHash: cardHash(d), createdAt: at.toISOString(), status: 'HOLD_REQUESTED', debugId: `rec-${RECORDED.hold.authorizeDebugId}` },
+      order: { id: RECORDED.hold.orderId, cardHash: cardHash(d), createdAt: at.toISOString(), status: 'HOLD_REQUESTED', debugId: `rec-${RECORDED.hold.authorizeDebugId}`, intent: 'AUTHORIZE' },
       handover: { payer: { hash: payerHash(keys.payer!), at: at.toISOString() } },
     }));
     await store.addReceipt({ dealId: deal.id, kind: 'order.created', at: at.toISOString(), data: { orderId: RECORDED.hold.orderId, cardHash: cardHash(after), replayed: true, debugId: `rec-${RECORDED.hold.authorizeDebugId}` } });

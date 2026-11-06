@@ -75,7 +75,8 @@ export type Decline = { role: Role; at: string; reason: DeclineReason };
 
 export type Confirmation = { role: Role; at: string; cardHash: string };
 
-export type PaymentOrder = { id: string; cardHash: string; createdAt: string; status: string; debugId?: string };
+/** intent: AUTHORIZE for a meet-up hold (DECISIONS #20). Orders from before Nov 5 have none: CAPTURE. */
+export type PaymentOrder = { id: string; cardHash: string; createdAt: string; status: string; debugId?: string; intent?: 'CAPTURE' | 'AUTHORIZE' };
 
 /** The shipping address PayPal holds for the payment (SP-ADDR). Shown to the seller only. */
 export type ShipTo = { name?: string; lines: string[]; postalCode?: string; countryCode?: string };
@@ -159,7 +160,7 @@ export type Handover = {
   payer?: { hash: string; at: string };
   token?: { hash: string; createdAt: string; expiresAt: string };
   /** A capture or void sent to PayPal whose answer isn't recorded yet. A re-read decides. */
-  inFlight?: { kind: 'release' | 'void'; at: string };
+  inFlight?: { kind: 'release' | 'void'; at: string; by?: 'buyer' | 'seller' | 'meet_by_passed' };
   /** captureStatus: PayPal's status for the capture; only COMPLETED means the money moved. */
   outcome?: { kind: 'released' | 'voided'; at: string; by: 'buyer' | 'seller' | 'meet_by_passed'; debugId?: string; captureId?: string; captureStatus?: string };
   /** The last capture or void PayPal refused, shown to both sides. */

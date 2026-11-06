@@ -3,7 +3,7 @@
 // recommended 7 days after payment, SP-SHIP-TIME), delivery, and the dispute's response window.
 // Each row is coloured by the ship check. Pure: built from the deals, nothing is invented.
 
-import { isHandoverDeal } from './card';
+import { paysByHold } from './card';
 import { REASON_LABELS } from './case-file';
 import { holdDeadline, HOLD_DAYS, isHeld } from './handover';
 import { isPaid, shipGate } from './ship-gate';
@@ -23,7 +23,7 @@ export function rowStatus(deal: Deal): { status: string; colour: string } {
     const warned = deal.warnings.some((w) => shownTo(w.audience, 'seller') || shownTo(w.audience, 'buyer'));
     return warned ? { status: 'Warning before payment', colour: 'orange' } : { status: 'Before payment', colour: 'blue' };
   }
-  if (isHandoverDeal(deal)) {
+  if (paysByHold(deal)) {
     const o = deal.handover?.outcome?.kind;
     if (o === 'released') return { status: 'Handed over', colour: 'green' };
     if (o === 'voided') return { status: 'Called off: hold released', colour: 'blue' };

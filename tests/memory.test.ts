@@ -36,7 +36,7 @@ test('the same scam script, reported by two other deals, warns the next seller; 
   const second = await deal(store, 'Lee', 'Kim', 120);
   await answerWarning(second.id, second.keys.seller, 'fake_payment_proof', 'scam', second.deps);
   // Different names and prices, same script: matched.
-  const v = await refreshMemory(await victim.get(), { store, now });
+  const v = await refreshMemory(await victim.get(), { store, now }, true);
   assert.equal(v.memory?.hits.length, 1);
   assert.deepEqual([v.memory!.hits[0].kind, v.memory!.hits[0].about, v.memory!.hits[0].count], ['message', 'buyer', 2]);
 

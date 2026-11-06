@@ -78,7 +78,7 @@ export function HandoverPanel({ dealId, role, h, judge, busy, act }: { dealId: s
           {h.state === 'held'
             ? `PayPal holds ${h.total}`
             : h.state === 'pending'
-              ? 'Not completed yet: keep the item'
+              ? 'Not confirmed yet: keep the item'
             : h.state === 'released'
               ? 'Handed over'
               : h.state === 'voided'
@@ -93,7 +93,9 @@ export function HandoverPanel({ dealId, role, h, judge, busy, act }: { dealId: s
               ? "The money is on the buyer's account, held by PayPal. It is taken only when the buyer scans your code and confirms. Hand the item over when this page, on your own phone, says Handed over: never on the buyer's screen, which could be faked."
               : `PayPal holds the money on your account. Nothing is taken until you've checked the item and scanned the seller's code.`
             : h.state === 'pending'
-              ? `The buyer confirmed on ${when(h.at)}, but PayPal shows the payment as ${h.captureStatus}. Don't hand the item over until this page says Handed over.`
+              ? h.captureStatus && h.captureStatus !== 'COMPLETED'
+                ? `The buyer confirmed on ${when(h.at)}, but PayPal shows the payment as ${h.captureStatus}. Don't hand the item over until this page says Handed over.`
+                : `The buyer confirmed on ${when(h.at)}. Waiting for PayPal's verified confirmation, usually seconds: don't hand the item over until this page says Handed over.`
             : h.state === 'released'
               ? `The buyer scanned the code on ${when(h.at)} and PayPal took the money. You can hand the item over.`
               : h.state === 'voided'
