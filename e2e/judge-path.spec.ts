@@ -19,7 +19,7 @@ test('a judge walks from the home page through every deal state', async ({ page 
 
   // A fresh private session with seven demo deals.
   await page.getByRole('button', { name: /Start judge mode|Start over with fresh deals/ }).click();
-  await expect(page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button')).toHaveCount(6, { timeout: 90_000 });
+  await expect(page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button')).toHaveCount(7, { timeout: 90_000 });
 
   // 1. The buyer is warned about Friends and Family, and every pane says what is real.
   await openDeal(page, 'Buyer warned about Friends and Family');
@@ -31,6 +31,9 @@ test('a judge walks from the home page through every deal state', async ({ page 
   // 2. The seller is warned about a fake payment email.
   await openDeal(page, 'Seller warned about a fake payment email');
   await expect(pane(page, 'Seller').getByText('"PayPal is holding your money" story')).toBeVisible();
+  // Scam memory: the same script was reported by two earlier (seeded) deals.
+  await expect(pane(page, 'Seller').getByText('This message was reported before')).toBeVisible();
+  await expect(pane(page, 'Seller').getByText(/seeded demo data/)).toBeVisible();
 
   // 3. Confirmed and waiting: judge mode never takes a payment.
   await openDeal(page, 'Confirmed, waiting for payment');
@@ -46,7 +49,23 @@ test('a judge walks from the home page through every deal state', async ({ page 
   await expect(holdSeller.getByRole('heading', { name: "Hold: don't ship yet" })).toBeVisible();
   await expect(holdSeller.getByText(/asks to ship somewhere else/).first()).toBeVisible();
 
-  // 6. A dispute: case file, advice, the exact request, then approve and send (replayed).
+  // 6. Meet-up: PayPal holds the money; the seller shows a code; the buyer's scan releases it.
+  await openDeal(page, 'Meet-up: PayPal holds the money until the handover');
+  const meetSeller = pane(page, 'Seller');
+  await expect(meetSeller.getByRole('heading', { name: 'PayPal holds $380.00' })).toBeVisible();
+  await meetSeller.getByRole('button', { name: 'Show handover code' }).click();
+  await expect(meetSeller.getByRole('img', { name: 'Handover code for the buyer to scan' })).toBeVisible();
+  const scanUrl = await meetSeller.getByRole('link', { name: 'open the scan as the buyer' }).getAttribute('href');
+  const scan = await page.context().newPage();
+  await scan.goto(scanUrl!);
+  await scan.getByRole('button', { name: /I've checked it: pay \$380\.00/ }).click();
+  await expect(scan.getByText('Payment sent through PayPal')).toBeVisible();
+  await scan.close();
+  await page.reload();
+  await openDeal(page, 'Meet-up: PayPal holds the money until the handover');
+  await expect(pane(page, 'Seller').getByRole('heading', { name: 'Handed over' })).toBeVisible({ timeout: 30_000 });
+
+  // 7. A dispute: case file, advice, the exact request, then approve and send (replayed).
   await openDeal(page, 'A dispute with its evidence pack');
   const seller = pane(page, 'Seller');
   await expect(seller.getByText(/Settle's advice: answer with your evidence/)).toBeVisible();
@@ -65,7 +84,7 @@ test('a judge walks from the home page through every deal state', async ({ page 
 test('the seller timeline, the attack lab and the proof page', async ({ page }) => {
   await page.goto('/demo');
   await page.getByRole('button', { name: /Start judge mode|Start over with fresh deals/ }).click();
-  await expect(page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button')).toHaveCount(6, { timeout: 90_000 });
+  await expect(page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button')).toHaveCount(7, { timeout: 90_000 });
 
   await page.getByRole('link', { name: 'Seller timeline' }).click();
   await expect(page.getByRole('heading', { name: 'Seller timeline' })).toBeVisible();
@@ -76,7 +95,7 @@ test('the seller timeline, the attack lab and the proof page', async ({ page }) 
 
   await page.goto('/demo/attacks');
   await page.getByRole('button', { name: 'Run the attacks' }).click();
-  await expect(page.getByRole('status')).toContainText('7 of 7 stopped', { timeout: 90_000 });
+  await expect(page.getByRole('status')).toContainText('10 of 10 stopped', { timeout: 90_000 });
 
   await page.goto('/proof');
   await expect(page.getByRole('heading', { name: 'How often the warning check is right' })).toBeVisible();
