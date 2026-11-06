@@ -9,7 +9,7 @@ const STEPS = [
   { title: 'Paste the chat', text: 'Settle reads a redacted copy, finds the item, price and delivery, and explains anything risky, like being asked to pay as Friends and Family.' },
   { title: 'Both confirm one card', text: 'Buyer and seller each confirm the same card. It is locked by its fingerprint; any change clears both confirmations.' },
   { title: 'Pay through PayPal checkout', text: "The buyer pays the card's exact total to the seller's own PayPal account. Settle never holds the money." },
-  { title: 'Ship when the checks pass', text: 'Payment counts only when a verified PayPal webhook and a fresh read of the order agree. A new address after payment holds the parcel.' },
+  { title: 'Ship when the checks pass, or meet up', text: 'Payment counts only when a verified PayPal webhook and a fresh read of the order agree. A new address after payment holds the parcel. For a meet-up, PayPal holds the money until the buyer checks the item and scans the seller\'s code.' },
   { title: 'Answer a dispute from the record', text: 'The case file, honest advice and an evidence pack come from what happened. The seller approves the exact response; PayPal decides.' },
 ];
 

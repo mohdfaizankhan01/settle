@@ -53,8 +53,9 @@ export class PgDealStore implements DealStore {
   constructor(private sql: Sql) {}
 
   static fromUrl(url: string) {
-    // Render's external URL needs TLS; its internal URL works with or without.
-    return new PgDealStore(postgres(url, { max: 5, ssl: url.includes('render.com') ? 'require' : undefined }));
+    // Render's external URL and Neon (DECISIONS #21) need TLS; Render's internal URL works with or without.
+    const tls = url.includes('render.com') || url.includes('neon.tech') || url.includes('sslmode=require');
+    return new PgDealStore(postgres(url, { max: 5, ssl: tls ? 'require' : undefined }));
   }
 
   private schema() {

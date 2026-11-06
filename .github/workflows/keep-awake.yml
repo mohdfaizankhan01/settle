@@ -1,0 +1,19 @@
+# Keeps the free Render instance awake so judges never wait about a minute for it to start
+# (PLAN M6 MUST). Render's free plan sleeps after 15 minutes without traffic; this loads the home
+# page every 10 minutes. GitHub runs scheduled jobs on a best-effort basis, so a run can be late.
+name: Keep the demo awake
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Load the home page
+        run: curl --fail --silent --show-error --output /dev/null --retry 3 --retry-delay 20 --max-time 90 https://settle-ulya.onrender.com/
