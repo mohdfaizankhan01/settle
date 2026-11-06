@@ -1,10 +1,10 @@
 # PayPal seller fees Settle shows
 
-Source for the deal card's fee term (problem statement, build change 4). Code computes the fee from this table; no model touches a number. Retrieved **2026-10-30** with `curl` from PayPal's own pages. Re-check on Nov 9 together with `protection-terms.md`.
+Source for the deal card's fee term (problem statement, build change 4). Code computes the fee from this table; no model touches a number. Retrieved **2026-10-30** with `curl` from PayPal's own pages. **Re-checked 2026-11-06:** the US page now says "Last Updated: November 4, 2026", but both rates below are unchanged (PayPal Checkout 3.49% + 0.49 USD; UK 2.9% + 0.30 GBP).
 
 | Key | Page | Updated |
 | --- | --- | --- |
-| US-FEES | [US merchant fees](https://www.paypal.com/us/business/paypal-business-fees) | "Last Updated: October 1, 2026" |
+| US-FEES | [US merchant fees](https://www.paypal.com/us/business/paypal-business-fees) | "Last Updated: November 4, 2026" (was October 1, 2026) |
 | UK-FEES | [UK merchant fees](https://www.paypal.com/uk/business/paypal-business-fees) | "Last Updated: 1, October 2026" |
 
 | ID | Country | Rate Settle uses | Row on PayPal's page |

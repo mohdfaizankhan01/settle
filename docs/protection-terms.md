@@ -2,13 +2,13 @@
 
 Source of truth for the ship gate (M3) and the dispute proof checklist (M4). Every check in code cites a row ID from this file. Quotes are verbatim from PayPal's own pages: all 62 were machine-checked against the downloaded text, apart from curly vs straight quote marks. "…" marks a cut. Nothing here is from memory.
 
-Retrieved **2026-10-18** with `curl` from these pages. "Updated" is the date printed on the page.
+Retrieved **2026-10-18** with `curl` from these pages. "Updated" is the date printed on the page. **Re-checked 2026-11-06:** every PayPal quote below is still on its page word for word; only the US User Agreement changed date (now November 4, 2026), and its quoted Friends and Family rules are unchanged.
 
 | Key | Page | Updated |
 | --- | --- | --- |
 | US-SP | [US Seller Protection program](https://www.paypal.com/us/legalhub/paypal/seller-protection) | January 26, 2026 |
 | US-PP | [US Purchase Protection program](https://www.paypal.com/us/legalhub/paypal/buyer-protection) | January 26, 2026 |
-| US-UA | [US User Agreement](https://www.paypal.com/us/legalhub/paypal/useragreement-full) | September 14, 2026 |
+| US-UA | [US User Agreement](https://www.paypal.com/us/legalhub/paypal/useragreement-full) | November 4, 2026 (was September 14, 2026 on Oct 18) |
 | UK-SP | [UK Seller Protection program](https://www.paypal.com/uk/legalhub/paypal/seller-protection) | 12 October 2026 |
 | UK-BP | [UK Buyer Protection program](https://www.paypal.com/uk/legalhub/paypal/buyer-protection) | 12 October 2026 |
 | UK-UA | [UK User Agreement](https://www.paypal.com/uk/legalhub/paypal/useragreement-full) | 12 October 2026 |
@@ -49,8 +49,8 @@ Settle check (ID **SP-EXCLUDED**): an item on the card that matches a vehicle, g
 
 | ID | Requirement | US clause (US-PP, US-UA) | UK clause (UK-BP, UK-UA) | How Settle uses it |
 | --- | --- | --- | --- | --- |
-| PP-FF | Friends and Family isn't covered | US-PP Ineligible: "Personal Payments including payments sent using PayPal's friends and family functionality." US-UA (Send Money): "You must not send money as a personal transaction (often referred to as using the 'Send Money to a Friend or Family Member' feature in your PayPal account) when you are paying for goods or services." | UK-BP Ineligible: same wording ("friend and family"). UK-UA: "Where you send money from your PayPal account to another PayPal account as a 'friends and family' payment, you are not entitled to be refunded under either the rules or the Buyer Protection Program." | Buyer warning when the chat asks for F&F or "as a gift". |
-| PP-SELLER-FF | Sellers must not ask for F&F | US-UA, Receiving payments: "Not ask your buyer to send you money as a personal transaction (often referred to as using the 'Send Money to a Friend or Family Member' feature)." | UK-UA, Restricted Activities: "Request or send a personal transaction payment for a commercial transaction." | Same signal, quoted to the seller too: asking for F&F breaks PayPal's terms. |
+| PP-FF | Friends and Family isn't covered | US-PP Ineligible: "Personal Payments including payments sent using PayPal's friends and family functionality." US-UA (Send Money): "You must not send money as a personal transaction (often referred to as using the "Send Money to a Friend or Family Member" feature in your PayPal account) when you are paying for goods or services." | UK-BP Ineligible: same wording ("friend and family"). UK-UA: "Where you send money from your PayPal account to another PayPal account as a "friends and family" payment, you are not entitled to be refunded under either the rules or the Buyer Protection Program." | Buyer warning when the chat asks for F&F or "as a gift". |
+| PP-SELLER-FF | Sellers must not ask for F&F | US-UA, Receiving payments: "Not ask your buyer to send you money as a personal transaction (often referred to as using the "Send Money to a Friend or Family Member" feature)." | UK-UA, Restricted Activities: "Request or send a personal transaction payment for a commercial transaction." | Same signal, quoted to the seller too: asking for F&F breaks PayPal's terms. |
 | PP-OFF-PAYPAL | Must pay from the buyer's PayPal account | US-PP Eligibility: "Pay for the eligible item from your PayPal account." Ineligible: "Payments that you have not sent using your PayPal account." | UK-BP: same wording | Off-PayPal payment (bank transfer, Zelle, Cash App, crypto, gift cards, other payment links) → buyer warning. The only payment path is Settle's PayPal checkout. |
 | PP-COVERS | What's covered | "Item Not Received" and "Significantly Not as Described" claims | Same | Settle's own buyer-side wording (not a PayPal quote): "Paying through this checkout keeps the payment eligible to be considered under PayPal's program; PayPal decides." |
 | PP-COLLECT | Collection in person isn't covered for Item Not Received | US-PP: "your purchase is not eligible for Item Not Received claims if you use PayPal or PayPal World to pay in person, or if you order online, but collect the item in person, or arrange for it to be collected on your behalf." | UK-BP: "Item Not Received claims for physical, tangible items you collect in person or arrange to be collected on your behalf." | Card with "collect" or "meet up" delivery → buyer note: Item Not Received isn't covered for collection. |
