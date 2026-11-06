@@ -1,72 +1,148 @@
 # Settle Link
 
-**Nobody has to go first.** Strangers who agree a deal in a DM hit a standoff: the buyer won't pay first and the seller won't ship first. Scammers use that from both sides. Settle Link turns the chat into one deal link both sides confirm. The buyer pays through PayPal checkout, the PayPal order carries the agreed terms, the seller ships only once PayPal confirms the payment, and the record is on file if a dispute comes.
+**Nobody has to go first.** Strangers who agree a deal in a DM hit a standoff: the buyer won't pay first and the seller won't ship first. Scammers use that from both sides. Settle Link turns the chat into one deal link both people confirm. The buyer pays through PayPal checkout, the PayPal order carries the agreed terms, the seller ships (or hands over at a meet-up) only once PayPal itself confirms the money, and the record is on file if a dispute comes.
 
-Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). Everything runs on the PayPal sandbox: no real money moves.
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). **Everything runs on the PayPal sandbox: no real money moves.** Licensed under [MIT](LICENSE).
 
-Started from PayPal's [AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate) (Next.js, AG Grid, AG Studio, plain-fetch PayPal client). Its notes are kept below under "Boilerplate reference". Licensed under [MIT](LICENSE).
+## For judges: try it in 3 minutes
 
-## Problem
+**Live app:** https://settle-ulya.onrender.com (a keep-awake job pings it every 10 minutes; if it still sleeps, the first load takes about a minute).
 
-Casual buyers and sellers in the US and UK trade with strangers on Instagram, Facebook Marketplace and WhatsApp. Fake sellers push Friends and Family or a bank transfer, where PayPal's Purchase Protection doesn't apply. Fake buyers send a "payment received" screenshot or ask to ship to another address, which can cost the seller Seller Protection. PayPal's protections cover both sides, but only when the deal runs through PayPal checkout, on clear terms, and the seller ships the protected way.
+1. **[Judge mode](https://settle-ulya.onrender.com/demo)** → *Start judge mode*. You get seven private demo deals, buyer and seller side by side. Settle Link's own code runs live; PayPal is replayed from real sandbox runs, so nothing reaches PayPal.
+   - *Buyer warned about Friends and Family*: the warning quotes the exact message and the PayPal terms it breaks.
+   - *Seller warned about a fake payment email*: paste the "email" into *Got a payment received message?* and Settle answers from PayPal's record (not paid). Scam memory also recognises the script from two earlier (seeded) reports.
+   - *Paid and ready to ship* / *HOLD after an address change*: the ship check, with each rule cited.
+   - *Meet-up*: PayPal holds the money; the seller shows a QR code, you open the scan as the buyer, and only then is the money taken.
+   - *A dispute with its evidence pack*: the case file, honest advice, and the exact request the seller approves.
+2. **[Try to fool it](https://settle-ulya.onrender.com/demo/attacks)**: ten real attacks run against the real server code (10 of 10 stopped), each naming the rule and the test that stop it.
+3. **[Proof](https://settle-ulya.onrender.com/proof)**: how often the warning check is right, on chats it never trained on.
+4. **[Seller timeline](https://settle-ulya.onrender.com/demo/timeline)** (Bryntum Scheduler): every demo deal over time, coloured by its check.
 
-_TODO: sourced figures (FTC, UK Finance), checked against the primary reports._
+**A live sandbox deal**: paste a chat at [/check](https://settle-ulya.onrender.com/check). Paying needs a PayPal sandbox buyer login and the seller connecting a sandbox business account; the logins are in the Devpost testing notes.
 
-## Solution
+## The problem
 
-_TODO: screenshots._
+Casual buyers and sellers in the US and UK trade with strangers on Instagram, Facebook Marketplace and WhatsApp.
 
-1. **Deal link.** Either side pastes the chat. Settle Link reads the terms (item, price, delivery, ship-by date), shows the message each came from, and asks both sides anything it isn't sure of. It shows PayPal's fee and both sides agree who pays it. Both confirm; the card is locked by its SHA-256 hash. Either side can decline with a reason, which the other side sees first.
-2. **Warnings for both sides.** Friends and Family requests, payment outside PayPal, fake payment proof, "ship it to my cousin", instructions aimed at the AI, and more. The AI explains warnings; it never approves a payment or a shipment.
-3. **Pay with PayPal.** The server creates the order from the locked card (total, items, and `<dealId>:<hash>` in `custom_id`), never from the browser. The money goes to the seller's own PayPal account. Capture happens only after a fresh read of the order matches the card.
-4. **Ship gate** _(in progress)_. Payment counts as confirmed only after a verified PayPal webhook and a fresh order read. Anything else is Hold or Review.
-5. **Disputes** _(planned)_. Evidence comes from the record; the seller approves the exact request before it is sent.
+- In the US, people reported losing **$2.1 billion** to scams that started on social media in 2025, and **shopping scams were the most reported kind** ([FTC Data Spotlight, Apr 27, 2026](https://www.ftc.gov/news-events/data-visualizations/data-spotlight/2026/04/reported-losses-scams-social-media-eight-times-higher-2020)). The FTC adds that most scams aren't reported, so real losses are likely much higher.
+- In the UK, **purchase scams were 71% of authorised push payment scam cases** in 2025, and **66% of those cases started online** ([UK Finance, Jun 15, 2026](https://www.ukfinance.org.uk/news-and-insight/press-release/fraud-report-2026-press-release)).
+
+Fake sellers push Friends and Family or a bank transfer, where PayPal's Purchase Protection doesn't apply. Fake buyers send a "payment received" screenshot, or ask to ship to another address, which can cost the seller Seller Protection. PayPal's protections cover both sides, but only when the deal runs through PayPal checkout, on clear terms, and the seller ships the protected way. Settle Link keeps the deal on that path.
+
+## What it does
+
+1. **One deal link from the chat.** Either side pastes the chat (or, on Android, shares it straight from WhatsApp). Settle Link reads the item, price, delivery and dates, shows the message each came from, and asks both sides anything it isn't sure of. It shows PayPal's fee and both agree who pays it. Both confirm; the card is locked by its SHA-256 fingerprint. Either side can decline with a reason the other side sees first.
+2. **Warnings for both sides.** Friends and Family requests, payment outside PayPal, fake payment proof, "PayPal is holding your money", overpayment refunds, codes, "ship it to my cousin", moving off the chat, and instructions aimed at the AI. Each warning quotes its message and cites PayPal's terms. The AI explains; it never approves a payment or a shipment.
+3. **Pay with PayPal checkout.** The server builds the order from the locked card (total, items, and `<dealId>:<hash>` in `custom_id`), never from the browser. The money goes to the seller's own PayPal account, connected through Partner Referrals.
+4. **Ship gate.** Payment counts only after a verified PayPal webhook *and* a fresh read of the order that matches the card. The checklist (payment, address, delivery method, tracking, later messages) gives Ship, Hold or Review, citing [`docs/protection-terms.md`](docs/protection-terms.md). A new address after payment holds the parcel. Tracking goes to PayPal through PayPal's TypeScript SDK.
+5. **Meet-up mode.** For in-person deals, the buyer pays as a PayPal **hold** (`intent: AUTHORIZE`): PayPal keeps the money on the buyer's account, Settle never holds it. At the meet-up the seller shows a one-time QR code; the buyer checks the item, scans it on the phone that paid, and confirms; only then is the hold captured. Walking away, or no handover within PayPal's 3-day hold guarantee, releases it. The card still says plainly that in-person handovers aren't covered by Seller Protection.
+6. **Disputes from the record.** A verified dispute webhook opens a case file: what the record proves for that reason, honest advice (fight, refund, offer), and an evidence PDF. The seller sees the exact request and approves it before anything is sent; PayPal decides.
+7. **In the chat app.** A deal link pasted into WhatsApp, Messenger or iMessage shows a card with the item, price, delivery and status, and "Pay only through PayPal on this link. Never Friends and Family." No names, chat or contact details are in it.
+8. **Scam memory.** Declining because the other side wanted to leave PayPal, or answering "Was this a scam? Yes" on a warning, remembers that side's PayPal account, payer ID, postcode or exact script, as keyed one-way hashes only. A later deal reported by at least two other deals in the last 90 days gets a caution. It never blocks.
 
 ## How it works
 
-_TODO: architecture diagram._
+```mermaid
+flowchart LR
+  chat["Chat (pasted or shared)"] --> redact["Redaction<br/>names, contacts → placeholders"]
+  redact --> model["Settle Link's own model<br/>MiniLM + one classifier per warning"]
+  redact --> rules["Keyword rules"]
+  model --> card["Deal card<br/>terms in code, locked by hash"]
+  rules --> card
+  card -->|both confirm| order["PayPal order from the card<br/>custom_id = dealId:hash"]
+  order -->|CAPTURE, or AUTHORIZE for meet-ups| paypal[(PayPal sandbox)]
+  paypal -->|verified webhook| confirm["Fresh GET must match the card"]
+  confirm --> gate["Ship gate / handover"]
+  gate --> dispute["Dispute case file<br/>seller approves the exact request"]
+  card --> receipts[("Receipt hash chain")]
+  confirm --> receipts
+  gate --> receipts
+  dispute --> receipts
+```
 
-- **Redaction first**: names, emails, phone numbers, addresses and bank details are removed before any model sees the chat. Prices, dates and links become tokens whose values stay in code.
-- **Warning check**: Settle Link's own small model, plus keyword rules. Each redacted message becomes a MiniLM sentence embedding (quantized, run on our server with transformers.js), and one logistic-regression classifier per warning gives a probability (`lib/model`). No chat text goes to an AI provider. Trained on hand-written messages (`data/train-messages.jsonl`), thresholds picked by cross-validation on those messages, and tested on 73 separate chats it never trains on (`npm run eval`, results in `data/eval/`). A lighter model on word and character patterns is kept for comparison (`SETTLE_MODEL=a`). Fail closed: if the check can't run, nobody can confirm the card.
-- **PayPal** (sandbox): Orders v2, JS SDK v6, Partner Referrals (seller onboarding), webhooks with `verify-webhook-signature`, order tracking, Disputes API. All calls run on the server (`lib/paypal.ts`).
-- **Wording**: the UI says "no warning signs found", never "safe". Settle Link says which checks pass; PayPal decides eligibility. Every check cites `docs/protection-terms.md`; fees cite `docs/fees.md`.
-- **Receipts**: every decision writes a receipt into a hash chain.
+- **Redaction first.** Names, emails, phone numbers, addresses and bank details are removed before any model sees the chat. Prices, dates and links become tokens whose values stay in code.
+- **Settle Link's own AI.** Each redacted message becomes a MiniLM sentence embedding (quantized, run on our server with transformers.js); one logistic-regression classifier per warning gives a probability ([`lib/model`](lib/model)). Keyword rules add certainty where a phrase is unambiguous. No chat text goes to an AI provider. Fail closed: if the check can't run, nobody can confirm the card.
+- **PayPal decides, code checks.** Amounts, payee, fees and dates are handled in code. Payment counts only from a verified webhook plus a fresh GET; screenshots, emails and client callbacks never count.
+- **Receipts.** Every decision writes a receipt into a per-deal hash chain; the deal history shows whether it verifies.
+- **Links lock to the first device that opens them.** Whoever makes a deal gets both links, so each link works only on the device that first opened it; a meet-up hold can only be placed and released from the phone that paid.
 
-## Setup and run (for judges)
+## How it compares
 
-_TODO: live demo URL and sandbox test buyer login._
+| | PayPal alone | Escrow-style apps | Settle Link |
+| --- | --- | --- | --- |
+| Turns the chat into terms both sides confirm | No | Some | Yes, every term quotes its message |
+| Warns about scams in the chat, for both sides | No | Rarely | Yes, ten warnings, each citing PayPal's terms |
+| Who holds the money | PayPal | Often the app, or an AI decides release | PayPal only; meet-ups use a PayPal hold the buyer releases |
+| "Is this payment real?" | Your PayPal account | Varies | Answered from this deal's PayPal order, never a screenshot |
+| Disputes | Resolution Center | Varies | Evidence pack from the record; the seller approves the exact request |
 
-Requires Node.js 22 (`nvm use` reads `.nvmrc`) and a PayPal sandbox REST app of type Platform.
+Related hackathon entries we looked at: AI-verified escrow on PayPal holds (for example Safe Deal Link, which releases a hold after checking a delivery photo with AI), pre-payment scam shields (ScamShield, Hunch), and dispute desks (Rebuttal, DisputeShield). Settle Link connects the chat to the dispute in one record, keeps PayPal's protections in place for both sides, and never lets an AI release money.
+
+## What's real and what's simulated
+
+| Part | Live | Simulated |
+| --- | --- | --- |
+| PayPal (orders, holds, captures, webhooks, tracking, disputes) | Live PayPal **sandbox** on real deals | Replayed from recorded sandbox runs in judge mode, labelled on screen |
+| Warning check | Settle Link's own model and rules, on every chat | — |
+| Test chats on /proof | — | 73 chats we wrote; a sanity check, not a benchmark |
+| Scam memory | Real reports between real deals | Judge mode seeds two earlier reports, labelled |
+| Money | — | Sandbox only: no real money moves anywhere |
+
+## Proof
+
+- **222 tests** (`npm test`), with PayPal and the model mocked, and a Playwright walk of the judge path on the deployed app (`npm run e2e`).
+- **10 of 10 attacks stopped** on [/demo/attacks](https://settle-ulya.onrender.com/demo/attacks), each tied to a named test.
+- **Warning check on 73 held-out chats** (model plus rules): precision 67%, recall 92%, versus 33% recall for keyword rules alone. Weakest: "ship somewhere else" (recall 60%) and "move to another app" (67%). A missed warning never makes a deal safe: payment and shipping are still checked against PayPal's records.
+- **Live sandbox runs** with PayPal debug IDs in [`docs/SPIKES.md`](docs/SPIKES.md): seller onboarding, capture, tracking, refunds, a dispute answered with an evidence PDF, and a full meet-up (hold, QR handover, capture), each confirmed by verified webhooks.
+
+## Safety rules
+
+- PayPal sandbox only; all PayPal calls run on the server ([`lib/paypal.ts`](lib/paypal.ts)); secrets live in environment variables.
+- Settle Link never holds money and never says a deal is "safe" or "protected": it says which checks pass and that PayPal decides.
+- The AI only adds caution. It never approves a payment, a shipment or a handover, and never writes dispute text (that is templated from the record).
+- Any error means Hold or Review, never "safe".
+
+## Limitations
+
+- Sandbox only, on a free Render instance.
+- The warning check is trained and tested on chats we wrote; real chats will be messier.
+- In-person handovers stay outside PayPal Seller Protection and Item Not Received; meet-up mode makes the payment real before you meet, it doesn't add cover.
+- Sharing a chat *into* Settle Link works on Android (installed from Chrome's menu); on iPhone, copy and paste. Link previews work everywhere.
+- Scam memory matches the same script word for word (after names, prices and links are removed), not reworded versions, and needs two reporting deals before it says anything.
+- A deal link locks to the first device that opens it; switching phones means asking for a new link.
+
+## Tools used
+
+- **PayPal (sandbox):** Orders v2 (capture and authorize), Payments v2 (authorization capture and void), JS SDK v6, Partner Referrals and merchant-integrations (seller onboarding), Webhooks with `verify-webhook-signature`, Disputes API, order tracking through the **APIMatic**-generated PayPal TypeScript SDK.
+- **AI:** Settle Link's own warning model (MiniLM embeddings via transformers.js, logistic regression per warning, trained in this repo). Jev (TypeSafe) is supported behind `JEV_PROVIDER=typesafe` but wasn't used (no credits).
+- **Bryntum Scheduler** for the seller timeline. **Render** for hosting and Postgres. **pdf-lib** for evidence packs, **qrcode** for handover codes.
+- Built with **Claude Code**, using the PayPal plugin (best practices, sandbox MCP), the APIMatic context plugin for PayPal, the Render plugin, Playwright, and code and security review plugins.
+- Started from PayPal's [AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate) (Next.js, AG Grid, AG Studio); its data pages are kept for local development only.
+
+## Run it yourself
+
+Requires Node.js 22 (`nvm use` reads `.nvmrc`), a PayPal sandbox REST app of type **Platform**, and Postgres (optional locally: without `DATABASE_URL`, development uses an in-memory store).
 
 ```bash
-git clone <repo-url> settle && cd settle
+git clone https://github.com/mohdfaizankhan01/settle.git && cd settle
 nvm use
 npm install
 npm run model:fetch         # once: downloads the 24 MB MiniLM model into ./models
 cp env.example .env.local   # fill in PAYPAL_CLIENT_ID, PAYPAL_SECRET and the others
-npm run dev                 # http://localhost:3000, then open /check
-npm test                    # unit tests, the AI check and PayPal mocked
+npm run dev                 # http://localhost:3000, then open /demo or /check
+npm test                    # unit tests, with PayPal and the model mocked
 ```
 
-_TODO: webhook setup for local runs, seed data, demo walkthrough._
+- **Webhooks** need a public URL: deploy (see [`render.yaml`](render.yaml)) or tunnel, register `<host>/api/paypal/webhook` in the sandbox app with the payment, authorization, dispute and onboarding events, and put its ID in `PAYPAL_WEBHOOK_ID`.
+- **Scam memory** needs `SETTLE_MEMORY_KEY` (at least 32 random characters) in production; without it, memory is off.
+- **Retrain the model:** `npm run model:train`, then `npm run eval` (never train on `data/test-chats.jsonl`). `npm run proof` refreshes the numbers on /proof.
 
-## Tools used
+## Team setup (Claude Code)
 
-- **PayPal APIs**: Orders v2, JS SDK v6, Partner Referrals, Webhooks, Disputes (sandbox).
-- **AI**: Settle Link's own warning model (see How it works). Jev (TypeSafe) is supported behind `JEV_PROVIDER=typesafe`.
-- **Bryntum Scheduler** for the seller's deal timeline: payment, ship-by window and dispute deadlines (planned).
-- **APIMatic context plugin for PayPal** in Claude Code while building the PayPal integration (from M3 on).
-- **Render** for hosting and Postgres.
-- Built with Claude Code; plugins listed under Team setup.
-
-## Team setup
-
-Each teammate runs these once from the repo root. The project-scope plugins are listed in `.claude/settings.json` and `ag-mcp` in `.mcp.json`, so these lines just fetch them.
+The project-scope plugins are listed in `.claude/settings.json` and `ag-mcp` in `.mcp.json`. Each teammate runs once:
 
 ```bash
-# Only if `claude plugin marketplace list` doesn't already show claude-plugins-official
-claude plugin marketplace add anthropics/claude-plugins-official
-
+claude plugin marketplace add anthropics/claude-plugins-official   # if not already listed
 claude plugin marketplace add typesafe-ai/skills
 claude plugin install paypal@claude-plugins-official --scope project
 claude plugin install typesafe@typesafe-ai --scope project
@@ -75,97 +151,11 @@ claude plugin install security-guidance@claude-plugins-official --scope project
 claude plugin install frontend-design@claude-plugins-official --scope project
 claude plugin install playwright@claude-plugins-official --scope project
 claude plugin install code-review@claude-plugins-official --scope project
-claude mcp add --scope project ag-mcp -- npx ag-mcp   # already in .mcp.json; skip if present
-npx context-plugins install paypal --targets claude -y  # APIMatic PayPal SDK skills (installs at user scope)
+npx context-plugins install paypal --targets claude -y   # APIMatic PayPal SDK skills (user scope)
 ```
 
-The APIMatic context plugin for PayPal is **enabled** from M3 on (sponsor decision, Oct 30): it gives Claude Code PayPal API context while we build tracking, capture and disputes. It adds about 5k tokens to every session and installs at user scope, so `claude plugin disable paypal@context-plugins` turns it off for all your projects.
+Then put sandbox keys in `.env.local`, a sandbox access token in your **user** settings as `env.PAYPAL_SANDBOX_ACCESS_TOKEN` (`/paypal:setup` does this), and restart Claude Code.
 
-Then:
+## Appendix: boilerplate data pages
 
-1. Put your sandbox keys in `.env.local` (see `env.example`). It is git-ignored.
-2. Put a sandbox access token in **your user** settings (`~/.claude/settings.json`, never the repo) as `env.PAYPAL_SANDBOX_ACCESS_TOKEN`, for the paypal plugin's sandbox MCP. `/paypal:setup` does this; `/paypal:setup refresh` renews it (sandbox tokens last about 9 hours).
-3. Restart Claude Code, approve `ag-mcp` when asked, and run `/paypal:setup` to check the token.
-
-# Boilerplate reference
-
-## PayPal SDK data pages
-
-A Next.js app that reads PayPal sandbox data over the [PayPal REST API](https://developer.paypal.com/api/rest/) and shows it two ways:
-
-- **Endpoint pages**: one [AG Grid](https://www.ag-grid.com/react-data-grid/) per PayPal endpoint the demo calls, showing what each returns.
-- **Dashboard** (`/dashboard`): an [AG Studio](https://www.ag-grid.com/studio/) report over all of that data, joined together, which you can edit and save in the browser.
-
-## Run locally
-
-Requires Node.js 20.9 or later and a PayPal sandbox REST app ([developer.paypal.com](https://developer.paypal.com/dashboard/applications/sandbox)). The transactions and balances pages also need the app's **Transaction search** feature enabled.
-
-```bash
-npm install
-cp env.example .env.local   # then fill in the values
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000). Next.js only loads the dotted `.env.local`; it is git-ignored, so credentials stay out of the repo.
-
-Other scripts: `npm run build` (production build), `npm run start` (serve the build), `npm run lint`.
-
-### AG Studio licence (optional)
-
-Set `AG_STUDIO` in `.env.local` to your AG Studio licence key. The dashboard passes it to `AgStudioProvider`.
-
-### AI assistant (optional)
-
-The AG Studio dashboard at `/dashboard` has an AI assistant backed by OpenAI. The key is taken from the first of these that is set; with neither, the assistant is hidden:
-
-1. `AG_STUDIO_OPENAI_API_KEY`, specific to this app. Put it in `.env.local` to choose the key for this demo.
-2. `OPENAI_API_KEY`, the name OpenAI's own tools use. If you already export one (e.g. in `~/.zshrc`), the demo uses it with no setup, and spends against it.
-
-A separate name is needed because Next.js prefers variables already in the environment over `.env.local`, so a globally exported `OPENAI_API_KEY` can't be overridden per project. The server logs which variable it used (never the key) the first time the assistant is configured.
-
-`OPENAI_MODELS` lists the model ids the assistant may use, comma-separated, first one the default (`gpt-5.4-mini` when unset); with two or more, the chat offers a model picker.
-
-The key never reaches the browser. Studio's adapter ([`openai-adapter.ts`](app/dashboard/studio/openai-adapter.ts), copied from the AG Studio docs) runs client-side and posts to this app's own [`/api/ai/responses`](app/api/ai/responses/route.ts), which adds the key, only allows the configured models, caps output tokens, and streams OpenAI's reply back.
-
-In production `.env.local` isn't deployed: set the variable in your host's environment (e.g. Vercel project settings, `docker run --env-file`, or a secrets manager), as with the PayPal credentials. The route has no auth or rate limiting, so don't deploy it publicly with a real key without adding one.
-
-## How it works
-
-```
-lib/paypal.ts            Every PayPal call: OAuth token, paging, retries, response types
-lib/dashboard-data.ts    Turns those responses into the dashboard's related tables
-app/(endpoints)/         One page per endpoint, each rendering an AG Grid
-app/dashboard/           The AG Studio dashboard
-app/api/ai/responses/    Server-side proxy for the dashboard's AI assistant
-```
-
-[`lib/paypal.ts`](lib/paypal.ts) calls the REST API with plain `fetch`, no SDK. It gets an OAuth access token with the client-credentials grant and caches it until just before it expires. It follows `page`/`total_pages` paging, and retries on 401, 429 and 5xx responses. Its types are hand-written for the fields this demo reads, in the API's own snake_case.
-
-Every page is a server component that calls `await connection()`, so it renders per request with live data instead of being prerendered at build time. PayPal credentials never leave the server.
-
-## Endpoint pages
-
-Each page in [`app/(endpoints)`](app/(endpoints)) calls one function in `lib/paypal.ts`, maps the response to flat rows, and passes them with plain column definitions to the shared [`DataGrid`](app/(endpoints)/data-grid.tsx). The page header shows the REST calls behind it.
-
-| Page | `lib/paypal.ts` function | REST calls |
-|---|---|---|
-| [`/products`](app/(endpoints)/products/page.tsx) | `listProducts()` | `GET /v1/catalogs/products`, then `GET /v1/catalogs/products/{id}` per product |
-| [`/plans`](app/(endpoints)/plans/page.tsx) | `listPlans()` | `GET /v1/billing/plans`, then `GET /v1/billing/plans/{id}` per plan |
-| [`/invoices`](app/(endpoints)/invoices/page.tsx) | `listInvoices()` | `GET /v2/invoicing/invoices`, then `GET /v2/invoicing/invoices/{id}` per invoice |
-| [`/transactions`](app/(endpoints)/transactions/page.tsx) | `searchTransactions(start, end)` | `GET /v1/reporting/transactions` |
-| [`/balances`](app/(endpoints)/balances/page.tsx) | `getBalances()` | `GET /v1/reporting/balances` |
-
-Things worth knowing about these endpoints:
-
-- **List endpoints return summaries.** Products have no type or category, plans no billing cycles, and invoices no line items, payments or refunds. So each record is fetched again in full, which is why these pages take a second or two.
-- **Billing plans keep their price in `billing_cycles`.** There is an optional `TRIAL` cycle, then the `REGULAR` cycle; `total_cycles: 0` means it bills until cancelled.
-- **Transaction Search covers at most 31 days per request** and rejects fractional seconds in dates. New activity can take up to three hours to appear. `fields=all` adds `payer_info` to each `transaction_info`. Event codes are [PayPal T-codes](https://developer.paypal.com/docs/transaction-search/transaction-event-codes/) (`T0001` = payout); status is `S` success, `P` pending, `D` denied, `V` reversed or `F` partially refunded.
-- **Amounts are decimal strings with a currency**, e.g. `{ "value": "2.99", "currency_code": "USD" }`. `amountOf()` turns them into numbers, and the grid formats money columns in each row's currency.
-
-### The grid
-
-Pages are server components, so the column definitions they pass to the grid must be plain data, with no functions. Money columns use the `type: 'money'` column type, defined in `data-grid.tsx`, which formats the value in the row's `currency`. Date columns use AG Grid's built-in `cellDataType: 'dateString'` or `'dateTimeString'`. Every column can be sorted and filtered, and the search box filters across all columns.
-
-## Dashboard
-
-[`/dashboard`](app/dashboard/page.tsx) fetches all five endpoints at once. [`lib/dashboard-data.ts`](lib/dashboard-data.ts) turns them into related tables: customers, invoices, invoice line items, invoice payments, products, plans, transactions, payouts and balances. AG Studio's data sources, relationships, theme, default report and AI assistant are configured in [`app/dashboard/studio`](app/dashboard/studio). Reports you create or edit are saved in the browser's localStorage.
+The starter's PayPal data pages (`/products`, `/plans`, `/invoices`, `/transactions`, `/balances`) and the AG Studio report at `/dashboard` are available in local development only (production answers 404 unless `SETTLE_DEV_PAGES=1`). They read the sandbox account with plain `fetch` in [`lib/paypal.ts`](lib/paypal.ts) and show each endpoint in an AG Grid. The dashboard's optional AI assistant uses `AG_STUDIO_OPENAI_API_KEY` (or `OPENAI_API_KEY`) through the server-side proxy at `/api/ai/responses`; it has no auth, so don't enable it publicly with a real key.

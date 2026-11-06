@@ -27,6 +27,9 @@ services:
       # Internal URL of the free Render Postgres settle-db (expires 2026-11-21; upgrade in M6).
       - key: DATABASE_URL
         sync: false
+      # Scam memory's HMAC key (at least 32 random characters); without it, memory is off.
+      - key: SETTLE_MEMORY_KEY
+        sync: false
       - key: TYPESAFE_API_KEY
         sync: false
       - key: JEV_MODEL
