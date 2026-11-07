@@ -5,6 +5,7 @@
 // Wording (DECISIONS #7): never "protected" or "safe"; PayPal decides eligibility.
 
 import { paysByHold } from './card';
+import { said } from './quote';
 import { signalById } from './signals';
 import { StaleWriteError, type DealStore } from './store';
 import { termTitle } from './term-titles';
@@ -104,14 +105,6 @@ function deliveryCheck(deal: Deal): GateCheck {
     return { ...base, status: 'fail', blocks: 'REVIEW', detail: 'An in-person handover is not eligible for Seller Protection.', cites: ['SP-INPERSON', 'PP-COLLECT'] };
   }
   return { ...base, status: 'cant_check', blocks: 'REVIEW', detail: 'Digital or other deliveries have their own requirements that Settle does not check.', cites: ['SP-PHYSICAL'] };
-}
-
-/** "The buyer's message “send it to my cousin…”": who said it and what, never a bare message ID. */
-export function said(deal: Deal, id: string) {
-  const m = deal.messages.find((x) => x.id === id);
-  if (!m) return 'A message';
-  const t = m.text.length > 60 ? `${m.text.slice(0, 57).trimEnd()}…` : m.text;
-  return `The ${m.role}'s message “${t}”`;
 }
 
 function addressCheck(deal: Deal): GateCheck {

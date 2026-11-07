@@ -65,6 +65,17 @@ test('"send it to my cousin" after payment turns the gate to HOLD, naming SP-ADD
   assert.equal((await t.store.listReceipts(t.dealId)).findLast((r) => r.kind === 'gate.decided')!.data.decision, 'HOLD');
 });
 
+test('the quoted message in the gate and its receipt is redacted: no phone number or email', async () => {
+  const t = await paid(askWith(['ship_elsewhere']));
+  await setLabelPostcode(t.dealId, t.keys.seller, 'LS1 1AA', t.pdeps);
+  const deal = (await addMessages(t.dealId, t.keys.seller, 'Sam: send it to my cousin, call 07700 900123 or cousin@example.com', t.deps)).value;
+  const detail = check(deal, 'address').detail;
+  assert.match(detail, /The buyer's message “send it to my cousin/);
+  assert.doesNotMatch(detail, /07700|example\.com/);
+  const stored = JSON.stringify(await t.store.listReceipts(t.dealId));
+  assert.doesNotMatch(stored, /07700 900123|cousin@example\.com/);
+});
+
 test('a new postcode in a message after payment holds, found in code, not by the model', async () => {
   const t = await paid();
   await setLabelPostcode(t.dealId, t.keys.seller, 'LS1 1AA', t.pdeps);

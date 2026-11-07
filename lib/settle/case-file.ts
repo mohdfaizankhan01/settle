@@ -7,8 +7,8 @@ import { cardHash } from './card';
 import { carrierLabel } from './carriers';
 import { NOT_AS_DESCRIBED, NOT_RECEIVED } from './disputes';
 import type { Receipt } from './receipts';
-import { redactChat } from './redact';
-import { normalPostcode, said, trackerShown } from './ship-gate';
+import { redactedQuote, said } from './quote';
+import { normalPostcode, trackerShown } from './ship-gate';
 import type { Deal, DisputeRecord } from './types';
 
 export type ProofStatus = 'on_file' | 'missing' | 'contradicts';
@@ -53,17 +53,7 @@ export const REASON_LABELS: Record<string, string> = {
 
 const day = (iso: string) => iso.slice(0, 10);
 
-/**
- * A chat message as it may leave Settle: redacted (names, contact details, account numbers
- * removed), with prices and dates put back since they are deal terms, not personal details.
- */
-export function redactedQuote(deal: Deal, messageId: string): string | undefined {
-  const { messages, tokens } = redactChat(deal.messages);
-  let text = messages.find((m) => m.id === messageId)?.text;
-  if (text === undefined) return undefined;
-  for (const t of tokens.filter((x) => x.messageId === messageId && (x.kind === 'PRICE' || x.kind === 'DATE'))) text = text.replace(`[${t.id}]`, t.raw);
-  return text;
-}
+export { redactedQuote } from './quote';
 
 /** The ship gate's decision as it stood when tracking was first sent to PayPal. */
 export function gateAtShipping(receipts: readonly Receipt[]): { decision: string; at: string } | undefined {
