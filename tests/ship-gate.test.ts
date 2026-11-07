@@ -58,7 +58,7 @@ test('"send it to my cousin" after payment turns the gate to HOLD, naming SP-ADD
   const gate = shipGate(deal);
   assert.equal(gate.decision, 'HOLD');
   assert.equal(check(deal, 'address').status, 'fail');
-  assert.match(check(deal, 'address').detail, /m4/);
+  assert.match(check(deal, 'address').detail, /The buyer's message “.*cousin.*” after payment/);
   assert.ok(check(deal, 'address').cites.includes('SP-ADDR'));
   const kinds = (await t.store.listReceipts(t.dealId)).map((r) => r.kind);
   assert.ok(kinds.includes('messages.added'));

@@ -22,7 +22,7 @@ test('one row per demo deal, coloured by the ship check, with the events each de
   assert.equal(row('meetup').status, 'Held by PayPal: meet to hand over');
   assert.equal(row('meetup').colour, 'green');
   assert.ok(events('meetup').includes('Held by PayPal'));
-  assert.ok(events('meetup').some((n) => n.startsWith('Hand over by ')));
+  assert.ok(events('meetup').some((n) => n.startsWith('Meet by ')));
   assert.equal(row('ready').colour, 'green');
   assert.equal(row('hold').colour, 'red');
   assert.equal(row('dispute').colour, 'red');
@@ -31,9 +31,9 @@ test('one row per demo deal, coloured by the ship check, with the events each de
   // The model and the keyword rule both find Friends and Family: shown once.
   assert.equal(events('ff').filter((n) => n.includes('Friends and Family')).length, 1);
   assert.deepEqual(events('awaiting'), ['Both confirmed the card']);
-  assert.ok(events('ready').includes('Ship by 2026-11-09'), 'paid 47 h before the session, plus PayPal\'s 7 days');
+  assert.ok(events('ready').includes('Ship by Nov 9'), 'paid 47 h before the session, plus PayPal\'s 7 days');
   const dispute = events('dispute');
-  for (const name of ['Paid (PayPal confirmed)', 'Shipped: 9400111899223197428490', 'Delivered']) assert.ok(dispute.includes(name), name);
+  for (const name of ['Paid (PayPal confirmed)', 'Shipped', 'Delivered']) assert.ok(dispute.includes(name), name);
   assert.ok(dispute.some((n) => n.startsWith('Dispute opened')));
   assert.ok(Date.parse(t.start) < Date.parse('2026-10-25T10:00:00Z'), 'the range covers the oldest event');
 });

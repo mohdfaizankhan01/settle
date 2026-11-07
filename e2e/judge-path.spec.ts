@@ -90,7 +90,7 @@ test('the seller timeline, the attack lab and the proof page', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Seller timeline' })).toBeVisible();
   // Bryntum draws the events; some sit outside the scrolled view, so count them rather than check one.
   await expect(page.locator('.b-sch-event-wrap')).not.toHaveCount(0);
-  await expect(page.getByText('Warning: Asked to pay as Friends and Family')).toBeVisible();
+  await expect(page.getByText('Asked to pay as Friends and Family')).toBeVisible();
   await expect(page.getByText('Sony A7 III camera')).toBeVisible();
 
   await page.goto('/demo/attacks');

@@ -17,14 +17,14 @@ export default function Scheduler({ data }: { data: TimelineData }) {
     if (row) router.push(`/demo?deal=${encodeURIComponent(row.scenario)}`);
   };
   return (
-    <div className="h-[680px] overflow-hidden rounded-md border border-pp-border">
+    <div className="settle-timeline h-[680px] overflow-hidden rounded-md border border-pp-border">
       <BryntumScheduler
         readOnly
         startDate={data.start}
         endDate={data.end}
         viewPreset="dayAndWeek"
         // Fit the whole story in view: the earliest event sits at the left edge.
-        tickSize={56}
+        tickSize={48}
         visibleDate={{ date: new Date(data.start), block: 'start' }}
         rowHeight={84}
         barMargin={10}

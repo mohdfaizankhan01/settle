@@ -8,7 +8,7 @@ import { carrierLabel } from './carriers';
 import { NOT_AS_DESCRIBED, NOT_RECEIVED } from './disputes';
 import type { Receipt } from './receipts';
 import { redactChat } from './redact';
-import { normalPostcode, trackerShown } from './ship-gate';
+import { normalPostcode, said, trackerShown } from './ship-gate';
 import type { Deal, DisputeRecord } from './types';
 
 export type ProofStatus = 'on_file' | 'missing' | 'contradicts';
@@ -119,7 +119,7 @@ function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonl
       ...addr,
       status: 'on_file',
       source: 'PayPal API',
-      detail: `The label postcode matched PayPal's address (${shipTo.postalCode}).${elsewhere ? ` Message ${elsewhere.messageId} asked to ship elsewhere; the seller's label shows the parcel went to PayPal's address.` : ''}`,
+      detail: `The label postcode matched PayPal's address (${shipTo.postalCode}).${elsewhere ? ` ${said(deal, elsewhere.messageId!)} asked to ship elsewhere; the seller's label shows the parcel went to PayPal's address.` : ''}`,
     });
   }
 

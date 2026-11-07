@@ -57,11 +57,14 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
   function warningView(w: Deal['warnings'][number]) {
     const s = signalById(w.signalId) ?? (w.signalId === 'in_person' ? TERM_SIGNALS.in_person : undefined);
     const m = w.messageId ? deal.messages.find((x) => x.id === w.messageId) : undefined;
+    // Who sent it decides the wording: "You suggested…" for the sender, advice for the reader's side.
+    const side = s && 'bySide' in s && s.bySide && m ? s.bySide : undefined;
+    const you = m?.role === role;
     return {
       signalId: w.signalId,
-      title: s?.title ?? w.signalId,
+      title: side ? (you ? side.title.you : side.title.other(m!.role)) : (s?.title ?? w.signalId),
       means: s?.advice.means ?? '',
-      todo: s?.advice.todo ?? '',
+      todo: side ? (you ? side.todo.you : side.todo[role]) : (s?.advice.todo ?? ''),
       cites: w.cites,
       found: [{ by: w.by, probability: w.probability ?? null, matched: w.matched ?? null }],
       quote: m ? { messageId: m.id, from: m.role, text: m.text } : null,

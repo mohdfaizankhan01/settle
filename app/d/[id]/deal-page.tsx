@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Shell } from '@/app/components/shell';
+import { termHref, termTitle } from '@/lib/settle/term-titles';
 import type { DealView, SourceView } from '@/lib/settle/view';
 import { PayButton } from './pay-button';
 import { HandoverPanel, rememberBuyerKey } from './handover-panel';
@@ -367,6 +368,23 @@ function EnterTerms({ view, busy, act }: { view: DealView; busy: boolean; act: (
   );
 }
 
+/** PayPal clause names, each linked to PayPal's own wording on /terms. Never a bare ID. */
+function Terms({ ids }: { ids: readonly string[] }) {
+  return (
+    <>
+      PayPal terms:{' '}
+      {ids.map((id, i) => (
+        <span key={id}>
+          {i > 0 && '; '}
+          <a href={termHref(id)} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-pp-blue">
+            {termTitle(id)}
+          </a>
+        </span>
+      ))}
+    </>
+  );
+}
+
 function Warnings({ view, act }: { view: DealView; act?: Act }) {
   return (
     <section aria-label="Warnings">
@@ -390,7 +408,12 @@ function Warnings({ view, act }: { view: DealView; act?: Act }) {
                   f.by === 'jev' ? `Jev ${Math.round((f.probability ?? 0) * 100)}%` : f.by === 'model' ? `Settle Link model ${Math.round((f.probability ?? 0) * 100)}%` : f.by.startsWith('rule') ? `keyword “${f.matched}”` : f.by === 'decline' ? 'their decline' : f.by === 'memory' ? 'scam memory: reports from other deals, kept as one-way hashes' : 'from the card',
                 )
                 .join(', ')}
-              {w.cites.length > 0 && ` · PayPal terms: ${w.cites.join(', ')}`}
+              {w.cites.length > 0 && (
+                <>
+                  {' · '}
+                  <Terms ids={w.cites} />
+                </>
+              )}
             </p>
             {w.canAnswer && act && <WarningAnswer signalId={w.signalId} act={act} />}
           </li>
@@ -558,7 +581,7 @@ function ShipPanel({ a, gate, busy, act }: { a: After; gate: Gate; busy: boolean
               <p className="mt-0.5">{c.detail}</p>
               {(c.cites.length > 0 || c.proof) && (
                 <p className="mt-1 text-xs text-pp-muted">
-                  {c.cites.length > 0 && `PayPal terms: ${c.cites.join(', ')}`}
+                  {c.cites.length > 0 && <Terms ids={c.cites} />}
                   {c.cites.length > 0 && c.proof && '. '}
                   {c.proof && `Proof: ${c.proof}`}
                 </p>
@@ -856,7 +879,7 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
                 </p>
                 <p className="mt-0.5">{p.detail}</p>
                 <p className="mt-1 text-xs text-pp-muted">
-                  Source: {p.source}. PayPal terms: {p.cites.join(', ')}.
+                  Source: {p.source}. <Terms ids={p.cites} />.
                 </p>
               </div>
             </li>

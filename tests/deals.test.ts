@@ -203,3 +203,14 @@ test('a chat price of zero or over six digits is not taken as the price', () => 
     assert.equal(card.price, undefined, amount);
   }
 });
+
+test('the Friends and Family warning names who suggested it, with advice for the side reading it', async () => {
+  const { dealView } = await import('../lib/settle/view');
+  const d = deps();
+  const { deal } = await createDeal({ chat: 'Sam: £300 for the PS5? can I send it friends and family\nAlex: ok £300 posted', sellerName: 'Alex', country: 'UK' }, d);
+  const ff = (role: 'buyer' | 'seller') => dealView(deal, role).warnings.find((w) => w.signalId === 'ff_payment')!;
+  assert.equal(ff('buyer').title, 'You suggested paying as Friends and Family');
+  assert.match(ff('buyer').todo, /Use the PayPal checkout on this page instead/);
+  assert.equal(ff('seller').title, 'The buyer suggested paying as Friends and Family');
+  assert.match(ff('seller').todo, /isn't eligible for Seller Protection\. If the buyer insists/);
+});

@@ -62,3 +62,9 @@ body {
   --color-pp-danger: var(--pp-danger);
   --font-paypal: var(--pp-font);
 }
+
+/* Seller timeline: a 3-day bar is about 140px, so trim Bryntum's 16px text margin to fit
+   "Meet by Nov 10" without cutting it off. */
+.settle-timeline .b-sch-event-content {
+  margin-inline: 10px;
+}

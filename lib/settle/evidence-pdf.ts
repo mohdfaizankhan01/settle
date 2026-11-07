@@ -4,6 +4,7 @@
 // the receipts with the chain check. Every section says where it came from. No model writes any
 // of it. Deterministic: the same record gives the same bytes, so the seller can approve a hash.
 
+import { termTitle } from './term-titles';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { cardHash, formatMoney, moneyOf } from './card';
 import { caseFile, gateAtShipping, type CaseFile } from './case-file';
@@ -154,7 +155,7 @@ export async function evidencePdf(deal: Deal, dispute: DisputeRecord, receipts: 
   w.heading('5. Case file for this dispute', 'Settle record, from the sections above');
   for (const p of cf.proofs) {
     w.text(`${STATUS_WORD[p.status]}: ${p.label}`, { bold: true, indent: 8, gap: 0 });
-    w.text(`${p.detail} (source: ${p.source}; PayPal terms: ${p.cites.join(', ')})`, { indent: 16, size: 9 });
+    w.text(`${p.detail} (source: ${p.source}; PayPal terms: ${p.cites.map((id) => `${termTitle(id)}, ${id}`).join('; ')})`, { indent: 16, size: 9 });
   }
   for (const n of cf.notes) w.text(n, { indent: 8, size: 9 });
 

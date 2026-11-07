@@ -5,7 +5,9 @@
 // Wording (DECISIONS #7): never "protected" or "safe"; PayPal decides eligibility.
 
 import { paysByHold } from './card';
+import { signalById } from './signals';
 import { StaleWriteError, type DealStore } from './store';
+import { termTitle } from './term-titles';
 import type { Deal } from './types';
 
 export type CheckStatus = 'pass' | 'fail' | 'not_yet' | 'cant_check';
@@ -104,12 +106,20 @@ function deliveryCheck(deal: Deal): GateCheck {
   return { ...base, status: 'cant_check', blocks: 'REVIEW', detail: 'Digital or other deliveries have their own requirements that Settle does not check.', cites: ['SP-PHYSICAL'] };
 }
 
+/** "The buyer's message “send it to my cousin…”": who said it and what, never a bare message ID. */
+export function said(deal: Deal, id: string) {
+  const m = deal.messages.find((x) => x.id === id);
+  if (!m) return 'A message';
+  const t = m.text.length > 60 ? `${m.text.slice(0, 57).trimEnd()}…` : m.text;
+  return `The ${m.role}'s message “${t}”`;
+}
+
 function addressCheck(deal: Deal): GateCheck {
   const base = { id: 'address' as const, label: 'Ship to the address on the PayPal payment', cites: ['SP-ADDR', 'SP-BUYER-SHIP'], blocks: 'HOLD' as const };
   const ids = addedIds(deal);
   const elsewhere = deal.warnings.find((w) => w.signalId === 'ship_elsewhere' && w.messageId && ids.has(w.messageId));
   if (elsewhere) {
-    return { ...base, status: 'fail', detail: `Message ${elsewhere.messageId} after payment asks to ship somewhere else. Seller Protection needs the address on the PayPal payment.`, proof: `Message ${elsewhere.messageId}` };
+    return { ...base, status: 'fail', detail: `${said(deal, elsewhere.messageId!)} after payment asks to ship somewhere else. Seller Protection needs the address on the PayPal payment.`, proof: 'Chat message added after payment' };
   }
   const read = deal.payment?.read;
   const shipTo = read?.ok ? read.shipTo : undefined;
@@ -129,8 +139,8 @@ function addressCheck(deal: Deal): GateCheck {
       ...base,
       status: 'fail',
       blocks: buyer ? 'HOLD' : 'REVIEW',
-      detail: `Message ${other.messageId} after payment${buyer ? '' : ' (marked as yours)'} gives postcode ${other.raw}, but PayPal's address is ${shipTo.postalCode}.`,
-      proof: `Message ${other.messageId}`,
+      detail: `${said(deal, other.messageId)} after payment${buyer ? '' : ' (marked as yours)'} gives postcode ${other.raw}, but PayPal's address is ${shipTo.postalCode}.`,
+      proof: 'Chat message added after payment',
     };
   }
   const label = deal.shipping?.labelPostcode;
@@ -162,14 +172,15 @@ function warningsCheck(deal: Deal): GateCheck {
   }
   if (later.length > 0) {
     const hold = later.some((w) => HOLD_SIGNALS.has(w.signalId));
-    const signals = [...new Set(later.map((w) => w.signalId))];
+    const signals = [...new Set(later.map((w) => signalById(w.signalId)?.title ?? w.signalId))];
+    const messages = new Set(later.map((w) => w.messageId));
     return {
       ...base,
       status: 'fail',
       blocks: hold ? 'HOLD' : 'REVIEW',
       cites: [...new Set(later.flatMap((w) => w.cites))],
-      detail: `Warning${signals.length > 1 ? 's' : ''} in messages after payment: ${signals.join(', ')}.`,
-      proof: [...new Set(later.map((w) => `Message ${w.messageId}`))].join(', '),
+      detail: `Warning${signals.length > 1 ? 's' : ''} in messages after payment: ${signals.join('; ')}.`,
+      proof: `${messages.size} chat message${messages.size > 1 ? 's' : ''} added after payment`,
     };
   }
   return { ...base, status: 'pass', cites: [], detail: ids.size > 0 ? `No warning signs found in ${ids.size} message${ids.size > 1 ? 's' : ''} added after payment.` : 'No messages added after payment.' };
@@ -179,7 +190,7 @@ export function shipGate(deal: Deal): Gate {
   const checks = [paymentCheck(deal), addressCheck(deal), deliveryCheck(deal), trackingCheck(deal), warningsCheck(deal)];
   const open = checks.filter((c) => c.status !== 'pass' && c.blocks);
   const decision: Decision = open.some((c) => c.blocks === 'HOLD') ? 'HOLD' : open.length > 0 ? 'REVIEW' : 'SHIP';
-  const reasons = open.filter((c) => c.blocks === decision).map((c) => `${c.detail} (${c.cites.join(', ') || 'Settle check'})`);
+  const reasons = open.filter((c) => c.blocks === decision).map((c) => `${c.detail} (${c.cites.map((id) => `${termTitle(id)}, ${id}`).join('; ') || 'Settle check'})`);
   const headline =
     decision === 'SHIP' ? 'Ready to ship to the PayPal address' : decision === 'HOLD' ? "Hold: don't ship yet" : 'Review before shipping';
   return { decision, headline, reasons, checks, note: GATE_NOTE };

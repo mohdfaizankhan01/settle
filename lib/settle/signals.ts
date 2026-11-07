@@ -31,6 +31,11 @@ export type Signal = {
   /** Row IDs in docs/protection-terms.md. */
   cites: string[];
   advice: { means: string; todo: string };
+  /**
+   * For signals either side can send: the title and what to do depend on who sent the message
+   * and who is reading. Without it, everyone sees `title` and `advice.todo`.
+   */
+  bySide?: { title: { you: string; other: (asker: Role) => string }; todo: { you: string; buyer: string; seller: string } };
 };
 
 export const SIGNALS: Signal[] = [
@@ -48,6 +53,14 @@ export const SIGNALS: Signal[] = [
       means:
         'Friends and Family payments are excluded from both PayPal Purchase Protection and Seller Protection, and PayPal\'s terms say not to use them for purchases.',
       todo: 'Pay only with the PayPal checkout on this deal page. If the other side insists, stop the deal.',
+    },
+    bySide: {
+      title: { you: 'You suggested paying as Friends and Family', other: (asker) => `The ${asker} suggested paying as Friends and Family` },
+      todo: {
+        you: 'Use the PayPal checkout on this page instead. If the fee is the reason, the card shows it and either of you can cover it.',
+        buyer: 'Pay only with the PayPal checkout on this page. If the seller insists on Friends and Family, stop the deal.',
+        seller: "Take payment only through the PayPal checkout on this page: a Friends and Family payment isn't eligible for Seller Protection. If the buyer insists, stop the deal.",
+      },
     },
   },
   {
