@@ -119,6 +119,16 @@ async function main() {
     const wrongButSure = labelled.filter((r) => r[key].got !== null && r[key].got !== r[key].expected).map((r) => r.id);
     return { labelled: labelled.length, correct: right, accuracy: labelled.length ? right / labelled.length : null, wrongWhileConfident: wrongButSure };
   };
+  // False alarms by chat: a chat with no risky signal that still shows any warning. "Honest
+  // refusals" are the refuse-* chats where someone refuses Friends and Family or an off-PayPal
+  // method and nobody asks for it (added Nov 7 after a reviewer's false alarm; never in training).
+  const warned = (r: Row) => SIGNALS.some((s) => r.rules.includes(s.id) || (r.scores[s.id] ?? 0) >= (engine === 'local' ? localThresholds()[s.id] : signalThreshold(s.id)));
+  const noRisk = ran.filter((r) => byId.get(r.id)!.positive.length === 0);
+  const summarise = (set: Row[]) => ({ chats: set.length, withoutWarning: set.filter((r) => !warned(r)).length, warned: set.filter(warned).map((r) => r.id) });
+  const falseAlarms = {
+    noRiskChats: summarise(noRisk.filter((r) => !r.id.startsWith('refuse-'))),
+    honestRefusals: summarise(noRisk.filter((r) => r.id.startsWith('refuse-'))),
+  };
   const ms = ran.map((r) => r.ms).sort((a, b) => a - b);
   const results = {
     note: 'Synthetic chats written for Settle; not a benchmark. Each chat is a negative for every signal it does not list. The local model never trains on these chats.',
@@ -134,6 +144,7 @@ async function main() {
       output: ran.reduce((n, r) => n + (r.usage?.output_tokens ?? 0), 0),
     },
     terms: { price: acc('price'), delivery: acc('delivery') },
+    falseAlarms,
     signals,
     rows,
   };

@@ -460,3 +460,61 @@
 {"text": "ya", "signals": []}
 {"text": "nope", "signals": []}
 {"text": "maybe", "signals": []}
+{"text": "PayPal goods and services only please, I don't do friends and family", "signals": []}
+{"text": "not friends and family, the proper checkout so we're both covered", "signals": []}
+{"text": "I'd rather you didn't send it F&F, goods and services is fine by me", "signals": []}
+{"text": "please don't send it as a gift, use the link so you're protected", "signals": []}
+{"text": "no F&F sorry, I'll cover the fee myself", "signals": []}
+{"text": "never use friends and family for buying stuff off strangers, use the checkout", "signals": []}
+{"text": "I won't accept a personal payment for this, it has to be a purchase", "signals": []}
+{"text": "I'm not comfortable paying friends and family, can we do goods and services?", "signals": []}
+{"text": "buyer here, I only pay goods and services, hope that's ok", "signals": []}
+{"text": "G&S please, not F&F, the fee is on me", "signals": []}
+{"text": "don't worry about the fees, I'll pay them, just use goods and services", "signals": []}
+{"text": "we'll split the fee, no friends and family", "signals": []}
+{"text": "happy to pay through the paypal checkout, not as a gift", "signals": []}
+{"text": "you'll get a paypal link, please don't use the friends option", "signals": []}
+{"text": "I refuse to send money as friends and family to people I don't know", "signals": []}
+{"text": "goods and services protects both of us, so let's do that", "signals": []}
+{"text": "i dont do f&f anymore after getting burned, checkout only", "signals": []}
+{"text": "to be clear I'm not asking for friends and family, normal paypal purchase", "signals": []}
+{"text": "rather than friends and family let's just use the deal link", "signals": []}
+{"text": "please pay as a purchase, not a personal payment", "signals": []}
+{"text": "I'd never ask you to pay as friends and family, don't worry", "signals": []}
+{"text": "I can't do friends and family, my account is a business one", "signals": []}
+{"text": "F&F isn't covered so I won't use it", "signals": []}
+{"text": "use goods and services, I'll knock the fee off the price", "signals": []}
+{"text": "family and friends? no thanks, goods and services", "signals": []}
+{"text": "not zelle, just paypal checkout", "signals": []}
+{"text": "I don't take bank transfers, only paypal", "signals": []}
+{"text": "no crypto, no gift cards, paypal checkout only", "signals": []}
+{"text": "I won't pay by cash app, I'll use the paypal link", "signals": []}
+{"text": "never pay with gift cards for anything online", "signals": []}
+{"text": "I'd rather not do venmo, paypal checkout works", "signals": []}
+{"text": "don't send a wire transfer, paypal is fine", "signals": []}
+{"text": "I don't have zelle anyway, paypal goods and services?", "signals": []}
+{"text": "not western union, that's how people get scammed", "signals": []}
+{"text": "no bank transfer please, I'd rather pay through paypal", "signals": []}
+{"text": "I can't use venmo, I'm in the UK, paypal checkout ok?", "signals": []}
+{"text": "paypal only, I'm not doing bitcoin for a used console", "signals": []}
+{"text": "instead of a bank transfer can I just pay through the link?", "signals": []}
+{"text": "I used to accept revolut but I only take paypal checkout now", "signals": []}
+{"text": "seller here, please don't pay me outside paypal, it's not covered", "signals": []}
+{"text": "we'll both confirm the card and you pay through paypal, no other method", "signals": []}
+{"text": "I'm not going to ask for a deposit by bank transfer, pay when you're ready", "signals": []}
+{"text": "don't pay me in steam cards lol, paypal checkout", "signals": []}
+{"text": "no zelle or venmo, sorry, paypal only", "signals": []}
+{"text": "no I won't send it as friends and family, I want buyer protection", "signals": []}
+{"text": "is goods and services ok? I'm not a fan of friends and family for purchases", "signals": []}
+{"text": "I'll pay goods and services, never F&F with strangers", "signals": []}
+{"text": "not a gift, a purchase, I want the receipt", "signals": []}
+{"text": "you can pay through the link, don't send it to my email as friends and family", "signals": []}
+{"text": "cash on collection or the paypal hold, no bank transfer", "signals": []}
+{"text": "don't bother with goods and services, just send F&F", "signals": ["ff_payment"]}
+{"text": "no need for the paypal link, friends and family is easier", "signals": ["ff_payment"]}
+{"text": "don't worry it's fine, send it as a gift", "signals": ["ff_payment"]}
+{"text": "not through the checkout, family and friends please", "signals": ["ff_payment"]}
+{"text": "don't use the paypal link, zelle me instead", "signals": ["off_paypal"]}
+{"text": "not paypal, bank transfer is quicker for me", "signals": ["off_paypal"]}
+{"text": "I don't use paypal checkout, cash app only", "signals": ["off_paypal"]}
+{"text": "never mind goods and services, send it personal", "signals": ["ff_payment"]}

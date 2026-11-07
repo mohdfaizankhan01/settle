@@ -8,7 +8,8 @@ import modelA from '../../data/model/settle-model-a.json';
 import modelB from '../../data/model/settle-model-b.json';
 import { warningsFrom, type DealCheckResult } from '../jev/deal-check';
 import type { Redacted } from '../settle/redact';
-import { SIGNALS } from '../settle/signals';
+import { onlyRefused } from '../settle/rules';
+import { SIGNALS, type SignalId } from '../settle/signals';
 import { embedTexts } from './embed';
 import { featurise, type SparseVector } from './features';
 import { decodeModel, hasWords, scoreFeatures, type ModelFile, type SignalModel } from './model';
@@ -79,7 +80,11 @@ export async function localScores(redacted: Redacted) {
     const s: Record<string, number> = {};
     for (let n = 0; n < pieces[i].length; n++) {
       const piece = scoreFeatures(model, xs[at++]);
-      for (const [id, p] of Object.entries(piece)) s[id] = Math.max(s[id] ?? 0, p);
+      for (const [id, p] of Object.entries(piece)) {
+        // A piece whose only payment-method words are refused doesn't count for that signal.
+        if (onlyRefused(id as SignalId, pieces[i][n])) continue;
+        s[id] = Math.max(s[id] ?? 0, p);
+      }
     }
     return { m, s };
   });

@@ -2,12 +2,12 @@
   "note": "Synthetic chats written for Settle; not a benchmark. Each chat is a negative for every signal it does not list. The local model never trains on these chats.",
   "engine": "local",
   "localModel": "settle-link-a",
-  "ranAt": "2026-10-30T20:49:21.125Z",
+  "ranAt": "2026-11-07T13:19:25.376Z",
   "model": "settle-link-a",
-  "chats": 73,
+  "chats": 83,
   "failedChecks": [],
   "latencyMs": {
-    "p50": 0,
+    "p50": 1,
     "p95": 3
   },
   "tokens": {
@@ -16,100 +16,122 @@
   },
   "terms": {
     "price": {
-      "labelled": 61,
-      "correct": 56,
-      "accuracy": 0.9180327868852459,
+      "labelled": 71,
+      "correct": 64,
+      "accuracy": 0.9014084507042254,
       "wrongWhileConfident": [
         "over-2"
       ]
     },
     "delivery": {
-      "labelled": 45,
-      "correct": 40,
-      "accuracy": 0.8888888888888888,
+      "labelled": 49,
+      "correct": 43,
+      "accuracy": 0.8775510204081632,
       "wrongWhileConfident": [
         "over-2"
+      ]
+    }
+  },
+  "falseAlarms": {
+    "noRiskChats": {
+      "chats": 39,
+      "withoutWarning": 34,
+      "warned": [
+        "clean-3",
+        "neg-ai-2",
+        "neg-ff-1",
+        "neg-proof-2",
+        "neg-ship-1"
+      ]
+    },
+    "honestRefusals": {
+      "chats": 7,
+      "withoutWarning": 6,
+      "warned": [
+        "refuse-8"
       ]
     }
   },
   "signals": {
     "ff_payment": {
       "threshold": 0.1,
-      "positives": 4,
+      "positives": 7,
       "model": {
-        "tp": 4,
+        "tp": 6,
+        "fp": 2,
+        "fn": 1,
+        "tn": 74,
+        "precision": 0.75,
+        "recall": 0.8571428571428571,
+        "falsePositives": [
+          "neg-ai-2",
+          "neg-ff-1"
+        ],
+        "misses": [
+          "refuse-2"
+        ]
+      },
+      "brier": 0.05336918384494342,
+      "rulesOnly": {
+        "tp": 7,
         "fp": 1,
         "fn": 0,
-        "tn": 68,
-        "precision": 0.8,
+        "tn": 75,
+        "precision": 0.875,
         "recall": 1,
         "falsePositives": [
           "neg-ff-1"
         ],
         "misses": []
       },
-      "brier": 0.025827005201952802,
-      "rulesOnly": {
-        "tp": 4,
-        "fp": 2,
-        "fn": 0,
-        "tn": 67,
-        "precision": 0.6666666666666666,
-        "recall": 1,
-        "falsePositives": [
-          "neg-ff-1",
-          "neg-ff-2"
-        ],
-        "misses": []
-      },
       "combined": {
-        "tp": 4,
+        "tp": 7,
         "fp": 2,
         "fn": 0,
-        "tn": 67,
-        "precision": 0.6666666666666666,
+        "tn": 74,
+        "precision": 0.7777777777777778,
         "recall": 1,
         "falsePositives": [
-          "neg-ff-1",
-          "neg-ff-2"
+          "neg-ai-2",
+          "neg-ff-1"
         ],
         "misses": []
       },
       "sweep": [
         {
           "threshold": 0.3,
-          "precision": 0.8,
-          "recall": 1
+          "precision": 0.6,
+          "recall": 0.42857142857142855
         },
         {
           "threshold": 0.4,
-          "precision": 0.6666666666666666,
-          "recall": 0.5
+          "precision": 0.6,
+          "recall": 0.42857142857142855
         },
         {
           "threshold": 0.5,
-          "precision": 0.6666666666666666,
-          "recall": 0.5
+          "precision": 0.6,
+          "recall": 0.42857142857142855
         },
         {
           "threshold": 0.6,
-          "precision": 0.6666666666666666,
-          "recall": 0.5
+          "precision": 0.75,
+          "recall": 0.42857142857142855
         },
         {
           "threshold": 0.7,
-          "precision": 0.6666666666666666,
-          "recall": 0.5
+          "precision": 0.75,
+          "recall": 0.42857142857142855
         },
         {
           "threshold": 0.8,
-          "precision": 0.5,
-          "recall": 0.25
+          "precision": 0.6666666666666666,
+          "recall": 0.2857142857142857
         },
         {
           "threshold": 0.9,
           "precision": 0.5,
-          "recall": 0.25
+          "recall": 0.14285714285714285
         }
       ]
     },
@@ -120,7 +142,7 @@
         "tp": 3,
         "fp": 1,
         "fn": 1,
-        "tn": 68,
+        "tn": 78,
         "precision": 0.75,
         "recall": 0.75,
         "falsePositives": [
@@ -130,12 +152,12 @@
           "off-2"
         ]
       },
-      "brier": 0.02617903079611058,
+      "brier": 0.01898810393150686,
       "rulesOnly": {
         "tp": 4,
         "fp": 0,
         "fn": 0,
-        "tn": 69,
+        "tn": 79,
         "precision": 1,
         "recall": 1,
         "falsePositives": [],
@@ -145,7 +167,7 @@
         "tp": 4,
         "fp": 1,
         "fn": 0,
-        "tn": 68,
+        "tn": 78,
         "precision": 0.8,
         "recall": 1,
         "falsePositives": [
@@ -156,33 +178,33 @@
       "sweep": [
         {
           "threshold": 0.3,
-          "precision": 0.6666666666666666,
-          "recall": 0.5
+          "precision": 0.75,
+          "recall": 0.75
         },
         {
           "threshold": 0.4,
           "precision": 1,
-          "recall": 0.5
+          "recall": 0.75
         },
         {
           "threshold": 0.5,
           "precision": 1,
-          "recall": 0.5
+          "recall": 0.75
         },
         {
           "threshold": 0.6,
           "precision": 1,
-          "recall": 0.5
+          "recall": 0.25
         },
         {
           "threshold": 0.7,
           "precision": 1,
-          "recall": 0.5
+          "recall": 0.25
         },
         {
           "threshold": 0.8,
           "precision": 1,
-          "recall": 0.5
+          "recall": 0.25
         },
         {
           "threshold": 0.9,
@@ -192,29 +214,27 @@
       ]
     },
     "deposit_pressure": {
-      "threshold": 0.15,
+      "threshold": 0.1,
       "positives": 3,
       "model": {
         "tp": 1,
-        "fp": 1,
+        "fp": 0,
         "fn": 2,
-        "tn": 69,
-        "precision": 0.5,
+        "tn": 80,
+        "precision": 1,
         "recall": 0.3333333333333333,
-        "falsePositives": [
-          "proof-1"
-        ],
+        "falsePositives": [],
         "misses": [
           "dep-2",
           "dep-3"
         ]
       },
-      "brier": 0.02758895591415674,
+      "brier": 0.02422162573324321,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
         "fn": 3,
-        "tn": 70,
+        "tn": 80,
         "precision": null,
         "recall": 0,
         "falsePositives": [],
@@ -226,14 +246,12 @@
       },
       "combined": {
         "tp": 1,
-        "fp": 1,
+        "fp": 0,
         "fn": 2,
-        "tn": 69,
-        "precision": 0.5,
+        "tn": 80,
+        "precision": 1,
         "recall": 0.3333333333333333,
-        "falsePositives": [
-          "proof-1"
-        ],
+        "falsePositives": [],
         "misses": [
           "dep-2",
           "dep-3"
@@ -272,34 +290,32 @@
         },
         {
           "threshold": 0.9,
-          "precision": 1,
-          "recall": 0.3333333333333333
+          "precision": null,
+          "recall": 0
         }
       ]
     },
     "fake_payment_proof": {
-      "threshold": 0.3,
+      "threshold": 0.1,
       "positives": 3,
       "model": {
-        "tp": 2,
+        "tp": 3,
         "fp": 1,
-        "fn": 1,
-        "tn": 69,
-        "precision": 0.6666666666666666,
-        "recall": 0.6666666666666666,
+        "fn": 0,
+        "tn": 79,
+        "precision": 0.75,
+        "recall": 1,
         "falsePositives": [
           "neg-proof-2"
         ],
-        "misses": [
-          "proof-2"
-        ]
+        "misses": []
       },
-      "brier": 0.021805358636935196,
+      "brier": 0.024393204753839843,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
         "fn": 3,
-        "tn": 70,
+        "tn": 80,
         "precision": null,
         "recall": 0,
         "falsePositives": [],
@@ -310,34 +326,32 @@
         ]
       },
       "combined": {
-        "tp": 2,
+        "tp": 3,
         "fp": 1,
-        "fn": 1,
-        "tn": 69,
-        "precision": 0.6666666666666666,
-        "recall": 0.6666666666666666,
+        "fn": 0,
+        "tn": 79,
+        "precision": 0.75,
+        "recall": 1,
         "falsePositives": [
           "neg-proof-2"
         ],
-        "misses": [
-          "proof-2"
-        ]
+        "misses": []
       },
       "sweep": [
         {
           "threshold": 0.3,
-          "precision": 0.6666666666666666,
-          "recall": 0.6666666666666666
+          "precision": 0.5,
+          "recall": 0.3333333333333333
         },
         {
           "threshold": 0.4,
-          "precision": 0.6666666666666666,
-          "recall": 0.6666666666666666
+          "precision": 0.5,
+          "recall": 0.3333333333333333
         },
         {
           "threshold": 0.5,
-          "precision": 0.6666666666666666,
-          "recall": 0.6666666666666666
+          "precision": 0.5,
+          "recall": 0.3333333333333333
         },
         {
           "threshold": 0.6,
@@ -368,7 +382,7 @@
         "tp": 3,
         "fp": 1,
         "fn": 1,
-        "tn": 68,
+        "tn": 78,
         "precision": 0.75,
         "recall": 0.75,
         "falsePositives": [
@@ -378,12 +392,12 @@
           "proof-1"
         ]
       },
-      "brier": 0.017349443101787407,
+      "brier": 0.013354980875776768,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
         "fn": 4,
-        "tn": 69,
+        "tn": 79,
         "precision": null,
         "recall": 0,
         "falsePositives": [],
@@ -398,7 +412,7 @@
         "tp": 3,
         "fp": 1,
         "fn": 1,
-        "tn": 68,
+        "tn": 78,
         "precision": 0.75,
         "recall": 0.75,
         "falsePositives": [
@@ -416,7 +430,7 @@
         },
         {
           "threshold": 0.4,
-          "precision": 0.75,
+          "precision": 1,
           "recall": 0.75
         },
         {
@@ -442,31 +456,32 @@
         {
           "threshold": 0.9,
           "precision": 1,
-          "recall": 0.5
+          "recall": 0.75
         }
       ]
     },
     "overpayment_refund": {
-      "threshold": 0.25,
+      "threshold": 0.15,
       "positives": 3,
       "model": {
         "tp": 3,
-        "fp": 1,
+        "fp": 2,
         "fn": 0,
-        "tn": 69,
-        "precision": 0.75,
+        "tn": 78,
+        "precision": 0.6,
         "recall": 1,
         "falsePositives": [
-          "clean-3"
+          "clean-3",
+          "refuse-8"
         ],
         "misses": []
       },
-      "brier": 0.013569628708383965,
+      "brier": 0.007175476330451117,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
         "fn": 3,
-        "tn": 70,
+        "tn": 80,
         "precision": null,
         "recall": 0,
         "falsePositives": [],
@@ -478,36 +493,37 @@
       },
       "combined": {
         "tp": 3,
-        "fp": 1,
+        "fp": 2,
         "fn": 0,
-        "tn": 69,
-        "precision": 0.75,
+        "tn": 78,
+        "precision": 0.6,
         "recall": 1,
         "falsePositives": [
-          "clean-3"
+          "clean-3",
+          "refuse-8"
         ],
         "misses": []
       },
       "sweep": [
         {
           "threshold": 0.3,
-          "precision": 1,
+          "precision": 0.75,
           "recall": 1
         },
         {
           "threshold": 0.4,
           "precision": 1,
-          "recall": 0.3333333333333333
+          "recall": 1
         },
         {
           "threshold": 0.5,
           "precision": 1,
-          "recall": 0.3333333333333333
+          "recall": 0.6666666666666666
         },
         {
           "threshold": 0.6,
           "precision": 1,
-          "recall": 0.3333333333333333
+          "recall": 0.6666666666666666
         },
         {
           "threshold": 0.7,
@@ -527,24 +543,26 @@
       ]
     },
     "code_request": {
-      "threshold": 0.2,
+      "threshold": 0.1,
       "positives": 3,
       "model": {
         "tp": 3,
-        "fp": 0,
+        "fp": 1,
         "fn": 0,
-        "tn": 70,
-        "precision": 1,
+        "tn": 79,
+        "precision": 0.75,
         "recall": 1,
-        "falsePositives": [],
+        "falsePositives": [
+          "neg-proof-2"
+        ],
         "misses": []
       },
-      "brier": 0.015257005132738378,
+      "brier": 0.011903861798968381,
       "rulesOnly": {
         "tp": 1,
         "fp": 0,
         "fn": 2,
-        "tn": 70,
+        "tn": 80,
         "precision": 1,
         "recall": 0.3333333333333333,
         "falsePositives": [],
@@ -555,12 +573,14 @@
       },
       "combined": {
         "tp": 3,
-        "fp": 0,
+        "fp": 1,
         "fn": 0,
-        "tn": 70,
-        "precision": 1,
+        "tn": 79,
+        "precision": 0.75,
         "recall": 1,
-        "falsePositives": [],
+        "falsePositives": [
+          "neg-proof-2"
+        ],
         "misses": []
       },
       "sweep": [
@@ -586,8 +606,8 @@
         },
         {
           "threshold": 0.7,
-          "precision": null,
-          "recall": 0
+          "precision": 1,
+          "recall": 0.3333333333333333
         },
         {
           "threshold": 0.8,
@@ -602,13 +622,13 @@
       ]
     },
     "ship_elsewhere": {
-      "threshold": 0.1,
+      "threshold": 0.15,
       "positives": 5,
       "model": {
         "tp": 3,
         "fp": 1,
         "fn": 2,
-        "tn": 67,
+        "tn": 77,
         "precision": 0.75,
         "recall": 0.6,
         "falsePositives": [
@@ -619,12 +639,12 @@
           "ship-2"
         ]
       },
-      "brier": 0.03660307165114121,
+      "brier": 0.030044193022802746,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
         "fn": 5,
-        "tn": 68,
+        "tn": 78,
         "precision": null,
         "recall": 0,
         "falsePositives": [],
@@ -640,7 +660,7 @@
         "tp": 3,
         "fp": 1,
         "fn": 2,
-        "tn": 67,
+        "tn": 77,
         "precision": 0.75,
         "recall": 0.6,
         "falsePositives": [
@@ -669,18 +689,18 @@
         },
         {
           "threshold": 0.6,
-          "precision": 1,
-          "recall": 0.4
+          "precision": 0.75,
+          "recall": 0.6
         },
         {
           "threshold": 0.7,
           "precision": 1,
-          "recall": 0.2
+          "recall": 0.4
         },
         {
           "threshold": 0.8,
           "precision": 1,
-          "recall": 0.2
+          "recall": 0.4
         },
         {
           "threshold": 0.9,
@@ -696,7 +716,7 @@
         "tp": 2,
         "fp": 1,
         "fn": 1,
-        "tn": 69,
+        "tn": 79,
         "precision": 0.6666666666666666,
         "recall": 0.6666666666666666,
         "falsePositives": [
@@ -706,12 +726,12 @@
           "move-3"
         ]
       },
-      "brier": 0.015540541275612186,
+      "brier": 0.01838120529978861,
       "rulesOnly": {
         "tp": 0,
         "fp": 0,
         "fn": 3,
-        "tn": 70,
+        "tn": 80,
         "precision": null,
         "recall": 0,
         "falsePositives": [],
@@ -725,7 +745,7 @@
         "tp": 2,
         "fp": 1,
         "fn": 1,
-        "tn": 69,
+        "tn": 79,
         "precision": 0.6666666666666666,
         "recall": 0.6666666666666666,
         "falsePositives": [
@@ -753,12 +773,12 @@
         },
         {
           "threshold": 0.6,
-          "precision": 1,
+          "precision": 0.6666666666666666,
           "recall": 0.6666666666666666
         },
         {
           "threshold": 0.7,
-          "precision": 1,
+          "precision": 0.6666666666666666,
           "recall": 0.6666666666666666
         },
         {
@@ -780,7 +800,7 @@
         "tp": 3,
         "fp": 0,
         "fn": 1,
-        "tn": 69,
+        "tn": 79,
         "precision": 1,
         "recall": 0.75,
         "falsePositives": [],
@@ -788,12 +808,12 @@
           "ai-4"
         ]
       },
-      "brier": 0.012545684126759592,
+      "brier": 0.01002966065514094,
       "rulesOnly": {
         "tp": 3,
         "fp": 0,
         "fn": 1,
-        "tn": 69,
+        "tn": 79,
         "precision": 1,
         "recall": 0.75,
         "falsePositives": [],
@@ -805,7 +825,7 @@
         "tp": 4,
         "fp": 0,
         "fn": 0,
-        "tn": 69,
+        "tn": 79,
         "precision": 1,
         "recall": 1,
         "falsePositives": [],
@@ -854,19 +874,19 @@
     {
       "id": "ai-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00010506953986366475,
-        "off_paypal": 0.00007665070415998703,
-        "deposit_pressure": 0.000035984447344655276,
-        "fake_payment_proof": 7.577021063904295e-7,
-        "fee_to_release": 0.00022677865491659152,
-        "overpayment_refund": 0.04429025777047283,
-        "code_request": 0.004160990820788502,
-        "ship_elsewhere": 0.00004777774710671464,
-        "move_off_chat": 0.0013860469904419827,
-        "ai_instructions": 0.9444170292117721
+        "ff_payment": 0.0027716741405877455,
+        "off_paypal": 0.00005569589399233797,
+        "deposit_pressure": 0.000039351805609582025,
+        "fake_payment_proof": 0.000006143482129734242,
+        "fee_to_release": 0.0004427139741864838,
+        "overpayment_refund": 0.0879594440117055,
+        "code_request": 0.0006920544330522623,
+        "ship_elsewhere": 0.000026408706959374774,
+        "move_off_chat": 0.0013877617586029892,
+        "ai_instructions": 0.9980988151630381
       },
       "rules": [
         "ai_instructions"
@@ -888,16 +908,16 @@
       "ms": 0,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0004959444078798783,
-        "off_paypal": 0.0005119905672589102,
-        "deposit_pressure": 0.0002178661778209801,
-        "fake_payment_proof": 6.720958349271727e-7,
-        "fee_to_release": 0.000015853253572930583,
-        "overpayment_refund": 0.0003834512833700048,
-        "code_request": 0.000016047741765141335,
-        "ship_elsewhere": 0.000007971283126396065,
-        "move_off_chat": 0.00006394986542026154,
-        "ai_instructions": 0.9871920403892839
+        "ff_payment": 0.001200140867883456,
+        "off_paypal": 0.0007767940644400953,
+        "deposit_pressure": 0.0005045333672615608,
+        "fake_payment_proof": 7.499647232388487e-7,
+        "fee_to_release": 0.0000351259144298404,
+        "overpayment_refund": 0.000359208597294881,
+        "code_request": 0.000010654570316859798,
+        "ship_elsewhere": 0.0000047715625048469005,
+        "move_off_chat": 0.0003482779240919059,
+        "ai_instructions": 0.9564782343042433
       },
       "rules": [
         "ai_instructions"
@@ -916,19 +936,19 @@
     {
       "id": "ai-3",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0005509682451349127,
-        "off_paypal": 0.00020468151555717048,
-        "deposit_pressure": 0.0003210225965527945,
-        "fake_payment_proof": 0.00001774536447070507,
-        "fee_to_release": 0.002683971040896539,
-        "overpayment_refund": 0.017446851094783146,
-        "code_request": 0.00001500435333262508,
-        "ship_elsewhere": 0.0001827455935470825,
-        "move_off_chat": 0.0002820511624386026,
-        "ai_instructions": 0.966282302768055
+        "ff_payment": 0.0006977410073903244,
+        "off_paypal": 0.00010498356957784224,
+        "deposit_pressure": 0.0002084705386809489,
+        "fake_payment_proof": 0.00003964439827041032,
+        "fee_to_release": 0.0009733489705121811,
+        "overpayment_refund": 0.0068140736277709675,
+        "code_request": 0.00002803321203470812,
+        "ship_elsewhere": 0.00018150273736973236,
+        "move_off_chat": 0.00027064236370101795,
+        "ai_instructions": 0.9446093775769239
       },
       "rules": [],
       "price": {
@@ -945,19 +965,19 @@
     {
       "id": "ai-4",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.000055153763675210334,
-        "off_paypal": 0.029600702866430073,
-        "deposit_pressure": 0.00008771420356442832,
-        "fake_payment_proof": 0.000004265909796427409,
-        "fee_to_release": 0.0011295588131905948,
-        "overpayment_refund": 0.023905243630676042,
-        "code_request": 0.00036715508359361335,
-        "ship_elsewhere": 0.000030304979620766786,
-        "move_off_chat": 0.0002504584690588299,
-        "ai_instructions": 0.051641176557173984
+        "ff_payment": 0.00025698989504057237,
+        "off_paypal": 0.003910107675853694,
+        "deposit_pressure": 0.00002747164348590406,
+        "fake_payment_proof": 0.000001055380219149245,
+        "fee_to_release": 0.00110963430260375,
+        "overpayment_refund": 0.010968142531091121,
+        "code_request": 0.00012734919270801279,
+        "ship_elsewhere": 0.000022048097285167497,
+        "move_off_chat": 0.0002907354993987541,
+        "ai_instructions": 0.09493584784185931
       },
       "rules": [
         "ai_instructions"
@@ -976,19 +996,19 @@
     {
       "id": "clean-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00005589295289894411,
-        "off_paypal": 0.000009585464974359497,
-        "deposit_pressure": 0.0000014259179902793792,
-        "fake_payment_proof": 0.0001134346899265594,
-        "fee_to_release": 0.0001445173602977718,
-        "overpayment_refund": 0.0000887380478701143,
-        "code_request": 0.0006893334595660194,
-        "ship_elsewhere": 0.00006609942946036734,
-        "move_off_chat": 0.00007930122826952372,
-        "ai_instructions": 0.00003539938898931091
+        "ff_payment": 0.00009148053386997527,
+        "off_paypal": 0.00001991205992855338,
+        "deposit_pressure": 0.000007736204083364493,
+        "fake_payment_proof": 0.0001584310138412024,
+        "fee_to_release": 0.0003798025890184219,
+        "overpayment_refund": 0.00012583096876846135,
+        "code_request": 0.00030240254173846275,
+        "ship_elsewhere": 0.00007282522694418244,
+        "move_off_chat": 0.000059095518071557234,
+        "ai_instructions": 0.00003179603334389104
       },
       "rules": [],
       "price": {
@@ -1005,19 +1025,19 @@
     {
       "id": "clean-2",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.002192522492983094,
-        "off_paypal": 0.00002159316358148151,
-        "deposit_pressure": 0.0000040832202049745954,
-        "fake_payment_proof": 0.00004491697251672153,
-        "fee_to_release": 0.00018723803403673968,
-        "overpayment_refund": 0.00041204186314337994,
-        "code_request": 0.000011055069446985548,
-        "ship_elsewhere": 0.000027428741806150376,
-        "move_off_chat": 0.00001919597665259997,
-        "ai_instructions": 0.00006780510594160314
+        "ff_payment": 0.003591376186970847,
+        "off_paypal": 0.000024746555196422405,
+        "deposit_pressure": 0.000004687511122136944,
+        "fake_payment_proof": 0.000021211796008190126,
+        "fee_to_release": 0.000824761010340594,
+        "overpayment_refund": 0.0006984615343356952,
+        "code_request": 0.000018687249470759025,
+        "ship_elsewhere": 0.00006225007094109212,
+        "move_off_chat": 0.000015258119417243142,
+        "ai_instructions": 0.00003204960447734152
       },
       "rules": [],
       "price": {
@@ -1037,16 +1057,16 @@
       "ms": 0,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0006899710684910727,
-        "off_paypal": 0.0007380369994557103,
-        "deposit_pressure": 0.00011534057681709351,
-        "fake_payment_proof": 0.000003440729945370514,
-        "fee_to_release": 0.0018604382598148156,
-        "overpayment_refund": 0.26043462277816126,
-        "code_request": 0.0008896504382782599,
-        "ship_elsewhere": 0.00008689339947338159,
-        "move_off_chat": 0.000461503247617879,
-        "ai_instructions": 0.0006947534493674501
+        "ff_payment": 0.0051480882404624445,
+        "off_paypal": 0.0023921241060759963,
+        "deposit_pressure": 0.0001093609309432398,
+        "fake_payment_proof": 0.000007971468793361567,
+        "fee_to_release": 0.00297261934345808,
+        "overpayment_refund": 0.3175986599120948,
+        "code_request": 0.00035454103835732496,
+        "ship_elsewhere": 0.00004146467857040914,
+        "move_off_chat": 0.0005992560553190582,
+        "ai_instructions": 0.0003420461182153306
       },
       "rules": [],
       "price": {
@@ -1063,19 +1083,19 @@
     {
       "id": "clean-4",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.009752719440544509,
-        "off_paypal": 0.006153443818343963,
-        "deposit_pressure": 0.006498978377890185,
-        "fake_payment_proof": 0.0783032432126374,
-        "fee_to_release": 0.0022826411882150063,
-        "overpayment_refund": 0.005227395026222742,
-        "code_request": 0.0030180129628758876,
-        "ship_elsewhere": 0.0008957251608133206,
-        "move_off_chat": 0.0007563146365745678,
-        "ai_instructions": 0.005907050190230461
+        "ff_payment": 0.009143083525389903,
+        "off_paypal": 0.00744184132266583,
+        "deposit_pressure": 0.005218054335736164,
+        "fake_payment_proof": 0.06545555451273516,
+        "fee_to_release": 0.00213018126148794,
+        "overpayment_refund": 0.0013544787704472506,
+        "code_request": 0.0019100688334284493,
+        "ship_elsewhere": 0.000557812916672125,
+        "move_off_chat": 0.000832560541064647,
+        "ai_instructions": 0.004848195346404084
       },
       "rules": [],
       "price": {
@@ -1092,19 +1112,19 @@
     {
       "id": "clean-5",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.010687545406673457,
-        "off_paypal": 0.000018946290025123395,
-        "deposit_pressure": 0.003032803336621438,
-        "fake_payment_proof": 0.00001587055546637237,
-        "fee_to_release": 0.005258936590506771,
-        "overpayment_refund": 0.013358189837327962,
-        "code_request": 0.00003030092028094865,
-        "ship_elsewhere": 0.0001394284730967804,
-        "move_off_chat": 0.00021035911492296486,
-        "ai_instructions": 0.0002843551495162278
+        "ff_payment": 0.043030889020379826,
+        "off_paypal": 0.000015235666316986518,
+        "deposit_pressure": 0.00335506849871441,
+        "fake_payment_proof": 0.00008386805985064517,
+        "fee_to_release": 0.010784054271898288,
+        "overpayment_refund": 0.018016790787273113,
+        "code_request": 0.0000618582918357874,
+        "ship_elsewhere": 0.00023909591763867602,
+        "move_off_chat": 0.0003104249275723994,
+        "ai_instructions": 0.0002803515318990422
       },
       "rules": [],
       "price": {
@@ -1121,19 +1141,19 @@
     {
       "id": "clean-6",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0006899710684910727,
-        "off_paypal": 0.00000793367112944239,
-        "deposit_pressure": 0.0001602855501621219,
-        "fake_payment_proof": 0.00018736350898986365,
-        "fee_to_release": 0.0003194596637514246,
-        "overpayment_refund": 0.0008072916496202608,
-        "code_request": 0.00003696082153106975,
-        "ship_elsewhere": 0.000031612934752165626,
-        "move_off_chat": 0.000024406027378394605,
-        "ai_instructions": 0.00008986653579707351
+        "ff_payment": 0.0003092268720193233,
+        "off_paypal": 0.000008243793452069187,
+        "deposit_pressure": 0.00026648595762080135,
+        "fake_payment_proof": 0.0002464882938707748,
+        "fee_to_release": 0.0005026380648719318,
+        "overpayment_refund": 0.0012555118634422606,
+        "code_request": 0.00018800679772559232,
+        "ship_elsewhere": 0.00023184951177436205,
+        "move_off_chat": 0.000031187308855724516,
+        "ai_instructions": 0.00012504253836569674
       },
       "rules": [],
       "price": {
@@ -1153,16 +1173,16 @@
       "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.004604910152802974,
-        "off_paypal": 0.0027151327758022357,
-        "deposit_pressure": 0.0023884445466180113,
-        "fake_payment_proof": 0.0035767248351966214,
-        "fee_to_release": 0.027529294258491887,
-        "overpayment_refund": 0.000001524086544458353,
-        "code_request": 0.43879211955985487,
-        "ship_elsewhere": 0.000007583458546345439,
-        "move_off_chat": 0.016580136974432048,
-        "ai_instructions": 0.0018649670369378164
+        "ff_payment": 0.012452374890830686,
+        "off_paypal": 0.005343844095169733,
+        "deposit_pressure": 0.0009838442725259423,
+        "fake_payment_proof": 0.0010021291663593916,
+        "fee_to_release": 0.01917427177948028,
+        "overpayment_refund": 9.109205979643525e-7,
+        "code_request": 0.27266710586834986,
+        "ship_elsewhere": 0.000014859957978653686,
+        "move_off_chat": 0.026690273733952132,
+        "ai_instructions": 0.004502005005903345
       },
       "rules": [
         "code_request"
@@ -1181,19 +1201,19 @@
     {
       "id": "code-2",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00010053996894956477,
-        "off_paypal": 0.000046466602810069926,
-        "deposit_pressure": 0.0001328469116403806,
-        "fake_payment_proof": 0.000005189544291039321,
-        "fee_to_release": 0.00009715659688696911,
-        "overpayment_refund": 0.000004716712898712135,
-        "code_request": 0.20408028713502296,
-        "ship_elsewhere": 9.98292895858423e-7,
-        "move_off_chat": 0.00002070190740466395,
-        "ai_instructions": 0.000017706867383011654
+        "ff_payment": 0.00007526454781310784,
+        "off_paypal": 0.00003373367084371835,
+        "deposit_pressure": 0.00014421519738191997,
+        "fake_payment_proof": 0.000005476899357230159,
+        "fee_to_release": 0.000028052526738587614,
+        "overpayment_refund": 0.000006525751827366717,
+        "code_request": 0.40594029952757077,
+        "ship_elsewhere": 2.1129401364412055e-7,
+        "move_off_chat": 0.00002624495241935273,
+        "ai_instructions": 0.000032163139098445724
       },
       "rules": [],
       "price": {
@@ -1210,19 +1230,19 @@
     {
       "id": "code-3",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00026331810963480396,
-        "off_paypal": 0.00021717772948815582,
-        "deposit_pressure": 0.0010338196470958741,
-        "fake_payment_proof": 0.000006944639413860221,
-        "fee_to_release": 0.0000011067023186227777,
-        "overpayment_refund": 0.0000022594368149866543,
-        "code_request": 0.6393971490381297,
-        "ship_elsewhere": 0.000008535371948952195,
-        "move_off_chat": 0.5570410652488434,
-        "ai_instructions": 0.0006488534146648049
+        "ff_payment": 0.00011015836709199704,
+        "off_paypal": 0.0002726390565989969,
+        "deposit_pressure": 0.0008820196502593321,
+        "fake_payment_proof": 0.000009476935067595916,
+        "fee_to_release": 4.607506335876957e-7,
+        "overpayment_refund": 7.079082680587974e-7,
+        "code_request": 0.7186496384821272,
+        "ship_elsewhere": 0.0000025384825314329835,
+        "move_off_chat": 0.7346908405094739,
+        "ai_instructions": 0.0007161432577100258
       },
       "rules": [],
       "price": {
@@ -1239,19 +1259,19 @@
     {
       "id": "dep-1",
       "ok": true,
-      "ms": 1,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.004186416466127168,
-        "off_paypal": 2.8388881092529395e-8,
-        "deposit_pressure": 0.9638658448076891,
-        "fake_payment_proof": 0.0008224445517718942,
-        "fee_to_release": 0.0002483781080998001,
-        "overpayment_refund": 0.0011405331903088128,
-        "code_request": 0.0004456251821238492,
-        "ship_elsewhere": 0.0005105378051988177,
-        "move_off_chat": 0.006494948346262238,
-        "ai_instructions": 0.0015039825306486074
+        "ff_payment": 0.0006588963473300902,
+        "off_paypal": 2.0282510075103255e-8,
+        "deposit_pressure": 0.8948396851419627,
+        "fake_payment_proof": 0.0003488393661322544,
+        "fee_to_release": 0.00015554850947554789,
+        "overpayment_refund": 0.00040699838762093285,
+        "code_request": 0.00018957920792293597,
+        "ship_elsewhere": 0.0002458576651325152,
+        "move_off_chat": 0.0005218220351521153,
+        "ai_instructions": 0.0005503220362585216
       },
       "rules": [],
       "price": {
@@ -1268,19 +1288,19 @@
     {
       "id": "dep-2",
       "ok": true,
-      "ms": 1,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0001242536763200984,
-        "off_paypal": 4.03450566747787e-8,
-        "deposit_pressure": 0.0003737830010011299,
-        "fake_payment_proof": 0.012117170681820456,
-        "fee_to_release": 0.0004274022032180518,
-        "overpayment_refund": 0.00006496782432711312,
-        "code_request": 0.002111515367695986,
-        "ship_elsewhere": 0.00011882050713305847,
-        "move_off_chat": 0.0017536444557484949,
-        "ai_instructions": 0.0008637133720516257
+        "ff_payment": 0.00012398083682917693,
+        "off_paypal": 9.769273078886357e-8,
+        "deposit_pressure": 0.0001495805634389008,
+        "fake_payment_proof": 0.02900511133106866,
+        "fee_to_release": 0.00028235616887465665,
+        "overpayment_refund": 0.00017101678315644143,
+        "code_request": 0.0006834425193913344,
+        "ship_elsewhere": 0.0001128204368993591,
+        "move_off_chat": 0.0005238875470442043,
+        "ai_instructions": 0.0004219564271006569
       },
       "rules": [],
       "price": {
@@ -1300,16 +1320,16 @@
       "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00725207885676237,
-        "off_paypal": 4.903160307920269e-8,
-        "deposit_pressure": 0.006133734912798071,
-        "fake_payment_proof": 0.0018442779630913407,
-        "fee_to_release": 0.0007942820313537879,
-        "overpayment_refund": 0.00043503402798299027,
-        "code_request": 0.00018388118078686895,
-        "ship_elsewhere": 0.0016239287761728896,
-        "move_off_chat": 0.00022657600402158936,
-        "ai_instructions": 0.0032555258705285247
+        "ff_payment": 0.001053034285166635,
+        "off_paypal": 1.360498568070895e-8,
+        "deposit_pressure": 0.0006616845528886611,
+        "fake_payment_proof": 0.0012205941865785414,
+        "fee_to_release": 0.0006704275447838809,
+        "overpayment_refund": 0.000668750907531285,
+        "code_request": 0.00014022833807028056,
+        "ship_elsewhere": 0.00222143834587622,
+        "move_off_chat": 0.00017226137544596018,
+        "ai_instructions": 0.004129683348537481
       },
       "rules": [],
       "price": {
@@ -1326,19 +1346,19 @@
     {
       "id": "dig-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00009112421600726576,
-        "off_paypal": 3.6052382295772416e-7,
-        "deposit_pressure": 0.00019026593220568516,
-        "fake_payment_proof": 0.00012539871874453175,
-        "fee_to_release": 0.00016243100718865255,
-        "overpayment_refund": 0.00007556438200897777,
-        "code_request": 0.0005539120509151013,
-        "ship_elsewhere": 0.0001040607294367124,
-        "move_off_chat": 0.00006603211702040452,
-        "ai_instructions": 0.00005531594276373795
+        "ff_payment": 0.00009660358463161335,
+        "off_paypal": 1.780463385406154e-7,
+        "deposit_pressure": 0.0003096831021841979,
+        "fake_payment_proof": 0.0002585065749006119,
+        "fee_to_release": 0.0001071803118943229,
+        "overpayment_refund": 0.00016768136334936054,
+        "code_request": 0.00017216628568722932,
+        "ship_elsewhere": 0.00016568139908525084,
+        "move_off_chat": 0.0006442194443254692,
+        "ai_instructions": 0.00026045093274475276
       },
       "rules": [],
       "price": {
@@ -1355,19 +1375,19 @@
     {
       "id": "fee-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.007774822133331635,
-        "off_paypal": 0.00022652420344761997,
-        "deposit_pressure": 0.00042527691422662185,
-        "fake_payment_proof": 0.000005244458146619601,
-        "fee_to_release": 0.9689737990176032,
-        "overpayment_refund": 0.000010076186472495802,
-        "code_request": 0.0000029241400726280146,
-        "ship_elsewhere": 2.793726135449541e-7,
-        "move_off_chat": 0.0005609056180528842,
-        "ai_instructions": 0.003409858219407224
+        "ff_payment": 0.0009129638389017181,
+        "off_paypal": 0.00016638882393782615,
+        "deposit_pressure": 0.000378665106694831,
+        "fake_payment_proof": 0.000033921357272679204,
+        "fee_to_release": 0.9526182279074127,
+        "overpayment_refund": 0.0000032800582737233148,
+        "code_request": 0.000006753586403271309,
+        "ship_elsewhere": 2.6173363248335866e-7,
+        "move_off_chat": 0.0002732178404492935,
+        "ai_instructions": 0.0032544889856120974
       },
       "rules": [],
       "price": {
@@ -1384,19 +1404,19 @@
     {
       "id": "fee-2",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.003914258522395717,
-        "off_paypal": 0.00987628647491731,
-        "deposit_pressure": 0.029723575727102353,
-        "fake_payment_proof": 0.002113574773286943,
-        "fee_to_release": 0.8765524273837227,
-        "overpayment_refund": 0.000027053478091181834,
-        "code_request": 0.000030812268371966755,
-        "ship_elsewhere": 0.000004902048137039258,
-        "move_off_chat": 0.004372365097549543,
-        "ai_instructions": 0.000489977970333353
+        "ff_payment": 0.00011152554174054961,
+        "off_paypal": 0.002632860899813159,
+        "deposit_pressure": 0.012485597335775624,
+        "fake_payment_proof": 0.001708984842561041,
+        "fee_to_release": 0.971671687375126,
+        "overpayment_refund": 0.000014832588089629813,
+        "code_request": 0.000013188003305229398,
+        "ship_elsewhere": 0.000007877030697525935,
+        "move_off_chat": 0.004367787263700922,
+        "ai_instructions": 0.0005683758150686332
       },
       "rules": [],
       "price": {
@@ -1416,16 +1436,16 @@
       "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.027742876187839674,
-        "off_paypal": 0.0037743071388981406,
-        "deposit_pressure": 0.00013826358600090347,
-        "fake_payment_proof": 0.00040423497381594754,
-        "fee_to_release": 0.9668521895389193,
-        "overpayment_refund": 0.10340936333738256,
-        "code_request": 0.000002109519339170554,
-        "ship_elsewhere": 0.000003484293359193134,
-        "move_off_chat": 0.0009872262485166616,
-        "ai_instructions": 0.00010846819406645982
+        "ff_payment": 0.04286331308358828,
+        "off_paypal": 0.002253670678691285,
+        "deposit_pressure": 0.00016633938917204365,
+        "fake_payment_proof": 0.0030384791121318955,
+        "fee_to_release": 0.917042896958218,
+        "overpayment_refund": 0.014245513862252961,
+        "code_request": 0.000004188939063270334,
+        "ship_elsewhere": 0.000004037371079968209,
+        "move_off_chat": 0.00549922540652201,
+        "ai_instructions": 0.00020824312534099783
       },
       "rules": [],
       "price": {
@@ -1442,19 +1462,19 @@
     {
       "id": "ff-1",
       "ok": true,
-      "ms": 16,
+      "ms": 34,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.7355789964999004,
-        "off_paypal": 0.000010613959239780922,
-        "deposit_pressure": 1.6167884160657354e-7,
-        "fake_payment_proof": 0.0004726491268738142,
-        "fee_to_release": 0.0002483781080998001,
-        "overpayment_refund": 0.00027808347925052624,
-        "code_request": 0.00019424300345928356,
-        "ship_elsewhere": 0.0005105378051988177,
-        "move_off_chat": 0.00034894303558971547,
-        "ai_instructions": 0.00016415937178020025
+        "ff_payment": 0.7513744084979093,
+        "off_paypal": 0.000023498014711509623,
+        "deposit_pressure": 6.523091756235802e-7,
+        "fake_payment_proof": 0.0002604668522369474,
+        "fee_to_release": 0.00015554850947554789,
+        "overpayment_refund": 0.00012721684183905065,
+        "code_request": 0.00013388038111847642,
+        "ship_elsewhere": 0.0002458576651325152,
+        "move_off_chat": 0.00047588189118990713,
+        "ai_instructions": 0.00024286611420702738
       },
       "rules": [
         "ff_payment"
@@ -1473,19 +1493,19 @@
     {
       "id": "ff-2",
       "ok": true,
-      "ms": 3,
+      "ms": 7,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.963374478889202,
-        "off_paypal": 0.0011963352109157644,
-        "deposit_pressure": 0.000303886922971597,
-        "fake_payment_proof": 0.0000017946629614013157,
-        "fee_to_release": 0.0011973074217409257,
-        "overpayment_refund": 0.04351914195422986,
-        "code_request": 0.00011410963074009816,
-        "ship_elsewhere": 0.001006018473873238,
-        "move_off_chat": 0.0026845811610008295,
-        "ai_instructions": 0.00042381644380683095
+        "ff_payment": 0.9830419850847119,
+        "off_paypal": 0.0011869574888370893,
+        "deposit_pressure": 0.00028910056560083665,
+        "fake_payment_proof": 0.0000017667748103849672,
+        "fee_to_release": 0.0007261484722923524,
+        "overpayment_refund": 0.02661001830879007,
+        "code_request": 0.00007700243673017025,
+        "ship_elsewhere": 0.0003515689151026205,
+        "move_off_chat": 0.0054625904199171686,
+        "ai_instructions": 0.0007162778588127267
       },
       "rules": [
         "ff_payment"
@@ -1504,19 +1524,19 @@
     {
       "id": "ff-3",
       "ok": true,
-      "ms": 3,
+      "ms": 6,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.3431069040171731,
-        "off_paypal": 0.00047200667470464184,
-        "deposit_pressure": 0.001828448438730604,
-        "fake_payment_proof": 0.000002753392769678148,
-        "fee_to_release": 0.00001258241168190406,
-        "overpayment_refund": 0.000004211097545888247,
-        "code_request": 0.0000013923257290137154,
-        "ship_elsewhere": 0.00008557534562952788,
-        "move_off_chat": 0.002388332022589829,
-        "ai_instructions": 0.0051794045168054486
+        "ff_payment": 0.29464981921374445,
+        "off_paypal": 0.000054044026260651815,
+        "deposit_pressure": 0.0007256980241212707,
+        "fake_payment_proof": 0.000005725757995958037,
+        "fee_to_release": 0.000006321957182139613,
+        "overpayment_refund": 0.0000081552035118959,
+        "code_request": 4.0059295307357856e-7,
+        "ship_elsewhere": 0.000053087873630889373,
+        "move_off_chat": 0.002450043667522057,
+        "ai_instructions": 0.008323287152028023
       },
       "rules": [
         "ff_payment"
@@ -1535,19 +1555,19 @@
     {
       "id": "ff-4",
       "ok": true,
-      "ms": 3,
+      "ms": 6,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.3823154580902535,
-        "off_paypal": 0.00003296371578783942,
-        "deposit_pressure": 0.00010160830320750056,
-        "fake_payment_proof": 0.00004694094668740332,
-        "fee_to_release": 0.0001384826973241503,
-        "overpayment_refund": 0.00012046345378058,
-        "code_request": 0.00032415008961433797,
-        "ship_elsewhere": 0.0002743937416649015,
-        "move_off_chat": 0.00012932743659216793,
-        "ai_instructions": 0.00045200732843173063
+        "ff_payment": 0.1095252744563695,
+        "off_paypal": 0.000027639223493792,
+        "deposit_pressure": 0.0001226206216738558,
+        "fake_payment_proof": 0.00003363241720653058,
+        "fee_to_release": 0.00029776194150891603,
+        "overpayment_refund": 0.00014519794031732315,
+        "code_request": 0.00018176233182594958,
+        "ship_elsewhere": 0.00024185522361029903,
+        "move_off_chat": 0.0006110603147982314,
+        "ai_instructions": 0.0005108412405401755
       },
       "rules": [
         "ff_payment"
@@ -1566,19 +1586,19 @@
     {
       "id": "meet-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00009112421600726576,
-        "off_paypal": 0.000005045415857789063,
-        "deposit_pressure": 0.0002910298486685493,
-        "fake_payment_proof": 0.0001019167174762643,
-        "fee_to_release": 0.000028232155387454734,
-        "overpayment_refund": 0.00008627025799438192,
-        "code_request": 0.00012350397794315252,
-        "ship_elsewhere": 0.00004530211496749159,
-        "move_off_chat": 0.00011931645048982732,
-        "ai_instructions": 0.00005531594276373795
+        "ff_payment": 0.00009660358463161335,
+        "off_paypal": 0.0000017380635196749991,
+        "deposit_pressure": 0.0001627968652768653,
+        "fake_payment_proof": 0.00009527120345908847,
+        "fee_to_release": 0.00003723823721820435,
+        "overpayment_refund": 0.00016768136334936054,
+        "code_request": 0.00017216628568722932,
+        "ship_elsewhere": 0.00016568139908525084,
+        "move_off_chat": 0.0002624890613056637,
+        "ai_instructions": 0.00026045093274475276
       },
       "rules": [],
       "price": {
@@ -1598,16 +1618,16 @@
       "ms": 0,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0013491157875061461,
-        "off_paypal": 0.00002501047587580661,
-        "deposit_pressure": 0.00009453558857612005,
-        "fake_payment_proof": 0.0003671201546935548,
-        "fee_to_release": 0.0003217769139441263,
-        "overpayment_refund": 0.0002862146099622219,
-        "code_request": 0.000367075220200353,
-        "ship_elsewhere": 0.002657713823235758,
-        "move_off_chat": 0.00027086147830672583,
-        "ai_instructions": 0.00011045559017843759
+        "ff_payment": 0.0046299097934635386,
+        "off_paypal": 0.0000189853463421684,
+        "deposit_pressure": 0.00015266995500119092,
+        "fake_payment_proof": 0.0002047275625392932,
+        "fee_to_release": 0.0002542137733397172,
+        "overpayment_refund": 0.0014221627948927268,
+        "code_request": 0.00010029399110749654,
+        "ship_elsewhere": 0.013330909016775689,
+        "move_off_chat": 0.0004519328876834458,
+        "ai_instructions": 0.0002047384283102538
       },
       "rules": [],
       "price": {
@@ -1627,16 +1647,16 @@
       "ms": 0,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00019583714785705513,
-        "off_paypal": 0.00010575321612744817,
-        "deposit_pressure": 0.00005260188539886363,
-        "fake_payment_proof": 0.0009993118572496082,
-        "fee_to_release": 0.000026151413484310878,
-        "overpayment_refund": 0.0008179005024643287,
-        "code_request": 0.0022124148016311484,
-        "ship_elsewhere": 0.00022089626773945912,
-        "move_off_chat": 0.9933021034307727,
-        "ai_instructions": 0.020704398798518583
+        "ff_payment": 0.0026547654028308554,
+        "off_paypal": 0.0005589719850577928,
+        "deposit_pressure": 0.000038362480677771305,
+        "fake_payment_proof": 0.0010065285383900745,
+        "fee_to_release": 0.000015915241306750975,
+        "overpayment_refund": 0.0008830127841083413,
+        "code_request": 0.0004781779093717244,
+        "ship_elsewhere": 0.00016672912687077407,
+        "move_off_chat": 0.9748952630020468,
+        "ai_instructions": 0.013807622706073113
       },
       "rules": [],
       "price": {
@@ -1653,19 +1673,19 @@
     {
       "id": "move-2",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.004186416466127168,
-        "off_paypal": 1.510688392614354e-7,
-        "deposit_pressure": 0.000005514219226768532,
-        "fake_payment_proof": 0.0004726491268738142,
-        "fee_to_release": 0.0002483781080998001,
-        "overpayment_refund": 0.00027808347925052624,
-        "code_request": 0.00019424300345928356,
-        "ship_elsewhere": 0.0005105378051988177,
-        "move_off_chat": 0.9952246367210603,
-        "ai_instructions": 0.00016415937178020025
+        "ff_payment": 0.0006588963473300902,
+        "off_paypal": 3.6766328563353e-7,
+        "deposit_pressure": 0.0000058583802718095515,
+        "fake_payment_proof": 0.0002604668522369474,
+        "fee_to_release": 0.00015554850947554789,
+        "overpayment_refund": 0.00012721684183905065,
+        "code_request": 0.00013388038111847642,
+        "ship_elsewhere": 0.0002458576651325152,
+        "move_off_chat": 0.991682886814354,
+        "ai_instructions": 0.00024286611420702738
       },
       "rules": [],
       "price": {
@@ -1682,19 +1702,19 @@
     {
       "id": "move-3",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.000619658527458252,
-        "off_paypal": 0.001561323206855151,
-        "deposit_pressure": 0.0006792984694377198,
-        "fake_payment_proof": 2.3288966740702407e-8,
-        "fee_to_release": 8.517086515068061e-8,
-        "overpayment_refund": 2.186923624497238e-7,
-        "code_request": 7.501435416781421e-7,
-        "ship_elsewhere": 4.702249263625352e-7,
-        "move_off_chat": 0.09274672277058556,
-        "ai_instructions": 0.0006174152467832526
+        "ff_payment": 0.0008638498376788197,
+        "off_paypal": 0.0013263763485421433,
+        "deposit_pressure": 0.0007566101566611906,
+        "fake_payment_proof": 7.531232146828505e-9,
+        "fee_to_release": 5.2877023019276844e-8,
+        "overpayment_refund": 1.8333112470949466e-7,
+        "code_request": 3.9306041776781094e-7,
+        "ship_elsewhere": 1.7112157184490355e-7,
+        "move_off_chat": 0.009327819429112814,
+        "ai_instructions": 0.0007934693899492989
       },
       "rules": [],
       "price": {
@@ -1711,19 +1731,19 @@
     {
       "id": "neg-ai-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0004959444078798783,
-        "off_paypal": 0.000004096183710434841,
-        "deposit_pressure": 0.00004788634122080324,
-        "fake_payment_proof": 0.00012414024268294886,
-        "fee_to_release": 0.0002396489926935799,
-        "overpayment_refund": 0.00017982074413536105,
-        "code_request": 0.00006112012102635885,
-        "ship_elsewhere": 0.00040380317682070613,
-        "move_off_chat": 0.00006394986542026154,
-        "ai_instructions": 0.00026646536209032763
+        "ff_payment": 0.001200140867883456,
+        "off_paypal": 0.0000015389779021588607,
+        "deposit_pressure": 0.00016918785286281973,
+        "fake_payment_proof": 0.0001804234723512581,
+        "fee_to_release": 0.0003175954639712723,
+        "overpayment_refund": 0.00018261269582499728,
+        "code_request": 0.00018187512779953708,
+        "ship_elsewhere": 0.0003919465095651165,
+        "move_off_chat": 0.0003482779240919059,
+        "ai_instructions": 0.0008854132448919026
       },
       "rules": [],
       "price": {
@@ -1740,19 +1760,19 @@
     {
       "id": "neg-ai-2",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.08148401466861374,
-        "off_paypal": 0.00006895764567578763,
-        "deposit_pressure": 0.0003845306739761899,
-        "fake_payment_proof": 0.0006249601629991635,
-        "fee_to_release": 0.0010297224895329427,
-        "overpayment_refund": 0.0023604200770825233,
-        "code_request": 0.00107529609985042,
-        "ship_elsewhere": 0.0012404230449577448,
-        "move_off_chat": 0.006541883202712172,
-        "ai_instructions": 0.08136264129302466
+        "ff_payment": 0.565083085410326,
+        "off_paypal": 0.0000749063610915663,
+        "deposit_pressure": 0.00030250145784617004,
+        "fake_payment_proof": 0.00012426412928728058,
+        "fee_to_release": 0.00012290012457274741,
+        "overpayment_refund": 0.0006385510774706634,
+        "code_request": 0.000439709978778601,
+        "ship_elsewhere": 0.00035857789989239634,
+        "move_off_chat": 0.003424915692325011,
+        "ai_instructions": 0.0854937594823856
       },
       "rules": [],
       "price": {
@@ -1769,19 +1789,19 @@
     {
       "id": "neg-ai-3",
       "ok": true,
-      "ms": 0,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00010710983802397777,
-        "off_paypal": 0.0000109834147077816,
-        "deposit_pressure": 0.00018247747536945434,
-        "fake_payment_proof": 0.00017465969917992267,
-        "fee_to_release": 0.00012547496491797054,
-        "overpayment_refund": 0.0002151016481973787,
-        "code_request": 0.00013376075278849646,
-        "ship_elsewhere": 0.00027967943399652607,
-        "move_off_chat": 0.00038362462708642505,
-        "ai_instructions": 0.0005375309063851655
+        "ff_payment": 0.00007225535678726365,
+        "off_paypal": 0.000005939980997521604,
+        "deposit_pressure": 0.00020728962922931794,
+        "fake_payment_proof": 0.00013240726617469315,
+        "fee_to_release": 0.00013784970357391414,
+        "overpayment_refund": 0.00005420341613913125,
+        "code_request": 0.00009921826961537215,
+        "ship_elsewhere": 0.00005848475853996754,
+        "move_off_chat": 0.00019249921571706251,
+        "ai_instructions": 0.0005012142400270075
       },
       "rules": [],
       "price": {
@@ -1798,19 +1818,19 @@
     {
       "id": "neg-code-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.004186416466127168,
-        "off_paypal": 0.0003261871082400997,
-        "deposit_pressure": 0.0026993653671817373,
-        "fake_payment_proof": 0.0004726491268738142,
-        "fee_to_release": 0.0002483781080998001,
-        "overpayment_refund": 0.00027808347925052624,
-        "code_request": 0.0021846757406357646,
-        "ship_elsewhere": 0.0005105378051988177,
-        "move_off_chat": 0.00034894303558971547,
-        "ai_instructions": 0.00016415937178020025
+        "ff_payment": 0.0006588963473300902,
+        "off_paypal": 0.00006200110107811869,
+        "deposit_pressure": 0.0008328249059875094,
+        "fake_payment_proof": 0.0002604668522369474,
+        "fee_to_release": 0.00015554850947554789,
+        "overpayment_refund": 0.00012721684183905065,
+        "code_request": 0.006442480386239579,
+        "ship_elsewhere": 0.0002458576651325152,
+        "move_off_chat": 0.00047588189118990713,
+        "ai_instructions": 0.00024286611420702738
       },
       "rules": [],
       "price": {
@@ -1827,19 +1847,19 @@
     {
       "id": "neg-code-2",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0004959444078798783,
-        "off_paypal": 0.0005119905672589102,
-        "deposit_pressure": 0.0002178661778209801,
-        "fake_payment_proof": 0.000003823745803584426,
-        "fee_to_release": 0.00006437355072590168,
-        "overpayment_refund": 0.00015845622582827932,
-        "code_request": 0.0000024103615370561595,
-        "ship_elsewhere": 0.0000088234471340256,
-        "move_off_chat": 0.00006394986542026154,
-        "ai_instructions": 0.00026646536209032763
+        "ff_payment": 0.001200140867883456,
+        "off_paypal": 0.0007767940644400953,
+        "deposit_pressure": 0.0005045333672615608,
+        "fake_payment_proof": 0.000007750498140648016,
+        "fee_to_release": 0.00015381344212492775,
+        "overpayment_refund": 0.00015730069927181548,
+        "code_request": 0.000003912778279142799,
+        "ship_elsewhere": 0.000013846249222085019,
+        "move_off_chat": 0.0003482779240919059,
+        "ai_instructions": 0.0008854132448919026
       },
       "rules": [],
       "price": {
@@ -1859,16 +1879,16 @@
       "ms": 0,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0006899710684910727,
-        "off_paypal": 0.0011803880856075279,
-        "deposit_pressure": 0.0006247404260050842,
-        "fake_payment_proof": 0.000014592917347000042,
-        "fee_to_release": 0.0003194596637514246,
-        "overpayment_refund": 0.0008072916496202608,
-        "code_request": 0.00048757909969931855,
-        "ship_elsewhere": 0.0011326418661685592,
-        "move_off_chat": 0.002206458999299025,
-        "ai_instructions": 0.0000757452441472252
+        "ff_payment": 0.0003092268720193233,
+        "off_paypal": 0.0002987994094022784,
+        "deposit_pressure": 0.0014294403530206528,
+        "fake_payment_proof": 0.000008722823760542572,
+        "fee_to_release": 0.0005026380648719318,
+        "overpayment_refund": 0.0012555118634422606,
+        "code_request": 0.001015805299926892,
+        "ship_elsewhere": 0.0005594474646923454,
+        "move_off_chat": 0.026958724356487763,
+        "ai_instructions": 0.000051631223436006914
       },
       "rules": [],
       "price": {
@@ -1885,19 +1905,19 @@
     {
       "id": "neg-dep-1",
       "ok": true,
-      "ms": 0,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00008525752988374655,
-        "off_paypal": 0.000002389778844976873,
-        "deposit_pressure": 0.0003388160342254025,
-        "fake_payment_proof": 0.0000016368863734164225,
-        "fee_to_release": 0.0016237726429344788,
-        "overpayment_refund": 0.00010069252675603551,
-        "code_request": 0.00000157149015736516,
-        "ship_elsewhere": 0.0032730245631563014,
-        "move_off_chat": 0.00011758301059836821,
-        "ai_instructions": 0.00001687868679285517
+        "ff_payment": 0.001262274759373655,
+        "off_paypal": 3.8799385923186256e-7,
+        "deposit_pressure": 0.0005226732086939643,
+        "fake_payment_proof": 0.000004400041030549899,
+        "fee_to_release": 0.00546710954064677,
+        "overpayment_refund": 0.00010104947953296888,
+        "code_request": 0.0000025295492956372037,
+        "ship_elsewhere": 0.00046275979375307323,
+        "move_off_chat": 0.00008285868904151284,
+        "ai_instructions": 0.00000987571110209064
       },
       "rules": [],
       "price": {
@@ -1914,19 +1934,19 @@
     {
       "id": "neg-dep-2",
       "ok": true,
-      "ms": 0,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00003641169370188738,
-        "off_paypal": 0.000047264781531186426,
-        "deposit_pressure": 0.0003965789142820695,
-        "fake_payment_proof": 2.858907340056577e-7,
-        "fee_to_release": 0.00006184739721146732,
-        "overpayment_refund": 0.006379042527181301,
-        "code_request": 0.000023556845282476954,
-        "ship_elsewhere": 0.0000026913884216201658,
-        "move_off_chat": 0.00002068829253005731,
-        "ai_instructions": 0.000013657421342769004
+        "ff_payment": 0.00008961469827562502,
+        "off_paypal": 0.0001037984484182434,
+        "deposit_pressure": 0.00029881075689472446,
+        "fake_payment_proof": 3.0780506943135424e-7,
+        "fee_to_release": 0.00012446662201996247,
+        "overpayment_refund": 0.004440172924516306,
+        "code_request": 0.000006959308057446602,
+        "ship_elsewhere": 9.307046337413079e-7,
+        "move_off_chat": 0.00008000372579992263,
+        "ai_instructions": 0.000020351031538130437
       },
       "rules": [],
       "price": {
@@ -1943,19 +1963,19 @@
     {
       "id": "neg-dep-3",
       "ok": true,
-      "ms": 0,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0000552738810086093,
-        "off_paypal": 0.000009774541711402704,
-        "deposit_pressure": 0.007689497291446054,
-        "fake_payment_proof": 0.00020629652526750852,
-        "fee_to_release": 0.00001673670386377129,
-        "overpayment_refund": 0.00003466393364405856,
-        "code_request": 0.0006776366024166943,
-        "ship_elsewhere": 0.000931244148602527,
-        "move_off_chat": 0.000549634927251372,
-        "ai_instructions": 0.0007566196490645399
+        "ff_payment": 0.00007080087163267442,
+        "off_paypal": 0.00002047413377392282,
+        "deposit_pressure": 0.0053977957590942436,
+        "fake_payment_proof": 0.00041543186728658544,
+        "fee_to_release": 0.000014173833083714111,
+        "overpayment_refund": 0.00011411938577463108,
+        "code_request": 0.0013075702135345204,
+        "ship_elsewhere": 0.00022265596103235725,
+        "move_off_chat": 0.0007881672460547999,
+        "ai_instructions": 0.00015883439395292202
       },
       "rules": [],
       "price": {
@@ -1972,19 +1992,19 @@
     {
       "id": "neg-fee-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0076958927292704,
-        "off_paypal": 0.000035583068490592695,
-        "deposit_pressure": 0.0021811302226037617,
-        "fake_payment_proof": 0.00001192259469617964,
-        "fee_to_release": 0.00142452008795675,
-        "overpayment_refund": 0.0003887397535946174,
-        "code_request": 0.000007838179929400952,
-        "ship_elsewhere": 0.0000069240182384616884,
-        "move_off_chat": 0.00005453108551288583,
-        "ai_instructions": 0.000034852754535947995
+        "ff_payment": 0.007085950736268145,
+        "off_paypal": 0.0000030305665881672697,
+        "deposit_pressure": 0.0009036868270631286,
+        "fake_payment_proof": 0.000037600153162144886,
+        "fee_to_release": 0.0032051129385277095,
+        "overpayment_refund": 0.0004326086170308381,
+        "code_request": 0.00002188983491989788,
+        "ship_elsewhere": 0.00000599089012423072,
+        "move_off_chat": 0.00007682388371948577,
+        "ai_instructions": 0.00005270762164210182
       },
       "rules": [],
       "price": {
@@ -2001,19 +2021,19 @@
     {
       "id": "neg-fee-2",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00009112421600726576,
-        "off_paypal": 0.00015294658776669794,
-        "deposit_pressure": 0.0001196664809365076,
-        "fake_payment_proof": 0.000002423635543495022,
-        "fee_to_release": 0.0001189694346959237,
-        "overpayment_refund": 0.00038075248644328663,
-        "code_request": 9.321119676155388e-7,
-        "ship_elsewhere": 0.000015260119658261313,
-        "move_off_chat": 0.000045876203635572786,
-        "ai_instructions": 0.00005531594276373795
+        "ff_payment": 0.00009660358463161335,
+        "off_paypal": 0.00018835732899157414,
+        "deposit_pressure": 0.00018178549934085226,
+        "fake_payment_proof": 0.000005174161180137183,
+        "fee_to_release": 0.00004002879808111822,
+        "overpayment_refund": 0.00010335077817048339,
+        "code_request": 0.0000014359536148288302,
+        "ship_elsewhere": 0.000011910544596117637,
+        "move_off_chat": 0.0002621874875934561,
+        "ai_instructions": 0.00026045093274475276
       },
       "rules": [],
       "price": {
@@ -2030,19 +2050,19 @@
     {
       "id": "neg-fee-3",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.000013345969873411744,
-        "off_paypal": 7.691938761573243e-7,
-        "deposit_pressure": 0.000011420791120662015,
-        "fake_payment_proof": 0.0000047504488326745664,
-        "fee_to_release": 0.000011530109481715053,
-        "overpayment_refund": 0.00001637752964021359,
-        "code_request": 0.000013026173046150844,
-        "ship_elsewhere": 0.000015316622191662172,
-        "move_off_chat": 0.00005328478708975304,
-        "ai_instructions": 0.00015323492809819381
+        "ff_payment": 0.000011861151257342836,
+        "off_paypal": 3.829181376777243e-7,
+        "deposit_pressure": 0.000009394372341500087,
+        "fake_payment_proof": 0.000008666188355084083,
+        "fee_to_release": 0.00002739320443023707,
+        "overpayment_refund": 0.0000111892346237089,
+        "code_request": 0.000031101373079618616,
+        "ship_elsewhere": 0.000020477356324236824,
+        "move_off_chat": 0.00009089218863192448,
+        "ai_instructions": 0.00039574297448709777
       },
       "rules": [],
       "price": {
@@ -2059,19 +2079,19 @@
     {
       "id": "neg-ff-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.9963426817811026,
-        "off_paypal": 0.000005926847130385936,
-        "deposit_pressure": 0.0000012643029337034885,
-        "fake_payment_proof": 9.397759517836889e-7,
-        "fee_to_release": 0.00005172573434313223,
-        "overpayment_refund": 0.0001554183406086335,
-        "code_request": 0.00000254202944846203,
-        "ship_elsewhere": 0.000003504075181751267,
-        "move_off_chat": 0.000013450597757045801,
-        "ai_instructions": 0.0013878851597541784
+        "ff_payment": 0.9899446941721526,
+        "off_paypal": 0.00002672416856356261,
+        "deposit_pressure": 0.0000038752336016063375,
+        "fake_payment_proof": 0.0000024887822460877666,
+        "fee_to_release": 0.00003621382782087223,
+        "overpayment_refund": 0.00008129852317612011,
+        "code_request": 0.000003985961395968901,
+        "ship_elsewhere": 0.000004727144809798819,
+        "move_off_chat": 0.000011185546925917406,
+        "ai_instructions": 0.00044538372360113955
       },
       "rules": [
         "ff_payment"
@@ -2090,23 +2110,21 @@
     {
       "id": "neg-ff-2",
       "ok": true,
-      "ms": 0,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0019298139242547195,
-        "off_paypal": 0.0005119905672589102,
-        "deposit_pressure": 0.0002178661778209801,
-        "fake_payment_proof": 0.000008164395290253846,
-        "fee_to_release": 0.00005459571110542348,
-        "overpayment_refund": 0.00002805620596322666,
-        "code_request": 0.0000010829856051987396,
-        "ship_elsewhere": 0.000023325494142345834,
-        "move_off_chat": 0.00006394986542026154,
-        "ai_instructions": 0.00026646536209032763
+        "ff_payment": 0.001200140867883456,
+        "off_paypal": 0.0007767940644400953,
+        "deposit_pressure": 0.0005045333672615608,
+        "fake_payment_proof": 0.000011343070126275942,
+        "fee_to_release": 0.00003387365133774437,
+        "overpayment_refund": 0.00004203380153489779,
+        "code_request": 0.000004204697627626374,
+        "ship_elsewhere": 0.0000377149763892686,
+        "move_off_chat": 0.0003482779240919059,
+        "ai_instructions": 0.0008854132448919026
       },
-      "rules": [
-        "ff_payment"
-      ],
+      "rules": [],
       "price": {
         "expected": "35.00",
         "got": "35.00",
@@ -2121,19 +2139,19 @@
     {
       "id": "neg-ff-3",
       "ok": true,
-      "ms": 0,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00020942901615123144,
-        "off_paypal": 0.000006569863684308525,
-        "deposit_pressure": 0.0005087335063180596,
-        "fake_payment_proof": 0.0001019167174762643,
-        "fee_to_release": 0.000021160471197144475,
-        "overpayment_refund": 0.00003691400337017637,
-        "code_request": 0.00012350397794315252,
-        "ship_elsewhere": 0.00004530211496749159,
-        "move_off_chat": 0.000045876203635572786,
-        "ai_instructions": 0.0001203218699134878
+        "ff_payment": 0.0002476973105625846,
+        "off_paypal": 0.000006980219461451966,
+        "deposit_pressure": 0.0004662030500390413,
+        "fake_payment_proof": 0.00009527120345908847,
+        "fee_to_release": 0.00003723823721820435,
+        "overpayment_refund": 0.00016768136334936054,
+        "code_request": 0.00017216628568722932,
+        "ship_elsewhere": 0.00016568139908525084,
+        "move_off_chat": 0.0002621874875934561,
+        "ai_instructions": 0.00026045093274475276
       },
       "rules": [],
       "price": {
@@ -2150,19 +2168,19 @@
     {
       "id": "neg-move-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.000056820208943745425,
-        "off_paypal": 0.000004734247334571605,
-        "deposit_pressure": 0.000024640984644674346,
-        "fake_payment_proof": 0.00001996851362748512,
-        "fee_to_release": 0.0001905998027397515,
-        "overpayment_refund": 0.00004330504069332098,
-        "code_request": 0.00010455027596986487,
-        "ship_elsewhere": 0.00010822633235446954,
-        "move_off_chat": 0.005719883795991314,
-        "ai_instructions": 0.012906553750143305
+        "ff_payment": 0.00010571394809576746,
+        "off_paypal": 0.000006688917363302527,
+        "deposit_pressure": 0.000038887311643995734,
+        "fake_payment_proof": 0.000024086708402190775,
+        "fee_to_release": 0.0005469797444123135,
+        "overpayment_refund": 0.000049730883435938004,
+        "code_request": 0.0002020061842068166,
+        "ship_elsewhere": 0.00007984380389692532,
+        "move_off_chat": 0.0018817122326020947,
+        "ai_instructions": 0.008939547912711794
       },
       "rules": [],
       "price": {
@@ -2179,19 +2197,19 @@
     {
       "id": "neg-move-2",
       "ok": true,
-      "ms": 0,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0011608425238748925,
-        "off_paypal": 0.00026419538984317825,
-        "deposit_pressure": 0.000012935628282935029,
-        "fake_payment_proof": 0.000011230453896200498,
-        "fee_to_release": 0.0004205430741117543,
-        "overpayment_refund": 0.0015083708502355389,
-        "code_request": 0.000021921853889055836,
-        "ship_elsewhere": 0.000032324588477856605,
-        "move_off_chat": 0.00005451965069544191,
-        "ai_instructions": 0.0001662512440474888
+        "ff_payment": 0.0013474140449232634,
+        "off_paypal": 0.0002762956952755312,
+        "deposit_pressure": 0.000017119137003850654,
+        "fake_payment_proof": 0.000045507582557634934,
+        "fee_to_release": 0.0002650767001857446,
+        "overpayment_refund": 0.0014696960604519305,
+        "code_request": 0.00003513367220511268,
+        "ship_elsewhere": 0.00005144330367989675,
+        "move_off_chat": 0.00006920780489599117,
+        "ai_instructions": 0.0006492527793815069
       },
       "rules": [],
       "price": {
@@ -2208,19 +2226,19 @@
     {
       "id": "neg-move-3",
       "ok": true,
-      "ms": 0,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00009112421600726576,
-        "off_paypal": 4.063120078390679e-7,
-        "deposit_pressure": 0.00003731347843187355,
-        "fake_payment_proof": 0.0001019167174762643,
-        "fee_to_release": 0.000021160471197144475,
-        "overpayment_refund": 0.00003691400337017637,
-        "code_request": 0.00012350397794315252,
-        "ship_elsewhere": 0.00004530211496749159,
-        "move_off_chat": 0.0004346215515518335,
-        "ai_instructions": 0.00005531594276373795
+        "ff_payment": 0.00009660358463161335,
+        "off_paypal": 4.0493985672561944e-7,
+        "deposit_pressure": 0.00002217215949167991,
+        "fake_payment_proof": 0.00009527120345908847,
+        "fee_to_release": 0.00003723823721820435,
+        "overpayment_refund": 0.00016768136334936054,
+        "code_request": 0.00017216628568722932,
+        "ship_elsewhere": 0.00016568139908525084,
+        "move_off_chat": 0.0009278718501232471,
+        "ai_instructions": 0.00026045093274475276
       },
       "rules": [],
       "price": {
@@ -2237,19 +2255,19 @@
     {
       "id": "neg-off-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0008444035722748038,
-        "off_paypal": 0.00018675416763609288,
-        "deposit_pressure": 0.0000013014669052698391,
-        "fake_payment_proof": 0.0000755452120973839,
-        "fee_to_release": 0.016507300408904798,
-        "overpayment_refund": 0.0034087785093426734,
-        "code_request": 0.00002427523784011334,
-        "ship_elsewhere": 0.00001702672161761669,
-        "move_off_chat": 0.0002583179142572183,
-        "ai_instructions": 0.00011785844817187187
+        "ff_payment": 0.0018834896819299655,
+        "off_paypal": 0.0020085910802364083,
+        "deposit_pressure": 0.0000019202755225103433,
+        "fake_payment_proof": 0.000019569229952046254,
+        "fee_to_release": 0.045414047191403205,
+        "overpayment_refund": 0.0032742890189440352,
+        "code_request": 0.000037206744252592,
+        "ship_elsewhere": 0.000027940912266931756,
+        "move_off_chat": 0.0001434247772589252,
+        "ai_instructions": 0.00009534375197204969
       },
       "rules": [],
       "price": {
@@ -2266,19 +2284,19 @@
     {
       "id": "neg-off-2",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0010293104055652312,
-        "off_paypal": 0.0008399874580433805,
-        "deposit_pressure": 0.0002178661778209801,
-        "fake_payment_proof": 0.00008366424101273543,
-        "fee_to_release": 0.001820594043126493,
-        "overpayment_refund": 0.0013938685527207701,
-        "code_request": 0.00006166234692355918,
-        "ship_elsewhere": 0.00003264739472073505,
-        "move_off_chat": 0.00006394986542026154,
-        "ai_instructions": 0.00026646536209032763
+        "ff_payment": 0.003261664688541436,
+        "off_paypal": 0.0007767940644400953,
+        "deposit_pressure": 0.0005045333672615608,
+        "fake_payment_proof": 0.00018017420560722752,
+        "fee_to_release": 0.0022100694295196285,
+        "overpayment_refund": 0.001400793993203138,
+        "code_request": 0.00011214137630127692,
+        "ship_elsewhere": 0.00006774135748020765,
+        "move_off_chat": 0.0003482779240919059,
+        "ai_instructions": 0.0008854132448919026
       },
       "rules": [],
       "price": {
@@ -2295,19 +2313,19 @@
     {
       "id": "neg-off-3",
       "ok": true,
-      "ms": 0,
+      "ms": 3,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.000056820208943745425,
-        "off_paypal": 0.00000403516976432211,
-        "deposit_pressure": 0.000005535940689041743,
-        "fake_payment_proof": 0.00001996851362748512,
-        "fee_to_release": 0.0001905998027397515,
-        "overpayment_refund": 0.00004330504069332098,
-        "code_request": 0.00010455027596986487,
-        "ship_elsewhere": 0.00010822633235446954,
-        "move_off_chat": 0.005719883795991314,
-        "ai_instructions": 0.012906553750143305
+        "ff_payment": 0.00010571394809576746,
+        "off_paypal": 0.000005994578842393829,
+        "deposit_pressure": 0.0000033954118601554665,
+        "fake_payment_proof": 0.000024086708402190775,
+        "fee_to_release": 0.0005469797444123135,
+        "overpayment_refund": 0.000049730883435938004,
+        "code_request": 0.0002020061842068166,
+        "ship_elsewhere": 0.00007984380389692532,
+        "move_off_chat": 0.0018817122326020947,
+        "ai_instructions": 0.008939547912711794
       },
       "rules": [],
       "price": {
@@ -2324,19 +2342,19 @@
     {
       "id": "neg-over-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00027300438495517405,
-        "off_paypal": 0.000003761920211874338,
-        "deposit_pressure": 0.0001800989056363622,
-        "fake_payment_proof": 0.000004295397477273056,
-        "fee_to_release": 0.000059664774524227946,
-        "overpayment_refund": 0.19365117404958576,
-        "code_request": 0.00020009608052455635,
-        "ship_elsewhere": 0.0006786037698016089,
-        "move_off_chat": 0.00002666650222174163,
-        "ai_instructions": 0.00024969380451434257
+        "ff_payment": 0.00009780185407169498,
+        "off_paypal": 0.000004866233974024924,
+        "deposit_pressure": 0.0002906047351869856,
+        "fake_payment_proof": 0.000004927919756034373,
+        "fee_to_release": 0.00003969223615065859,
+        "overpayment_refund": 0.10047515010192538,
+        "code_request": 0.0003566156209701017,
+        "ship_elsewhere": 0.00018167462278703881,
+        "move_off_chat": 0.0000052324212352609795,
+        "ai_instructions": 0.000023825557038349837
       },
       "rules": [],
       "price": {
@@ -2356,16 +2374,16 @@
       "ms": 0,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.016888154487743952,
-        "off_paypal": 0.003367744764538323,
-        "deposit_pressure": 0.000012803153629932949,
-        "fake_payment_proof": 0.000002342874554155221,
-        "fee_to_release": 0.00006312926232329478,
-        "overpayment_refund": 0.00025718623403887797,
-        "code_request": 0.000003696661868382208,
-        "ship_elsewhere": 0.000029587307099328036,
-        "move_off_chat": 0.000010175538066783496,
-        "ai_instructions": 0.00006943932393806478
+        "ff_payment": 0.018725874424902183,
+        "off_paypal": 0.013900284258707313,
+        "deposit_pressure": 0.00001732728112006643,
+        "fake_payment_proof": 0.000006169237759516226,
+        "fee_to_release": 0.00011383072835879762,
+        "overpayment_refund": 0.00041819844636094587,
+        "code_request": 0.000005648707380125055,
+        "ship_elsewhere": 0.000019530434341331155,
+        "move_off_chat": 0.000015134249166223774,
+        "ai_instructions": 0.000049229856671037825
       },
       "rules": [],
       "price": {
@@ -2382,19 +2400,19 @@
     {
       "id": "neg-over-3",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00008250277832853594,
-        "off_paypal": 0.00002357467775226187,
-        "deposit_pressure": 0.0005188318958824286,
-        "fake_payment_proof": 0.00001996851362748512,
-        "fee_to_release": 0.0001905998027397515,
-        "overpayment_refund": 0.03706108297574727,
-        "code_request": 0.00010455027596986487,
-        "ship_elsewhere": 0.00010822633235446954,
-        "move_off_chat": 0.005719883795991314,
-        "ai_instructions": 0.012906553750143305
+        "ff_payment": 0.00010571394809576746,
+        "off_paypal": 0.000024714164370533034,
+        "deposit_pressure": 0.0012772501595683075,
+        "fake_payment_proof": 0.000024086708402190775,
+        "fee_to_release": 0.0005469797444123135,
+        "overpayment_refund": 0.054941780842862414,
+        "code_request": 0.0002020061842068166,
+        "ship_elsewhere": 0.00007984380389692532,
+        "move_off_chat": 0.0018817122326020947,
+        "ai_instructions": 0.008939547912711794
       },
       "rules": [],
       "price": {
@@ -2411,19 +2429,19 @@
     {
       "id": "neg-proof-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0004232845062087588,
-        "off_paypal": 0.0000033019026346807313,
-        "deposit_pressure": 6.33836967029028e-7,
-        "fake_payment_proof": 0.000022594445694563732,
-        "fee_to_release": 0.00023418060717582815,
-        "overpayment_refund": 0.0005919503705219068,
-        "code_request": 0.000006123874472036168,
-        "ship_elsewhere": 0.00005624697867678922,
-        "move_off_chat": 0.000017576929959646212,
-        "ai_instructions": 0.00001066606191577139
+        "ff_payment": 0.0010319320375865337,
+        "off_paypal": 0.000005836200906669927,
+        "deposit_pressure": 6.244633952875857e-7,
+        "fake_payment_proof": 0.00005059994909530759,
+        "fee_to_release": 0.00027362816985512805,
+        "overpayment_refund": 0.0005275641425909115,
+        "code_request": 0.000005095283846583024,
+        "ship_elsewhere": 0.000042931869833660415,
+        "move_off_chat": 0.000040490579291160024,
+        "ai_instructions": 0.00001909675773257716
       },
       "rules": [],
       "price": {
@@ -2440,19 +2458,19 @@
     {
       "id": "neg-proof-2",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0009740065059074036,
-        "off_paypal": 0.0000012263497284472812,
-        "deposit_pressure": 0.0000013511436183016019,
-        "fake_payment_proof": 0.8006420384209109,
-        "fee_to_release": 0.49794480444521605,
-        "overpayment_refund": 0.00021216792931661254,
-        "code_request": 0.18768981479890456,
-        "ship_elsewhere": 0.00011372482969227477,
-        "move_off_chat": 0.0006368631340694311,
-        "ai_instructions": 0.0005417156662797471
+        "ff_payment": 0.0025391661519620526,
+        "off_paypal": 0.000001148811867734585,
+        "deposit_pressure": 7.558662117680994e-7,
+        "fake_payment_proof": 0.8909381710618455,
+        "fee_to_release": 0.30737342762948383,
+        "overpayment_refund": 0.0004873425790677376,
+        "code_request": 0.16390641390462538,
+        "ship_elsewhere": 0.00021597807690485106,
+        "move_off_chat": 0.000768156189777519,
+        "ai_instructions": 0.0010095486953732838
       },
       "rules": [],
       "price": {
@@ -2469,19 +2487,19 @@
     {
       "id": "neg-proof-3",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00014911282601787586,
-        "off_paypal": 0.0003912654043836702,
-        "deposit_pressure": 0.000020911116826479047,
-        "fake_payment_proof": 0.0038071375939663474,
-        "fee_to_release": 0.000017910181698344267,
-        "overpayment_refund": 0.00003290497878082356,
-        "code_request": 0.001937696882078777,
-        "ship_elsewhere": 0.00022321022055747316,
-        "move_off_chat": 0.0001367961211591759,
-        "ai_instructions": 0.00016949843713971074
+        "ff_payment": 0.00014738178965415178,
+        "off_paypal": 0.00062672322754195,
+        "deposit_pressure": 0.000016798921358249034,
+        "fake_payment_proof": 0.012863394016923794,
+        "fee_to_release": 0.000022687276886284542,
+        "overpayment_refund": 0.000011820825705719688,
+        "code_request": 0.0011580397060506808,
+        "ship_elsewhere": 0.000282533618404065,
+        "move_off_chat": 0.0001935030685931865,
+        "ai_instructions": 0.00025061710228061574
       },
       "rules": [],
       "price": {
@@ -2498,19 +2516,19 @@
     {
       "id": "neg-ship-1",
       "ok": true,
-      "ms": 0,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0007953067939636345,
-        "off_paypal": 0.00004884638442211601,
-        "deposit_pressure": 0.000008574122283896076,
-        "fake_payment_proof": 0.00046408842262872773,
-        "fee_to_release": 0.0009934966242318064,
-        "overpayment_refund": 0.024110342648145933,
-        "code_request": 0.00006952677699543674,
-        "ship_elsewhere": 0.5683264946529543,
-        "move_off_chat": 0.00011081023952500513,
-        "ai_instructions": 0.0001735641386293041
+        "ff_payment": 0.0035494488306652204,
+        "off_paypal": 0.000055829105972183696,
+        "deposit_pressure": 0.000010668840415847374,
+        "fake_payment_proof": 0.0001913552034609461,
+        "fee_to_release": 0.0029246836949934204,
+        "overpayment_refund": 0.01051459814329918,
+        "code_request": 0.0000657554549026676,
+        "ship_elsewhere": 0.6040857210078784,
+        "move_off_chat": 0.00005579320914382315,
+        "ai_instructions": 0.0005623689955889923
       },
       "rules": [],
       "price": {
@@ -2527,19 +2545,19 @@
     {
       "id": "neg-ship-2",
       "ok": true,
-      "ms": 0,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0004232845062087588,
-        "off_paypal": 0.0002080473761764882,
-        "deposit_pressure": 0.00003686926852823333,
-        "fake_payment_proof": 0.000013727046673440296,
-        "fee_to_release": 0.00023418060717582815,
-        "overpayment_refund": 0.0005919503705219068,
-        "code_request": 0.000006123874472036168,
-        "ship_elsewhere": 0.00010370332175939237,
-        "move_off_chat": 0.000027324265696494463,
-        "ai_instructions": 0.00001066606191577139
+        "ff_payment": 0.0006703718017655048,
+        "off_paypal": 0.000052827860211455866,
+        "deposit_pressure": 0.000045039939136601534,
+        "fake_payment_proof": 0.000007843780889863683,
+        "fee_to_release": 0.00027362816985512805,
+        "overpayment_refund": 0.0005275641425909115,
+        "code_request": 0.0000032644396524038626,
+        "ship_elsewhere": 0.000042931869833660415,
+        "move_off_chat": 0.00006199748649439538,
+        "ai_instructions": 0.00001909675773257716
       },
       "rules": [],
       "price": {
@@ -2556,19 +2574,19 @@
     {
       "id": "neg-ship-3",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0013927093943727571,
-        "off_paypal": 0.0022040896117482105,
-        "deposit_pressure": 0.0005554463483223937,
-        "fake_payment_proof": 0.00002103240216499283,
-        "fee_to_release": 0.00006312926232329478,
-        "overpayment_refund": 0.00025718623403887797,
-        "code_request": 0.000019291612102771025,
-        "ship_elsewhere": 0.00022563499986693515,
-        "move_off_chat": 0.000492749753240002,
-        "ai_instructions": 0.0001222094602193241
+        "ff_payment": 0.0030336297545286587,
+        "off_paypal": 0.0005860959493295415,
+        "deposit_pressure": 0.0011352789053933816,
+        "fake_payment_proof": 0.000012751463983284255,
+        "fee_to_release": 0.00011383072835879762,
+        "overpayment_refund": 0.00041819844636094587,
+        "code_request": 0.000018490452373147345,
+        "ship_elsewhere": 0.000701040081682897,
+        "move_off_chat": 0.0005463627873461336,
+        "ai_instructions": 0.00016293144397040637
       },
       "rules": [],
       "price": {
@@ -2585,19 +2603,19 @@
     {
       "id": "off-1",
       "ok": true,
-      "ms": 1,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.004186416466127168,
-        "off_paypal": 0.8288039071066616,
-        "deposit_pressure": 0.0000014889332079218746,
-        "fake_payment_proof": 0.0004726491268738142,
-        "fee_to_release": 0.0002483781080998001,
-        "overpayment_refund": 0.0006054892792906225,
-        "code_request": 0.0005421664906386348,
-        "ship_elsewhere": 0.0005105378051988177,
-        "move_off_chat": 0.00034894303558971547,
-        "ai_instructions": 0.0003159179685815626
+        "ff_payment": 0.0006588963473300902,
+        "off_paypal": 0.570208786088047,
+        "deposit_pressure": 0.0000029178695049431966,
+        "fake_payment_proof": 0.0002604668522369474,
+        "fee_to_release": 0.00015554850947554789,
+        "overpayment_refund": 0.000398737843081722,
+        "code_request": 0.00042890476304389746,
+        "ship_elsewhere": 0.0002458576651325152,
+        "move_off_chat": 0.00047588189118990713,
+        "ai_instructions": 0.00024286611420702738
       },
       "rules": [
         "off_paypal"
@@ -2616,19 +2634,19 @@
     {
       "id": "off-2",
       "ok": true,
-      "ms": 1,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.000499423357213588,
-        "off_paypal": 0.00002004212033272719,
-        "deposit_pressure": 0.000001132428932430919,
-        "fake_payment_proof": 0.000724465715905682,
-        "fee_to_release": 0.0015594705053895484,
-        "overpayment_refund": 0.00033596051172113975,
-        "code_request": 0.00210341728407777,
-        "ship_elsewhere": 0.0001596715393160881,
-        "move_off_chat": 0.0013930209763937582,
-        "ai_instructions": 0.0001177614797278594
+        "ff_payment": 0.00029216598674829683,
+        "off_paypal": 0.00009713925413030266,
+        "deposit_pressure": 0.0000019368832885073846,
+        "fake_payment_proof": 0.0008564599894960027,
+        "fee_to_release": 0.000625488281485833,
+        "overpayment_refund": 0.00035562733324551193,
+        "code_request": 0.000294626557996778,
+        "ship_elsewhere": 0.00008659401676865017,
+        "move_off_chat": 0.001237896850346286,
+        "ai_instructions": 0.00020924687804218042
       },
       "rules": [
         "off_paypal"
@@ -2647,19 +2665,19 @@
     {
       "id": "off-3",
       "ok": true,
-      "ms": 0,
+      "ms": 2,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0004959444078798783,
-        "off_paypal": 0.8323844708139267,
-        "deposit_pressure": 0.0002178661778209801,
-        "fake_payment_proof": 0.000018258005531910244,
-        "fee_to_release": 0.0001668187464985206,
-        "overpayment_refund": 0.000721600594884325,
-        "code_request": 0.0006221733605879106,
-        "ship_elsewhere": 0.00005855651493488914,
-        "move_off_chat": 0.00028750830705997544,
-        "ai_instructions": 0.00026646536209032763
+        "ff_payment": 0.010079412274839593,
+        "off_paypal": 0.890948964333206,
+        "deposit_pressure": 0.0005045333672615608,
+        "fake_payment_proof": 0.00005675654581858548,
+        "fee_to_release": 0.00031333382163665054,
+        "overpayment_refund": 0.0009552127049093041,
+        "code_request": 0.0001222428817770969,
+        "ship_elsewhere": 0.000030527842652439885,
+        "move_off_chat": 0.0007945214144997841,
+        "ai_instructions": 0.0008854132448919026
       },
       "rules": [
         "off_paypal"
@@ -2678,19 +2696,19 @@
     {
       "id": "off-4",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0019474372477568981,
-        "off_paypal": 0.15751208974981734,
-        "deposit_pressure": 0.00014699443600632814,
-        "fake_payment_proof": 0.011211324018447908,
-        "fee_to_release": 0.001004017820581471,
-        "overpayment_refund": 0.0013835898075747542,
-        "code_request": 0.001779109268896231,
-        "ship_elsewhere": 0.0034954798277888302,
-        "move_off_chat": 0.012955029456862823,
-        "ai_instructions": 0.0010801184566626386
+        "ff_payment": 0.013999586479077909,
+        "off_paypal": 0.5139002815090087,
+        "deposit_pressure": 0.0005940397764105743,
+        "fake_payment_proof": 0.00967985788353458,
+        "fee_to_release": 0.00022273837342156209,
+        "overpayment_refund": 0.0015666952242908317,
+        "code_request": 0.004944790126355032,
+        "ship_elsewhere": 0.003073713899226222,
+        "move_off_chat": 0.041580743326685446,
+        "ai_instructions": 0.0022414135019120356
       },
       "rules": [
         "off_paypal"
@@ -2712,16 +2730,16 @@
       "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00009132933407603878,
-        "off_paypal": 0.0005332528923012279,
-        "deposit_pressure": 0.000045318854539760814,
-        "fake_payment_proof": 0.000004693392932456597,
-        "fee_to_release": 0.000005380886598487514,
-        "overpayment_refund": 0.3414302265760861,
-        "code_request": 0.0000037093966174228155,
-        "ship_elsewhere": 0.0000101295934112867,
-        "move_off_chat": 0.012934423468799678,
-        "ai_instructions": 0.004327215584211506
+        "ff_payment": 0.000180388881888516,
+        "off_paypal": 0.007286314992761395,
+        "deposit_pressure": 0.00011813530323563813,
+        "fake_payment_proof": 0.000006488064048432911,
+        "fee_to_release": 0.000005779660778510627,
+        "overpayment_refund": 0.6704780730441892,
+        "code_request": 0.000010107501462983139,
+        "ship_elsewhere": 0.000008708174322515316,
+        "move_off_chat": 0.004688310083920833,
+        "ai_instructions": 0.0037744939111904125
       },
       "rules": [],
       "price": {
@@ -2741,16 +2759,16 @@
       "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.004186416466127168,
-        "off_paypal": 0.0007621014377615763,
-        "deposit_pressure": 0.00042923671575449815,
-        "fake_payment_proof": 0.000008044974225111432,
-        "fee_to_release": 0.0005129930360093576,
-        "overpayment_refund": 0.3423786437070453,
-        "code_request": 0.000027628986640982094,
-        "ship_elsewhere": 0.00041732650137287885,
-        "move_off_chat": 0.00034894303558971547,
-        "ai_instructions": 0.00016415937178020025
+        "ff_payment": 0.0006588963473300902,
+        "off_paypal": 0.0005509284058852499,
+        "deposit_pressure": 0.00021582782901455284,
+        "fake_payment_proof": 0.0000668139209432281,
+        "fee_to_release": 0.00030646030218882105,
+        "overpayment_refund": 0.42105497087940014,
+        "code_request": 0.0001126646485374842,
+        "ship_elsewhere": 0.0007523783342339585,
+        "move_off_chat": 0.00047588189118990713,
+        "ai_instructions": 0.00024286611420702738
       },
       "rules": [],
       "price": {
@@ -2767,19 +2785,19 @@
     {
       "id": "over-3",
       "ok": true,
-      "ms": 1,
+      "ms": 0,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00032236466728595924,
-        "off_paypal": 0.0002572000028899251,
-        "deposit_pressure": 0.00013596762001280154,
-        "fake_payment_proof": 0.00024338548968164974,
-        "fee_to_release": 0.0008401546429379433,
-        "overpayment_refund": 0.9635729213088502,
-        "code_request": 0.00039414669520999114,
-        "ship_elsewhere": 0.002525266025981967,
-        "move_off_chat": 0.0002036683091404949,
-        "ai_instructions": 0.00011105317196767221
+        "ff_payment": 0.0002688337506759493,
+        "off_paypal": 0.00036071764664109265,
+        "deposit_pressure": 0.00028914654449380464,
+        "fake_payment_proof": 0.00022570490749834507,
+        "fee_to_release": 0.00012350446455192815,
+        "overpayment_refund": 0.996451751106114,
+        "code_request": 0.00015882147863836315,
+        "ship_elsewhere": 0.0013754683202029199,
+        "move_off_chat": 0.00025659696189371967,
+        "ai_instructions": 0.00013821171331652578
       },
       "rules": [],
       "price": {
@@ -2796,19 +2814,19 @@
     {
       "id": "proof-1",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0057478053370704114,
-        "off_paypal": 0.0027516340500630654,
-        "deposit_pressure": 0.15698860755640118,
-        "fake_payment_proof": 0.9956780307677796,
-        "fee_to_release": 0.00006359972416909275,
-        "overpayment_refund": 0.0014805544565050666,
-        "code_request": 0.00001970452969612901,
-        "ship_elsewhere": 0.0001383773772804063,
-        "move_off_chat": 0.012098219682418556,
-        "ai_instructions": 0.00008395649450434616
+        "ff_payment": 0.001269635479083508,
+        "off_paypal": 0.0006278839038007233,
+        "deposit_pressure": 0.026867658517702984,
+        "fake_payment_proof": 0.9719773732283326,
+        "fee_to_release": 0.00032378358505736075,
+        "overpayment_refund": 0.0012692529495430351,
+        "code_request": 0.000018104089605741306,
+        "ship_elsewhere": 0.00013272076549543604,
+        "move_off_chat": 0.020580136888156745,
+        "ai_instructions": 0.0001488434025737587
       },
       "rules": [],
       "price": {
@@ -2828,16 +2846,16 @@
       "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0001882622120423717,
-        "off_paypal": 0.37795884833363796,
-        "deposit_pressure": 0.00009262158764825506,
-        "fake_payment_proof": 0.13726244798723947,
-        "fee_to_release": 0.000008720031858351434,
-        "overpayment_refund": 0.000008358782368579329,
-        "code_request": 0.000026554670267988495,
-        "ship_elsewhere": 0.00012604562477605316,
-        "move_off_chat": 0.00010938813859593905,
-        "ai_instructions": 0.000331055944362869
+        "ff_payment": 0.00015890202683327444,
+        "off_paypal": 0.37679008536544656,
+        "deposit_pressure": 0.00021438641778737217,
+        "fake_payment_proof": 0.2695241340497075,
+        "fee_to_release": 0.000009384033571959727,
+        "overpayment_refund": 0.0000029423589499181596,
+        "code_request": 0.000021796808942833627,
+        "ship_elsewhere": 0.00007365542345568291,
+        "move_off_chat": 0.000618160502818871,
+        "ai_instructions": 0.00017340896201363401
       },
       "rules": [],
       "price": {
@@ -2857,16 +2875,16 @@
       "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.004186416466127168,
-        "off_paypal": 0.0007621014377615763,
-        "deposit_pressure": 0.00042923671575449815,
-        "fake_payment_proof": 0.5528027179046867,
-        "fee_to_release": 0.00008787857265686302,
-        "overpayment_refund": 0.00009848688259867941,
-        "code_request": 0.00007547819921304631,
-        "ship_elsewhere": 0.00001018107525823607,
-        "move_off_chat": 0.00034894303558971547,
-        "ai_instructions": 0.00016415937178020025
+        "ff_payment": 0.0006588963473300902,
+        "off_paypal": 0.0005509284058852499,
+        "deposit_pressure": 0.00021582782901455284,
+        "fake_payment_proof": 0.16869767409493341,
+        "fee_to_release": 0.00017261390016368923,
+        "overpayment_refund": 0.00011685428047775803,
+        "code_request": 0.00008344960795943134,
+        "ship_elsewhere": 0.000011178953416574133,
+        "move_off_chat": 0.00047588189118990713,
+        "ai_instructions": 0.0002742731846889582
       },
       "rules": [],
       "price": {
@@ -2881,21 +2899,317 @@
       }
     },
     {
+      "id": "refuse-1",
+      "ok": true,
+      "ms": 2,
+      "model": "settle-link-a",
+      "scores": {
+        "ff_payment": 0.0014416856167665608,
+        "off_paypal": 9.305885832723482e-9,
+        "deposit_pressure": 3.724706869550633e-8,
+        "fake_payment_proof": 0.000771274202317162,
+        "fee_to_release": 0.0002629907036738822,
+        "overpayment_refund": 0.00007392540488856942,
+        "code_request": 0.00036916150390571247,
+        "ship_elsewhere": 0.00007097414844096559,
+        "move_off_chat": 0.00003701177259397448,
+        "ai_instructions": 0.00003048650492360932
+      },
+      "rules": [],
+      "price": {
+        "expected": "350.00",
+        "got": "350.00",
+        "confidence": 0.85
+      },
+      "delivery": {
+        "expected": "post",
+        "got": "post",
+        "confidence": 0.8
+      }
+    },
+    {
+      "id": "refuse-10",
+      "ok": true,
+      "ms": 1,
+      "model": "settle-link-a",
+      "scores": {
+        "ff_payment": 0.12309461643400621,
+        "off_paypal": 9.720761170112261e-8,
+        "deposit_pressure": 0.000005160294947108159,
+        "fake_payment_proof": 0.000024086708402190775,
+        "fee_to_release": 0.0005469797444123135,
+        "overpayment_refund": 0.000049730883435938004,
+        "code_request": 0.0002020061842068166,
+        "ship_elsewhere": 0.00007984380389692532,
+        "move_off_chat": 0.0018817122326020947,
+        "ai_instructions": 0.008939547912711794
+      },
+      "rules": [
+        "ff_payment"
+      ],
+      "price": {
+        "expected": "150.00",
+        "got": "150.00",
+        "confidence": 0.85
+      },
+      "delivery": {
+        "expected": null,
+        "got": null,
+        "confidence": 0.5
+      }
+    },
+    {
+      "id": "refuse-2",
+      "ok": true,
+      "ms": 1,
+      "model": "settle-link-a",
+      "scores": {
+        "ff_payment": 0.0034018167332688794,
+        "off_paypal": 9.489535140645174e-9,
+        "deposit_pressure": 3.1145298629222333e-7,
+        "fake_payment_proof": 0.004266985468268323,
+        "fee_to_release": 0.00107936146325238,
+        "overpayment_refund": 0.0004873425790677376,
+        "code_request": 0.0006973180733204755,
+        "ship_elsewhere": 0.00021597807690485106,
+        "move_off_chat": 0.00038698578600678956,
+        "ai_instructions": 0.0010095486953732838
+      },
+      "rules": [
+        "ff_payment"
+      ],
+      "price": {
+        "expected": "120.00",
+        "got": "120.00",
+        "confidence": 0.65
+      },
+      "delivery": {
+        "expected": null,
+        "got": null,
+        "confidence": 0.5
+      }
+    },
+    {
+      "id": "refuse-3",
+      "ok": true,
+      "ms": 1,
+      "model": "settle-link-a",
+      "scores": {
+        "ff_payment": 0.00011120381682417319,
+        "off_paypal": 0.000050164104004655504,
+        "deposit_pressure": 0.00003148298885448055,
+        "fake_payment_proof": 9.118321652107906e-9,
+        "fee_to_release": 2.1511338379624138e-9,
+        "overpayment_refund": 4.39263581066374e-8,
+        "code_request": 5.264402627654294e-9,
+        "ship_elsewhere": 2.0568678317961997e-8,
+        "move_off_chat": 0.00005972336147178468,
+        "ai_instructions": 0.001014383902361399
+      },
+      "rules": [],
+      "price": {
+        "expected": "45.00",
+        "got": "45.00",
+        "confidence": 0.85
+      },
+      "delivery": {
+        "expected": "post",
+        "got": "post",
+        "confidence": 0.8
+      }
+    },
+    {
+      "id": "refuse-4",
+      "ok": true,
+      "ms": 2,
+      "model": "settle-link-a",
+      "scores": {
+        "ff_payment": 0.00006496632359774596,
+        "off_paypal": 0,
+        "deposit_pressure": 5.464392150766049e-7,
+        "fake_payment_proof": 0.00007938703930976125,
+        "fee_to_release": 0.000013268595535592062,
+        "overpayment_refund": 0.000048041110625212634,
+        "code_request": 0.000042313432644949624,
+        "ship_elsewhere": 0.001573896660617549,
+        "move_off_chat": 0.00008799301489441184,
+        "ai_instructions": 0.00010595911818285636
+      },
+      "rules": [],
+      "price": {
+        "expected": "80.00",
+        "got": "80.00",
+        "confidence": 0.85
+      },
+      "delivery": {
+        "expected": null,
+        "got": null,
+        "confidence": 0.5
+      }
+    },
+    {
+      "id": "refuse-5",
+      "ok": true,
+      "ms": 1,
+      "model": "settle-link-a",
+      "scores": {
+        "ff_payment": 0.006830089260284717,
+        "off_paypal": 0.030872520925858914,
+        "deposit_pressure": 0.0000247004494069363,
+        "fake_payment_proof": 0.0004560007690871731,
+        "fee_to_release": 0.000006308560704168244,
+        "overpayment_refund": 0.0003114085725369249,
+        "code_request": 0.000026981411383386494,
+        "ship_elsewhere": 0.001548801848280119,
+        "move_off_chat": 0.0005356810664522004,
+        "ai_instructions": 0.0007335311712765203
+      },
+      "rules": [],
+      "price": {
+        "expected": "60.00",
+        "got": null,
+        "confidence": 0.35
+      },
+      "delivery": {
+        "expected": null,
+        "got": null,
+        "confidence": 0.5
+      }
+    },
+    {
+      "id": "refuse-6",
+      "ok": true,
+      "ms": 1,
+      "model": "settle-link-a",
+      "scores": {
+        "ff_payment": 0.8965236396980221,
+        "off_paypal": 0.000035924417427720675,
+        "deposit_pressure": 0.00007785437656511818,
+        "fake_payment_proof": 0.000053800203054373784,
+        "fee_to_release": 0.00020463106152453643,
+        "overpayment_refund": 0.00003745098942433359,
+        "code_request": 0.000026817628085978264,
+        "ship_elsewhere": 0.000017731292725052067,
+        "move_off_chat": 0.000023727518654814824,
+        "ai_instructions": 0.00009929322655521647
+      },
+      "rules": [
+        "ff_payment"
+      ],
+      "price": {
+        "expected": "200.00",
+        "got": "200.00",
+        "confidence": 0.65
+      },
+      "delivery": {
+        "expected": "collect",
+        "got": null,
+        "confidence": 0.5
+      }
+    },
+    {
+      "id": "refuse-7",
+      "ok": true,
+      "ms": 1,
+      "model": "settle-link-a",
+      "scores": {
+        "ff_payment": 0.00001706510767712785,
+        "off_paypal": 3.6111986332389473e-7,
+        "deposit_pressure": 1.258055057159226e-7,
+        "fake_payment_proof": 0.000006982549914919657,
+        "fee_to_release": 0.000020370483165072984,
+        "overpayment_refund": 0.0001073742887797089,
+        "code_request": 0.000022353808719082117,
+        "ship_elsewhere": 0.000020385370882881798,
+        "move_off_chat": 0.000005859824606892462,
+        "ai_instructions": 0.000017790006745899823
+      },
+      "rules": [],
+      "price": {
+        "expected": "55.00",
+        "got": null,
+        "confidence": 0.35
+      },
+      "delivery": {
+        "expected": null,
+        "got": null,
+        "confidence": 0.5
+      }
+    },
+    {
+      "id": "refuse-8",
+      "ok": true,
+      "ms": 1,
+      "model": "settle-link-a",
+      "scores": {
+        "ff_payment": 0.0007794009889661299,
+        "off_paypal": 0,
+        "deposit_pressure": 3.808982621757159e-8,
+        "fake_payment_proof": 0.00021507930179776133,
+        "fee_to_release": 0.0023176823234694437,
+        "overpayment_refund": 0.16863375823146262,
+        "code_request": 0.0004687412026038085,
+        "ship_elsewhere": 0.00019499992178736755,
+        "move_off_chat": 0.000542747508146286,
+        "ai_instructions": 0.0004432756603701392
+      },
+      "rules": [],
+      "price": {
+        "expected": "40.00",
+        "got": "40.00",
+        "confidence": 0.85
+      },
+      "delivery": {
+        "expected": null,
+        "got": null,
+        "confidence": 0.5
+      }
+    },
+    {
+      "id": "refuse-9",
+      "ok": true,
+      "ms": 1,
+      "model": "settle-link-a",
+      "scores": {
+        "ff_payment": 0.0005640408489741471,
+        "off_paypal": 0.0010650903450584164,
+        "deposit_pressure": 0.000022227097461229865,
+        "fake_payment_proof": 8.158161951686235e-7,
+        "fee_to_release": 0.0000010637981067747696,
+        "overpayment_refund": 6.093804559780237e-7,
+        "code_request": 3.603046610878069e-7,
+        "ship_elsewhere": 3.182650536113659e-7,
+        "move_off_chat": 0.000021483979861977392,
+        "ai_instructions": 0.00008497724178383286
+      },
+      "rules": [],
+      "price": {
+        "expected": "300.00",
+        "got": "300.00",
+        "confidence": 0.65
+      },
+      "delivery": {
+        "expected": "post",
+        "got": "post",
+        "confidence": 0.8
+      }
+    },
+    {
       "id": "ship-1",
       "ok": true,
       "ms": 0,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.00002852527097776935,
-        "off_paypal": 0.000001754547162975812,
-        "deposit_pressure": 0.000020880390233793345,
-        "fake_payment_proof": 8.87055628964286e-7,
-        "fee_to_release": 0.00024602640442125695,
-        "overpayment_refund": 0.006446966561936495,
-        "code_request": 0.00005529235371860121,
-        "ship_elsewhere": 0.9038337285247401,
-        "move_off_chat": 0.00005201134081412053,
-        "ai_instructions": 0.0002858933086737912
+        "ff_payment": 0.00027167029790673444,
+        "off_paypal": 0.0000025823727043509085,
+        "deposit_pressure": 0.000033788135360762843,
+        "fake_payment_proof": 0.0000027097049900297285,
+        "fee_to_release": 0.00035568943408193984,
+        "overpayment_refund": 0.005910714357545393,
+        "code_request": 0.00003743131500150516,
+        "ship_elsewhere": 0.9686443310370912,
+        "move_off_chat": 0.0000305697253150598,
+        "ai_instructions": 0.0001786229049430171
       },
       "rules": [],
       "price": {
@@ -2912,19 +3226,19 @@
     {
       "id": "ship-2",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.004186416466127168,
-        "off_paypal": 0.0007621014377615763,
-        "deposit_pressure": 0.00042923671575449815,
-        "fake_payment_proof": 0.0000014377445409113628,
-        "fee_to_release": 0.004504644018666189,
-        "overpayment_refund": 0.00595178471972211,
-        "code_request": 2.898426206747936e-7,
-        "ship_elsewhere": 0.0025021342903338386,
-        "move_off_chat": 0.000735222458075403,
-        "ai_instructions": 0.00016415937178020025
+        "ff_payment": 0.0006588963473300902,
+        "off_paypal": 0.0005509284058852499,
+        "deposit_pressure": 0.00021582782901455284,
+        "fake_payment_proof": 0.000004175338731700946,
+        "fee_to_release": 0.003339601336238517,
+        "overpayment_refund": 0.004596436808272707,
+        "code_request": 3.963441669753045e-7,
+        "ship_elsewhere": 0.013941614602372402,
+        "move_off_chat": 0.001051222189582704,
+        "ai_instructions": 0.00024286611420702738
       },
       "rules": [],
       "price": {
@@ -2941,19 +3255,19 @@
     {
       "id": "ship-3",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.0030925352578199034,
-        "off_paypal": 0.0005119905672589102,
-        "deposit_pressure": 0.0002178661778209801,
-        "fake_payment_proof": 0.000008475969369834266,
-        "fee_to_release": 0.0008912111222690437,
-        "overpayment_refund": 0.0014921656110251232,
-        "code_request": 0.000013698299967910095,
-        "ship_elsewhere": 0.6103064869412214,
-        "move_off_chat": 0.00008116610661667548,
-        "ai_instructions": 0.00026646536209032763
+        "ff_payment": 0.001667102806140585,
+        "off_paypal": 0.0007767940644400953,
+        "deposit_pressure": 0.0005045333672615608,
+        "fake_payment_proof": 0.000026928545118864623,
+        "fee_to_release": 0.0014025733228023283,
+        "overpayment_refund": 0.0013904101900291375,
+        "code_request": 0.00002376988573772914,
+        "ship_elsewhere": 0.6433854361429399,
+        "move_off_chat": 0.0003482779240919059,
+        "ai_instructions": 0.0008854132448919026
       },
       "rules": [],
       "price": {
@@ -2970,19 +3284,19 @@
     {
       "id": "ship-4",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "model": "settle-link-a",
       "scores": {
-        "ff_payment": 0.008189727848718268,
-        "off_paypal": 0.0001283553722615431,
-        "deposit_pressure": 0.0002301285020362495,
-        "fake_payment_proof": 0.000004921479164511313,
-        "fee_to_release": 0.016507300408904798,
-        "overpayment_refund": 0.0034087785093426734,
-        "code_request": 0.00002427523784011334,
-        "ship_elsewhere": 0.559879850155738,
-        "move_off_chat": 0.0002583179142572183,
-        "ai_instructions": 0.06629643042820126
+        "ff_payment": 0.008507118720943537,
+        "off_paypal": 0.000009233316595370543,
+        "deposit_pressure": 0.00009176507857112003,
+        "fake_payment_proof": 0.000012095174540117504,
+        "fee_to_release": 0.045414047191403205,
+        "overpayment_refund": 0.0032742890189440352,
+        "code_request": 0.000037206744252592,
+        "ship_elsewhere": 0.8280036481828206,
+        "move_off_chat": 0.0001434247772589252,
+        "ai_instructions": 0.019011182076302133
       },
       "rules": [],
       "price": {

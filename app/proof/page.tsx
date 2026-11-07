@@ -100,6 +100,28 @@ export default function Page() {
           </p>
         </section>
 
+        <section className="mt-10 max-w-2xl">
+          <h2 className="text-xl font-semibold">False alarms</h2>
+          <p className="mt-2 text-sm text-pp-muted">A warning on a chat with nothing risky in it. Counted per chat, any signal.</p>
+          <ul className="mt-3 divide-y divide-pp-gridline rounded-md border border-pp-border bg-pp-surface text-sm tabular-nums">
+            <li className="px-4 py-2">
+              <strong>
+                {evalB.falseAlarms.noRiskChats.withoutWarning} of {evalB.falseAlarms.noRiskChats.chats}
+              </strong>{' '}
+              chats with nothing risky show no warning.
+            </li>
+            <li className="px-4 py-2">
+              <strong>
+                {evalB.falseAlarms.honestRefusals.withoutWarning} of {evalB.falseAlarms.honestRefusals.chats}
+              </strong>{' '}
+              honest refusals show no warning: chats where someone says &ldquo;not Friends and Family&rdquo; or &ldquo;I don&apos;t take Zelle&rdquo; and nobody asks for it. Written after a reviewer&apos;s honest chat was flagged, and never used in training.
+            </li>
+          </ul>
+          <p className="mt-3 text-sm">
+            When the buyer suggests Friends and Family and the seller refuses, the suggestion is still shown: someone did ask, and the warning says who.
+          </p>
+        </section>
+
         <section className="mt-10 grid gap-6 sm:grid-cols-2">
           <div>
             <h2 className="text-xl font-semibold">Deal terms read from the chat</h2>
@@ -137,7 +159,7 @@ export default function Page() {
         <section className="mt-10 max-w-2xl">
           <h2 className="text-xl font-semibold">What this doesn&apos;t show</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-            <li>These are our own synthetic chats, 3 to 5 risky examples per signal. That is too few for firm percentages; treat them as a sanity check, not a benchmark.</li>
+            <li>These are our own synthetic chats, 3 to 7 risky examples per signal. That is too few for firm percentages; treat them as a sanity check, not a benchmark.</li>
             <li>
               Weakest: {weakest.map(([id, s]) => `${signalById(id)?.title ?? id} (recall ${pct(s.combined.recall)})`).join(' and ')}. A missed warning never makes a deal safe: payment and shipping are still checked against PayPal&apos;s records, and the address rule holds a shipment on a new postcode whatever the model says.
             </li>
