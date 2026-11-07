@@ -6,9 +6,16 @@
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). **Everything runs on the PayPal sandbox: no real money moves.** Licensed under [MIT](LICENSE).
 
+**What's different**
+
+- **Settle never receives money.** The buyer pays the seller's own PayPal account, connected through Partner Referrals. No escrow and no payouts.
+- **The AI can't move money.** It only adds warnings. Payment counts only from a verified PayPal webhook plus a fresh read of the order; a meet-up hold is taken only when the buyer scans the seller's code.
+- **Every ship check quotes PayPal's own terms**, word for word ([/terms](https://settle-ulya.onrender.com/terms)), and says that PayPal decides.
+- **One record from DM to dispute.** The agreed card's fingerprint rides on the PayPal order, and disputes are answered through PayPal's Disputes API with an evidence PDF built from that record, after the seller approves the exact request.
+
 ## For judges: try it in 3 minutes
 
-**Live app:** https://settle-ulya.onrender.com (a keep-awake job pings it every 10 minutes; if it still sleeps, the first load takes about a minute).
+**Live app:** https://settle-ulya.onrender.com (kept awake by a regular ping; if you still see Render's wake-up page, the first load takes about a minute).
 
 1. **[Judge mode](https://settle-ulya.onrender.com/demo)** → *Start judge mode*. You get seven private demo deals, buyer and seller side by side. Settle Link's own code runs live; PayPal is replayed from real sandbox runs, so nothing reaches PayPal.
    - *Buyer warned about Friends and Family*: the warning quotes the exact message and the PayPal terms it breaks.
@@ -17,7 +24,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). **Ev
    - *Meet-up*: PayPal holds the money; the seller shows a QR code, you open the scan as the buyer, and only then is the money taken.
    - *A dispute with its evidence pack*: the case file, honest advice, and the exact request the seller approves.
 2. **[Try to fool it](https://settle-ulya.onrender.com/demo/attacks)**: ten real attacks run against the real server code (10 of 10 stopped), each naming the rule and the test that stop it.
-3. **[Proof](https://settle-ulya.onrender.com/proof)**: how often the warning check is right, on chats it never trained on.
+3. **[Proof](https://settle-ulya.onrender.com/proof)**: how often the warning check is right, and how often it raises a false alarm, on chats it never trained on. Try an honest chat too: "PayPal goods and services please, not friends and family" raises no warning.
 4. **[Seller timeline](https://settle-ulya.onrender.com/demo/timeline)** (Bryntum Scheduler): every demo deal over time, coloured by its check.
 
 **A live sandbox deal**: paste a chat at [/check](https://settle-ulya.onrender.com/check). Paying needs a PayPal sandbox buyer login and the seller connecting a sandbox business account; the logins are in the Devpost testing notes.
@@ -78,7 +85,12 @@ flowchart LR
 | "Is this payment real?" | Your PayPal account | Varies | Answered from this deal's PayPal order, never a screenshot |
 | Disputes | Resolution Center | Varies | Evidence pack from the record; the seller approves the exact request |
 
-Related hackathon entries we looked at: AI-verified escrow on PayPal holds (for example Safe Deal Link, which releases a hold after checking a delivery photo with AI), pre-payment scam shields (ScamShield, Hunch), and dispute desks (Rebuttal, DisputeShield). Settle Link connects the chat to the dispute in one record, keeps PayPal's protections in place for both sides, and never lets an AI release money.
+Other approaches in this hackathon, and where Settle Link differs:
+
+- **Escrow, then payout.** The app takes the buyer's money and pays the seller later. Settle Link never receives money: the buyer pays the seller's own PayPal account.
+- **An AI decides when money is released** (for example after checking a delivery photo). In Settle Link the AI can't move money; PayPal's records and the two people do.
+- **Scam checks before paying, or ship checks before posting, on their own.** Settle Link runs both on the same locked card, and the same record later answers a dispute.
+- **Dispute desks.** Settle Link's case file starts at the chat, and the seller approves the exact request sent to PayPal's Disputes API.
 
 ## What's real and what's simulated
 
@@ -86,15 +98,16 @@ Related hackathon entries we looked at: AI-verified escrow on PayPal holds (for 
 | --- | --- | --- |
 | PayPal (orders, holds, captures, webhooks, tracking, disputes) | Live PayPal **sandbox** on real deals | Replayed from recorded sandbox runs in judge mode, labelled on screen |
 | Warning check | Settle Link's own model and rules, on every chat | — |
-| Test chats on /proof | — | 73 chats we wrote; a sanity check, not a benchmark |
+| Test chats on /proof | — | 83 chats we wrote; a sanity check, not a benchmark |
 | Scam memory | Real reports between real deals | Judge mode seeds two earlier reports, labelled |
 | Money | — | Sandbox only: no real money moves anywhere |
 
 ## Proof
 
-- **226 tests** (`npm test`), with PayPal and the model mocked, and a Playwright walk of the judge path on the deployed app (`npm run e2e`).
+- **239 tests** (`npm test`, run by CI on every push), with PayPal and the model mocked, and a Playwright walk of the judge path on the deployed app (`npm run e2e`).
 - **10 of 10 attacks stopped** on [/demo/attacks](https://settle-ulya.onrender.com/demo/attacks), each tied to a named test.
-- **Warning check on 73 held-out chats** (model plus rules): precision 67%, recall 92%, versus 33% recall for keyword rules alone. Weakest: "ship somewhere else" (recall 60%) and "move to another app" (67%). A missed warning never makes a deal safe: payment and shipping are still checked against PayPal's records.
+- **Warning check on 83 held-out chats** (model plus rules): precision 73%, recall 95%, versus 38% recall for keyword rules alone. Weakest: "move to another app" (recall 67%) and "ship somewhere else" (80%). A missed warning never makes a deal safe: payment and shipping are still checked against PayPal's records.
+- **False alarms:** 32 of 39 chats with nothing risky show no warning, and 6 of 7 honest refusals ("not friends and family", "I don't take Zelle") show none. Refusals are handled in code; a question ("why not F&F?") is never read as a refusal.
 - **Live sandbox runs** with PayPal debug IDs in [`docs/SPIKES.md`](docs/SPIKES.md): seller onboarding, capture, tracking, refunds, a dispute answered with an evidence PDF, and a full meet-up (hold, QR handover, capture), each confirmed by verified webhooks.
 
 ## Safety rules
@@ -107,7 +120,8 @@ Related hackathon entries we looked at: AI-verified escrow on PayPal holds (for 
 ## Limitations
 
 - Sandbox only, on a free Render instance.
-- The warning check is trained and tested on chats we wrote; real chats will be messier.
+- The warning check is trained and tested on chats we wrote; real chats will be messier. About 1 in 5 chats with nothing risky still gets a warning; a warning adds caution and never blocks a deal on its own.
+- Delivery for a dispute is entered by the seller from the carrier's page; Settle doesn't read carrier tracking itself.
 - In-person handovers stay outside PayPal Seller Protection and Item Not Received; meet-up mode makes the payment real before you meet, it doesn't add cover.
 - Sharing a chat *into* Settle Link works on Android (installed from Chrome's menu); on iPhone, copy and paste. Link previews work everywhere.
 - Scam memory matches the same script word for word (after names, prices and links are removed), not reworded versions, and needs two reporting deals before it says anything. Two deals aren't proof of two different people: one person could make two deals and report a script. That's why memory only adds a caution and never blocks.
