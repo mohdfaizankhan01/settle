@@ -104,7 +104,7 @@ Other approaches in this hackathon, and where Settle Link differs:
 
 ## Proof
 
-- **239 tests** (`npm test`, run by CI on every push), with PayPal and the model mocked, and a Playwright walk of the judge path on the deployed app (`npm run e2e`).
+- **240 tests** (`npm test`, run by CI on every push), with PayPal and the model mocked, and a Playwright walk of the judge path on the deployed app (`npm run e2e`).
 - **10 of 10 attacks stopped** on [/demo/attacks](https://settle-ulya.onrender.com/demo/attacks), each tied to a named test.
 - **Warning check on 83 held-out chats** (model plus rules): precision 73%, recall 95%, versus 38% recall for keyword rules alone. Weakest: "move to another app" (recall 67%) and "ship somewhere else" (80%). A missed warning never makes a deal safe: payment and shipping are still checked against PayPal's records.
 - **False alarms:** 32 of 39 chats with nothing risky show no warning, and 6 of 7 honest refusals ("not friends and family", "I don't take Zelle") show none. Refusals are handled in code; a question ("why not F&F?") is never read as a refusal.
