@@ -26,7 +26,8 @@ test('a judge walks from the home page through every deal state', async ({ page 
   const buyer = pane(page, 'Buyer');
   await expect(buyer.getByText('Judge mode (demo deal).')).toBeVisible();
   await expect(buyer.getByText(/Warning check: ran/)).toBeVisible();
-  await expect(buyer.getByText('Asked to pay as Friends and Family')).toBeVisible();
+  await expect(buyer.getByText('The seller suggested paying as Friends and Family')).toBeVisible();
+  await expect(buyer.getByText(/If the seller insists on Friends and Family, stop the deal/)).toBeVisible();
 
   // 2. The seller is warned about a fake payment email.
   await openDeal(page, 'Seller warned about a fake payment email');
