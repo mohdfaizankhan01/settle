@@ -1,5 +1,7 @@
 # Settle Link
 
+[![CI](https://github.com/mohdfaizankhan01/settle/actions/workflows/ci.yml/badge.svg)](https://github.com/mohdfaizankhan01/settle/actions/workflows/ci.yml)
+
 **Nobody has to go first.** Strangers who agree a deal in a DM hit a standoff: the buyer won't pay first and the seller won't ship first. Scammers use that from both sides. Settle Link turns the chat into one deal link both people confirm. The buyer pays through PayPal checkout, the PayPal order carries the agreed terms, the seller ships (or hands over at a meet-up) only once PayPal itself confirms the money, and the record is on file if a dispute comes.
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). **Everything runs on the PayPal sandbox: no real money moves.** Licensed under [MIT](LICENSE).
