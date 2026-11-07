@@ -115,7 +115,7 @@ Related hackathon entries we looked at: AI-verified escrow on PayPal holds (for 
 
 - **PayPal (sandbox):** Orders v2 (capture and authorize), Payments v2 (authorization capture and void), JS SDK v6, Partner Referrals and merchant-integrations (seller onboarding), Webhooks with `verify-webhook-signature`, Disputes API, order tracking through the **APIMatic**-generated PayPal TypeScript SDK.
 - **AI:** Settle Link's own warning model (MiniLM embeddings via transformers.js, logistic regression per warning, trained in this repo). Jev (TypeSafe) is supported behind `JEV_PROVIDER=typesafe` but wasn't used (no credits).
-- **Bryntum Scheduler** for the seller timeline. **Render** for hosting and Postgres. **pdf-lib** for evidence packs, **qrcode** for handover codes.
+- **Bryntum Scheduler** for the seller timeline. **Render** for hosting, **Neon** for Postgres. **pdf-lib** for evidence packs, **qrcode** for handover codes.
 - Built with **Claude Code**, using the PayPal plugin (best practices, sandbox MCP), the APIMatic context plugin for PayPal, the Render plugin, Playwright, and code and security review plugins.
 - Started from PayPal's [AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate) (Next.js, AG Grid, AG Studio); its data pages are kept for local development only.
 
@@ -136,6 +136,7 @@ npm test                    # unit tests, with PayPal and the model mocked
 - **Webhooks** need a public URL: deploy (see [`render.yaml`](render.yaml)) or tunnel, register `<host>/api/paypal/webhook` in the sandbox app with the payment, authorization, dispute and onboarding events, and put its ID in `PAYPAL_WEBHOOK_ID`.
 - **Scam memory** needs `SETTLE_MEMORY_KEY` (at least 32 random characters) in production; without it, memory is off.
 - **Retrain the model:** `npm run model:train`, then `npm run eval` (never train on `data/test-chats.jsonl`). `npm run proof` refreshes the numbers on /proof.
+- **Planning notes:** code comments cite "PLAN M1–M6" and "DECISIONS #n" from our private planning notes, which aren't in this repo. The evidence those decisions rest on is public: [`docs/SPIKES.md`](docs/SPIKES.md) (sandbox calls with debug IDs), [`docs/protection-terms.md`](docs/protection-terms.md) and [`docs/fees.md`](docs/fees.md).
 
 ## Team setup (Claude Code)
 

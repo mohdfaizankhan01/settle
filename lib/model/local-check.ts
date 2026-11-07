@@ -22,6 +22,22 @@ export const localModelFile = () => FILES[activeModel()];
 /** Thresholds chosen by cross-validation on the training messages (never the test chats). */
 export const localThresholds = () => localModelFile().thresholds;
 
+/**
+ * Loads the active model (and MiniLM for model B) ahead of the first check. Never throws: a load
+ * that fails here is retried by the first real check, which fails closed as usual.
+ */
+export async function warmLocalModel(): Promise<boolean> {
+  try {
+    const key = activeModel();
+    decoded[key] ??= decodeModel(FILES[key]);
+    if (key === 'b') await embedTexts(['warm up the warning check']);
+    return true;
+  } catch (error) {
+    console.error('warning model warm-up failed:', error instanceof Error ? error.name : 'unknown error');
+    return false;
+  }
+}
+
 async function vectors(texts: string[]): Promise<SparseVector[]> {
   return activeModel() === 'a' ? texts.map(featurise) : embedTexts(texts);
 }

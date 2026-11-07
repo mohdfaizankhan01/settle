@@ -1,6 +1,6 @@
 # Keeps the free Render instance awake so judges never wait about a minute for it to start
-# (PLAN M6 MUST). Render's free plan sleeps after 15 minutes without traffic; this loads the home
-# page every 10 minutes. GitHub runs scheduled jobs on a best-effort basis, so a run can be late.
+# Render's free plan sleeps after 15 minutes without traffic; this loads /api/health
+# every 10 minutes as a backup to an external 5-minute pinger. GitHub runs scheduled jobs on a best-effort basis, so a run can be late.
 name: Keep the demo awake
 
 on:
@@ -16,4 +16,4 @@ jobs:
     timeout-minutes: 3
     steps:
       - name: Load the home page
-        run: curl --fail --silent --show-error --output /dev/null --retry 3 --retry-delay 20 --max-time 90 https://settle-ulya.onrender.com/
+        run: curl --fail --silent --show-error --output /dev/null --retry 3 --retry-delay 20 --max-time 90 https://settle-ulya.onrender.com/api/health

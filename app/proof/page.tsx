@@ -96,7 +96,7 @@ export default function Page() {
             </table>
           </div>
           <p className="mt-3 max-w-2xl text-sm">
-            Keyword rules alone miss most of what matters: they can&apos;t tell &ldquo;send it to my cousin&rdquo; or &ldquo;the money is held until you ship&rdquo; from ordinary talk. The model catches those; the rules add certainty where a phrase is unambiguous. A third option, one broad &ldquo;is this a scam?&rdquo; question to Jev (TypeSafe), was <strong>not run</strong>: we had no TypeSafe credits (DECISIONS #15), and we won&apos;t show a number we didn&apos;t measure.
+            Keyword rules alone miss most of what matters: they can&apos;t tell &ldquo;send it to my cousin&rdquo; or &ldquo;the money is held until you ship&rdquo; from ordinary talk. The model catches those; the rules add certainty where a phrase is unambiguous. A third option, one broad &ldquo;is this a scam?&rdquo; question to Jev (TypeSafe), was <strong>not run</strong>: we had no TypeSafe credits, and we won&apos;t show a number we didn&apos;t measure.
           </p>
         </section>
 
