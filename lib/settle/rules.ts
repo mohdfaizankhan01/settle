@@ -22,53 +22,88 @@ const RULES: Rule[] = [
 // A refusal word counts only within the same clause and at most two words before the match.
 // "no" counts only right before it ("no friends and family"), so "no fees if you send it as a
 // gift" still warns. Words like "worry" or "fees" in between mean it isn't a refusal of the
-// method ("don't worry, send as a gift" warns). Unsure always means warn.
-const CLAUSE_BREAK = /[.,;:!?()\n]|\b(?:but|just|only|so|then|or)\b/i;
+// method ("don't worry, send as a gift" warns). A question is never a refusal ("why not F&F?",
+// "won't you do F&F", "not friends and family?"). Unsure always means warn.
+const CLAUSE_BREAK = /[.,;:!?()\n]|\b(?:but|just|only|so|then|or)\b/gi;
 const REFUSAL = /\b(?:not|never|no\s+need\s+for|don'?t|do\s+not|won'?t|will\s+not|can'?t|cannot|instead\s+of|rather\s+than)\s+((?:[\w'&+-]+\s+){0,2})$/i;
 const NO_RIGHT_BEFORE = /\bno\s+$/i;
 const NOT_A_REFUSAL_OF_THE_METHOD = /\b(?:worr(?:y|ies)|problem|fees?|charges?|scam|bother|hesitate)\b/i;
+const ASKING = /^(?:you|u|ya|we)\b/i;
+const WHY = /\bwhy\b/i;
+const AFTER_CLAUSE_END = /[.,;:!\n]|\b(?:but|so|then)\b/i;
 
-// A list of refused methods shares one refusal: "I don't take Zelle or Venmo".
-const LIST_JOIN = /\s*\b(?:or|nor|and)\b\s*|\s*\/\s*/gi;
+// A list of refused methods shares one refusal: "I don't take Zelle or Venmo". Joiners are
+// grouped so the end anchor applies to every branch.
+const LIST_JOIN = String.raw`(?:\s*\b(?:or|nor|and)\b\s*|\s*\/\s*)`;
 
-export function refusedAt(text: string, index: number, re?: RegExp): boolean {
-  const before = text.slice(Math.max(0, index - 60), index);
-  const listed = re ? before.replace(new RegExp(`(?:${re.source})${LIST_JOIN.source}$`, 'i'), '') : before;
-  const parts = listed.replace(/\s*$/, ' ').split(CLAUSE_BREAK);
-  const clause = parts[parts.length - 1] ?? '';
-  if (NO_RIGHT_BEFORE.test(clause)) return true;
+/**
+ * Where the refusal of the match at `index` starts (the "not" or "don't"), or undefined when the
+ * match isn't refused. `end` is where the match ends, to rule out questions.
+ */
+export function refusalStart(text: string, index: number, end: number, re?: RegExp): number | undefined {
+  const from = Math.max(0, index - 80);
+  let before = text.slice(from, index);
+  if (re) {
+    // Blank out earlier listed methods right before this one, keeping every index in place.
+    const listed = new RegExp(`(?:${re.source})${LIST_JOIN}$`, 'i');
+    for (let n = 0; n < 5; n++) {
+      const next = before.replace(listed, (m) => ' '.repeat(m.length));
+      if (next === before) break;
+      before = next;
+    }
+  }
+  let clauseAt = 0;
+  for (const b of before.matchAll(CLAUSE_BREAK)) clauseAt = b.index + b[0].length;
+  const clause = before.slice(clauseAt);
+  const after = text.slice(end).split(AFTER_CLAUSE_END)[0];
+  if (after.includes('?')) return undefined;
+  const no = NO_RIGHT_BEFORE.exec(clause);
+  if (no) return from + clauseAt + no.index;
   const m = REFUSAL.exec(clause);
-  return !!m && !NOT_A_REFUSAL_OF_THE_METHOD.test(m[1]);
+  if (!m || NOT_A_REFUSAL_OF_THE_METHOD.test(m[1]) || ASKING.test(m[1]) || WHY.test(clause.slice(0, m.index))) return undefined;
+  return from + clauseAt + m.index;
 }
+
+export const refusedAt = (text: string, index: number, end: number, re?: RegExp) => refusalStart(text, index, end, re) !== undefined;
+
+const globalOf = (re: RegExp) => new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
 
 /** The first match in the text that isn't refused, or undefined. */
 function firstHit(rule: Rule, text: string): string | undefined {
   if (!rule.refusable) return rule.re.exec(text)?.[0];
-  const all = new RegExp(rule.re.source, rule.re.flags.includes('g') ? rule.re.flags : rule.re.flags + 'g');
-  for (const m of text.matchAll(all)) if (!refusedAt(text, m.index, rule.re)) return m[0];
+  for (const m of text.matchAll(globalOf(rule.re))) if (!refusedAt(text, m.index, m.index + m[0].length, rule.re)) return m[0];
   return undefined;
 }
 
 /**
- * True when the text names a payment method for this signal and every mention is refused ("not
- * friends and family", "I don't take Zelle or Venmo"). The model's score for such a piece is
- * ignored, because embeddings barely see "not". A piece that names no method keeps its score, so
- * "pay me as a present" is still caught by the model.
+ * When the text names a payment method for this signal and every mention is refused ("not
+ * friends and family", "I don't take Zelle or Venmo"), returns the text with each refusal cut
+ * out, for the model to score instead: embeddings barely see "not", but the rest of the text
+ * still counts ("not friends and family, send it personal so no fees" is scored on "send it
+ * personal so no fees"). Otherwise undefined, and the model scores the text as written.
  */
-export function onlyRefused(signal: SignalId, text: string): boolean {
-  const rules = RULES.filter((r) => r.signal === signal && r.refusable);
-  if (rules.length === 0) return false;
-  let mentions = 0;
-  for (const rule of rules) {
-    const all = new RegExp(rule.re.source, rule.re.flags + 'g');
-    for (const m of text.matchAll(all)) {
-      mentions++;
-      if (!refusedAt(text, m.index, rule.re)) return false;
+export function withoutRefusals(signal: SignalId, text: string): string | undefined {
+  const rules = RULES.filter((r) => r.signal === signal);
+  if (!rules.some((r) => r.refusable)) return undefined;
+  // Bank details or a non-PayPal link always count as written.
+  if (rules.some((r) => !r.refusable && r.re.test(text))) return undefined;
+  const cuts: [number, number][] = [];
+  for (const rule of rules.filter((r) => r.refusable)) {
+    for (const m of text.matchAll(globalOf(rule.re))) {
+      const end = m.index + m[0].length;
+      const start = refusalStart(text, m.index, end, rule.re);
+      if (start === undefined) return undefined;
+      cuts.push([start, end]);
     }
   }
-  if (mentions === 0) return false;
-  // Anything else on the signal's other rules (bank details, non-PayPal links) still counts.
-  return !RULES.some((r) => r.signal === signal && !r.refusable && r.re.test(text));
+  if (cuts.length === 0) return undefined;
+  let out = '';
+  let at = 0;
+  for (const [a, b] of cuts.sort((x, y) => x[0] - y[0])) {
+    if (a > at) out += text.slice(at, a);
+    at = Math.max(at, b);
+  }
+  return (out + text.slice(at)).replace(/\s+/g, ' ').trim();
 }
 
 export function ruleWarnings(messages: readonly RedactedMessage[]): Warning[] {

@@ -44,17 +44,37 @@ test('refusal words never switch off the code, injection or bank-detail rules', 
   assert.deepEqual(signals('not IBAN GB29NWBK60161331926819'), ['off_paypal']);
 });
 
-test('onlyRefused: the model score is ignored only when every method named is refused', async () => {
-  const { onlyRefused } = await import('../lib/settle/rules');
-  assert.equal(onlyRefused('ff_payment', 'not friends and family, goods and services'), true);
-  assert.equal(onlyRefused('off_paypal', "I don't take Zelle or Venmo"), true);
-  // No method named: the model decides ("pay me as a present").
-  assert.equal(onlyRefused('ff_payment', 'pay me as a present so no fees'), false);
-  // One refused, one asked for.
-  assert.equal(onlyRefused('off_paypal', "I don't take Zelle, send bitcoin"), false);
-  // Bank details always count.
-  assert.equal(onlyRefused('off_paypal', "I don't take Zelle, IBAN [IBAN]"), false);
-  // Signals without refusable rules never skip the model.
-  assert.equal(onlyRefused('ship_elsewhere', 'not to my cousin'), false);
-  assert.equal(onlyRefused('code_request', "don't send me the code"), false);
+test('questions are never refusals', () => {
+  assert.deepEqual(signals('why not friends and family?'), ['ff_payment']);
+  assert.deepEqual(signals("won't you do F&F"), ['ff_payment']);
+  assert.deepEqual(signals("can't we just do friends and family"), ['ff_payment']);
+  assert.deepEqual(signals('not friends and family?'), ['ff_payment']);
+  assert.deepEqual(signals("don't you take zelle?"), ['off_paypal']);
+  // A question in a later clause doesn't undo a refusal.
+  assert.deepEqual(signals('not friends and family, is goods and services ok?'), []);
+});
+
+test('a listed method shares the refusal only when it sits right after the refused one', () => {
+  assert.deepEqual(signals("I don't take Zelle or Venmo or Cash App"), []);
+  // An earlier "Zelle or" further back must not make a later method look refused.
+  assert.deepEqual(signals('Zelle or whatever, I never said no, send venmo'), ['off_paypal']);
+  assert.deepEqual(signals("Zelle or Venmo, I can't wait to get the bitcoin"), ['off_paypal']);
+});
+
+test('withoutRefusals: the model scores what is left, never nothing', async () => {
+  const { withoutRefusals } = await import('../lib/settle/rules');
+  assert.equal(withoutRefusals('ff_payment', 'not friends and family, goods and services'), ', goods and services');
+  assert.equal(withoutRefusals('off_paypal', "I don't take Zelle or Venmo"), 'I');
+  assert.equal(withoutRefusals('ff_payment', 'not friends and family, send it personal so no fees'), ', send it personal so no fees');
+  // No method named: scored as written ("pay me as a present").
+  assert.equal(withoutRefusals('ff_payment', 'pay me as a present so no fees'), undefined);
+  // One refused, one asked for: scored as written.
+  assert.equal(withoutRefusals('off_paypal', "I don't take Zelle, send bitcoin"), undefined);
+  // Bank details always count as written.
+  assert.equal(withoutRefusals('off_paypal', "I don't take Zelle, IBAN [IBAN]"), undefined);
+  // A question is scored as written.
+  assert.equal(withoutRefusals('ff_payment', 'why not friends and family?'), undefined);
+  // Signals without refusable rules are always scored as written.
+  assert.equal(withoutRefusals('ship_elsewhere', 'not to my cousin'), undefined);
+  assert.equal(withoutRefusals('code_request', "don't send me the code"), undefined);
 });

@@ -8,13 +8,14 @@ import modelA from '../../data/model/settle-model-a.json';
 import modelB from '../../data/model/settle-model-b.json';
 import { warningsFrom, type DealCheckResult } from '../jev/deal-check';
 import type { Redacted } from '../settle/redact';
-import { onlyRefused } from '../settle/rules';
+import { withoutRefusals } from '../settle/rules';
 import { SIGNALS, type SignalId } from '../settle/signals';
 import { embedTexts } from './embed';
 import { featurise, type SparseVector } from './features';
 import { decodeModel, hasWords, scoreFeatures, type ModelFile, type SignalModel } from './model';
 import { localTermPicks } from './terms';
 
+const REFUSABLE: SignalId[] = ['ff_payment', 'off_paypal'];
 const FILES = { a: modelA as unknown as ModelFile, b: modelB as unknown as ModelFile };
 const decoded: Partial<Record<keyof typeof FILES, SignalModel>> = {};
 
@@ -72,19 +73,32 @@ export async function localScores(redacted: Redacted) {
   // Fail closed: a chat that needs more pieces than the budget is not checked at all, rather
   // than checked only partly and shown as "no warning signs found".
   const pieces = redacted.messages.map((m) => (!hasWords(m.text) ? [] : key === 'b' ? clauses(m.text) : [m.text.slice(0, MAX_PIECE_CHARS)]));
-  const total = pieces.reduce((n, p) => n + p.length, 0);
+  // A piece whose payment-method words are all refused is scored for that signal on the rest of
+  // its words instead ("not friends and family, send it personal" → "send it personal"). It is
+  // never skipped: the remainder goes through the model like any other text.
+  const rescore: { i: number; n: number; signal: SignalId; text: string }[] = [];
+  pieces.forEach((list, i) =>
+    list.forEach((text, n) => {
+      for (const signal of REFUSABLE) {
+        const rest = withoutRefusals(signal, text);
+        if (rest !== undefined) rescore.push({ i, n, signal, text: rest });
+      }
+    }),
+  );
+  const total = pieces.reduce((c, p) => c + p.length, 0) + rescore.length;
   if (total > MAX_PIECES_PER_CHAT) throw new ChatTooLongError(`${TOO_LONG}: ${total} pieces, the check reads at most ${MAX_PIECES_PER_CHAT}`);
-  const xs = await vectors(pieces.flat());
+  const scorable = rescore.filter((r) => hasWords(r.text));
+  const xs = await vectors([...pieces.flat(), ...scorable.map((r) => r.text)]);
+  const flat = pieces.flat().length;
+  const replaced = new Map<string, number>();
+  scorable.forEach((r, k) => replaced.set(`${r.i}:${r.n}:${r.signal}`, scoreFeatures(model, xs[flat + k])[r.signal] ?? 0));
+  for (const r of rescore) if (!hasWords(r.text)) replaced.set(`${r.i}:${r.n}:${r.signal}`, 0);
   let at = 0;
   const perMessage = redacted.messages.map((m, i) => {
     const s: Record<string, number> = {};
     for (let n = 0; n < pieces[i].length; n++) {
       const piece = scoreFeatures(model, xs[at++]);
-      for (const [id, p] of Object.entries(piece)) {
-        // A piece whose only payment-method words are refused doesn't count for that signal.
-        if (onlyRefused(id as SignalId, pieces[i][n])) continue;
-        s[id] = Math.max(s[id] ?? 0, p);
-      }
+      for (const [id, p] of Object.entries(piece)) s[id] = Math.max(s[id] ?? 0, replaced.get(`${i}:${n}:${id}`) ?? p);
     }
     return { m, s };
   });
