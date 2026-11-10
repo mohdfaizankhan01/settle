@@ -53,6 +53,18 @@ export function isHeld(deal: Deal): boolean {
   );
 }
 
+/**
+ * Can this hold be released? Releasing only ever gives the buyer their money back, so it doesn't
+ * need the record to match the card (isHeld does, for taking the money). It needs a hold PayPal
+ * confirmed by webhook that isn't known to be captured or voided, and no handover under way.
+ */
+export function holdVoidable(deal: Deal): boolean {
+  const { holdWebhook, read } = deal.payment ?? {};
+  if (!paysByHold(deal) || !holdWebhook || deal.handover?.outcome || deal.handover?.inFlight) return false;
+  const sameHold = read?.ok && read.authorizationId === holdWebhook.authorizationId;
+  return !(sameHold && read.authorizationStatus !== 'CREATED');
+}
+
 /** When Settle releases an unused hold: 3 days after PayPal placed it. */
 export function holdDeadline(deal: Deal): Date | undefined {
   const read = deal.payment?.read;
@@ -198,7 +210,7 @@ async function refreshAfter(deps: HandoverDeps, dealId: string) {
  */
 export async function voidHold(dealId: string, by: 'buyer' | 'seller' | 'meet_by_passed', deps: HandoverDeps) {
   const deal = await load(deps.store, dealId);
-  if (!isHeld(deal)) throw new DealError('There is no hold to release on this deal.', 409);
+  if (!holdVoidable(deal)) throw new DealError('There is no hold to release on this deal.', 409);
   const pp = paypalFor(deps.store, deal, deps.paypal, paypal as HandoverPayPal) as HandoverPayPal;
   const iso = nowOf(deps).toISOString();
   const authorizationId = deal.payment!.holdWebhook!.authorizationId;
@@ -241,7 +253,7 @@ export async function cancelHandover(dealId: string, key: string | null, deps: H
 /** On a page load: a hold past PayPal's 3-day guarantee with no handover is released. */
 export async function releaseExpiredHold(deal: Deal, deps: HandoverDeps): Promise<Deal> {
   const deadline = holdDeadline(deal);
-  if (!isHeld(deal) || !deadline || nowOf(deps) < deadline) return deal;
+  if (!holdVoidable(deal) || !deadline || nowOf(deps) < deadline) return deal;
   await voidHold(deal.id, 'meet_by_passed', deps).catch(() => undefined);
   return (await deps.store.getDeal(deal.id))?.value ?? deal;
 }

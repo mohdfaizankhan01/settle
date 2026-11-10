@@ -76,7 +76,16 @@ export type Decline = { role: Role; at: string; reason: DeclineReason };
 export type Confirmation = { role: Role; at: string; cardHash: string };
 
 /** intent: AUTHORIZE for a meet-up hold (DECISIONS #20). Orders from before Nov 5 have none: CAPTURE. */
-export type PaymentOrder = { id: string; cardHash: string; createdAt: string; status: string; debugId?: string; intent?: 'CAPTURE' | 'AUTHORIZE' };
+export type PaymentOrder = {
+  id: string;
+  cardHash: string;
+  createdAt: string;
+  status: string;
+  debugId?: string;
+  intent?: 'CAPTURE' | 'AUTHORIZE';
+  /** Set while the buyer's capture or hold call is at PayPal: the card and payee are frozen from then on. */
+  paying?: string;
+};
 
 /** The shipping address PayPal holds for the payment (SP-ADDR). Shown to the seller only. */
 export type ShipTo = { name?: string; lines: string[]; postalCode?: string; countryCode?: string };

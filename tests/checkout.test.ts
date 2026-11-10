@@ -234,3 +234,41 @@ test("the buyer's checkout payload carries the total, fee included", async () =>
   assert.equal(view.checkout?.amount, view.money?.total.replace(/^[^\d]+/, ''));
   assert.notEqual(view.checkout?.amount, '350.00');
 });
+
+test('while the capture call is at PayPal the card and payee are frozen; a failed call unfreezes them', async () => {
+  const { dealId, keys, co, pp, deps } = await lockedDeal();
+  const { orderId } = await startCheckout(dealId, keys.buyer, co);
+  pp.approve(orderId);
+  // PayPal is slow to answer: the seller tries to change the payee or decline in the meantime.
+  let release!: () => void;
+  const realCapture = pp.captureOrder;
+  pp.captureOrder = async (id, rid) => {
+    await new Promise<void>((r) => (release = r));
+    return realCapture(id, rid);
+  };
+  const paying = captureCheckout(dealId, keys.buyer, orderId, co);
+  await new Promise((r) => setTimeout(r, 5));
+  assert.ok((await co.store.getDeal(dealId))!.value.order!.paying, 'the order is claimed before PayPal is called');
+  await assert.rejects(setPayee(dealId, 'SELLER2', deps), /payee cannot change/);
+  await assert.rejects(declineDeal(dealId, keys.seller, 'terms_wrong', deps), /payment already started/);
+  await assert.rejects(captureCheckout(dealId, keys.buyer, orderId, co), /already being sent/);
+  release();
+  await paying;
+  const after = (await co.store.getDeal(dealId))!.value;
+  assert.equal(after.payeeMerchantId, 'SELLER1');
+  assert.equal(after.order!.paying, undefined);
+  assert.equal(after.order!.status, 'CAPTURE_REQUESTED');
+
+  // A capture PayPal refuses leaves nothing taken and the card editable again.
+  const b = await lockedDeal();
+  const o = await startCheckout(b.dealId, b.keys.buyer, b.co);
+  b.pp.approve(o.orderId);
+  b.pp.captureOrder = async () => {
+    throw new Error('PayPal down');
+  };
+  b.pp.getOrder = async () => {
+    throw new Error('PayPal down');
+  };
+  await assert.rejects(captureCheckout(b.dealId, b.keys.buyer, o.orderId, b.co));
+  assert.equal((await b.co.store.getDeal(b.dealId))!.value.order!.paying, undefined);
+});

@@ -8,7 +8,7 @@ import * as paypal from '../paypal';
 import { cardHash, isHandoverDeal, isLocked, moneyOf, paysByHold } from './card';
 import { actingRole, DealError } from './deals';
 import { newPayerSecret, OTHER_DEVICE, payerHash, payerMatches } from './handover';
-import { StaleWriteError, type DealStore } from './store';
+import { StaleWriteError, updateWithRetry, type DealStore } from './store';
 import type { Deal } from './types';
 
 export type PayPalDeps = Pick<typeof paypal, 'createOrder' | 'getOrder' | 'captureOrder'> & Partial<Pick<typeof paypal, 'authorizeOrder'>>;
@@ -147,6 +147,31 @@ export async function captureCheckout(dealId: string, key: string | null, orderI
     throw new DealError('the card changed after this order was created, so it cannot be paid', 409);
   }
 
+  // Freeze the card before PayPal hears about the payment: from here on a payee, term or decline
+  // change is refused (paymentStarted), so PayPal can't take money for a card the record no longer
+  // matches. A call still running elsewhere is refused; one that died long ago may be retried.
+  if (deal.order.paying && Date.now() - Date.parse(deal.order.paying) < PAYING_GRACE_MS) {
+    throw new DealError('this payment is already being sent to PayPal; wait a moment and reload', 409);
+  }
+  try {
+    await deps.store.updateDeal(dealId, stored.version, { ...deal, order: { ...deal.order, paying: now(deps) } });
+  } catch (error) {
+    if (error instanceof StaleWriteError) throw new DealError('the deal changed while you were paying; reload and try again', 409);
+    throw error;
+  }
+  try {
+    return await sendPayment(dealId, deal, orderId, pp, deps);
+  } catch (error) {
+    // Nothing was taken: unfreeze, unless the payment is recorded after all.
+    await updateWithRetry(deps.store, dealId, (d) => (d.order?.id === orderId && d.order.status === 'CREATED' ? { ...d, order: { ...d.order, paying: undefined } } : d)).catch(() => undefined);
+    throw error;
+  }
+}
+
+/** How long a capture or hold call may be at PayPal before another attempt is allowed. */
+export const PAYING_GRACE_MS = 2 * 60_000;
+
+async function sendPayment(dealId: string, deal: Deal, orderId: string, pp: PayPalDeps, deps: CheckoutDeps) {
   let fresh;
   try {
     fresh = await pp.getOrder(orderId, deal.payeeMerchantId!);
@@ -187,7 +212,8 @@ export async function captureCheckout(dealId: string, key: string | null, orderI
     try {
       // A verified webhook may already have recorded the payment; don't step its status back.
       const keep = latest.value.order!.status === 'COMPLETED' ? 'COMPLETED' : status;
-      await deps.store.updateDeal(dealId, latest.version, { ...latest.value, order: { ...latest.value.order!, status: keep, debugId: captured.debugId } });
+      if (latest.value.order?.id !== orderId) break; // the order was replaced meanwhile: don't stamp another order
+      await deps.store.updateDeal(dealId, latest.version, { ...latest.value, order: { ...latest.value.order!, status: keep, debugId: captured.debugId, paying: undefined } });
       break;
     } catch (error) {
       if (!(error instanceof StaleWriteError) || attempt >= 2) throw error;

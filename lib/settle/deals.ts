@@ -191,6 +191,9 @@ export async function answerQuestion(dealId: string, key: string | null, questio
   return stored;
 }
 
+/** Payment has started once the order left CREATED or the buyer's capture/hold call is at PayPal. */
+export const paymentStarted = (deal: Deal) => !!deal.order && (deal.order.status !== 'CREATED' || !!deal.order.paying);
+
 export const PAYEE_LOCKED = 'the payee cannot change after payment started';
 
 const PRICE_RE = /^\d{1,6}(?:\.\d{1,2})?$/;
@@ -199,7 +202,7 @@ const PRICE_RE = /^\d{1,6}(?:\.\d{1,2})?$/;
 export async function enterTerm(dealId: string, key: string | null, term: 'item' | 'price', value: string, deps: Deps) {
   const { stored, role } = await mutate(deps, dealId, key, (deal, role) => {
     if (role !== 'seller') throw new DealError('only the seller can enter a missing term', 403);
-    if (deal.order && deal.order.status !== 'CREATED') throw new DealError('payment already started; the card can no longer change', 409);
+    if (paymentStarted(deal)) throw new DealError('payment already started; the card can no longer change', 409);
     if (deal.card[term]?.source.kind === 'message' || deal.card[term]?.source.kind === 'answer') {
       throw new DealError('this term came from the chat; answer a question instead', 409);
     }
@@ -225,7 +228,7 @@ export async function setPayee(dealId: string, merchantId: string, deps: Deps): 
     if (!stored) throw new DealError('no such deal', 404);
     if (stored.value.payeeMerchantId === merchantId) return stored;
     // Once a payment is under way the payee is fixed.
-    if (stored.value.order && stored.value.order.status !== 'CREATED') throw new DealError(PAYEE_LOCKED, 409);
+    if (paymentStarted(stored.value)) throw new DealError(PAYEE_LOCKED, 409);
     const next = { ...stored.value, payeeMerchantId: merchantId, cardVersion: stored.value.cardVersion + 1, confirmations: [] };
     try {
       const saved = await deps.store.updateDeal(dealId, stored.version, next);
@@ -307,7 +310,7 @@ export async function declineDeal(dealId: string, key: string | null, reason: st
   if (!Object.hasOwn(DECLINE_REASONS, reason)) throw new DealError('unknown reason');
   const at = now(deps);
   const { stored, role } = await mutate(deps, dealId, key, (deal, role) => {
-    if (deal.order && deal.order.status !== 'CREATED') throw new DealError('payment already started; use PayPal to sort out problems', 409);
+    if (paymentStarted(deal)) throw new DealError('payment already started; use PayPal to sort out problems', 409);
     return {
       ...deal,
       confirmations: [],

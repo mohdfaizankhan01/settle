@@ -336,3 +336,12 @@ test('code review: a meet-up deal paid by normal capture before holds existed ke
   assert.ok(dealView(d, 'seller').afterPayment?.gate, 'the ship gate is still there');
   assert.equal(dealView(d, 'seller').afterPayment?.handover, null);
 });
+
+test('audit: a hold whose record drifted from the card can still be released to the buyer', async () => {
+  const s = await meetupSetup();
+  await s.held();
+  // Simulate drift after the hold: the fresh read no longer matches the card.
+  await updateWithRetry(s.store, s.dealId, (d) => ({ ...d, payment: { ...d.payment!, read: { ...d.payment!.read!, mismatches: ['payee differs'] } as never } }));
+  await cancelHandover(s.dealId, s.keys.buyer, s.hdeps);
+  assert.equal((await s.get()).handover?.outcome?.kind, 'voided');
+});
