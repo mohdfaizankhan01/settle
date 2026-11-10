@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/mohdfaizankhan01/settle/actions/workflows/ci.yml/badge.svg)](https://github.com/mohdfaizankhan01/settle/actions/workflows/ci.yml)
 
-**Nobody has to go first.** Strangers who agree a deal in a DM hit a standoff: the buyer won't pay first and the seller won't ship first. Scammers use that from both sides. Settle Link turns the chat into one deal link both people confirm. The buyer pays through PayPal checkout, the PayPal order carries the agreed terms, the seller ships (or hands over at a meet-up) only once PayPal itself confirms the money, and the record is on file if a dispute comes.
+**Nobody has to go first.** Strangers who agree a deal in a DM hit a standoff: the buyer won't pay first and the seller won't ship first. Scammers use that from both sides. Settle Link turns the chat into one deal link both people confirm, straight from WhatsApp Web with the Settle Link Chrome extension, or by pasting it. The buyer pays through PayPal checkout, the PayPal order carries the agreed terms, the seller ships (or hands over at a meet-up) only once PayPal itself confirms the money, and the record is on file if a dispute comes.
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). **Everything runs on the PayPal sandbox: no real money moves.** Licensed under [MIT](LICENSE).
 
@@ -11,6 +11,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). **Ev
 - **Settle never receives money.** The buyer pays the seller's own PayPal account, connected through Partner Referrals. No escrow and no payouts.
 - **The AI can't move money.** It only adds warnings. Payment counts only from a verified PayPal webhook plus a fresh read of the order; a meet-up hold is taken only when the buyer scans the seller's code.
 - **Every ship check quotes PayPal's own terms**, word for word ([/terms](https://settle-ulya.onrender.com/terms)), and says that PayPal decides.
+- **Starts inside the chat.** The Chrome extension reads the open WhatsApp Web chat when the seller clicks, makes the deal, and puts the buyer's link in the reply box. The seller presses Send; the extension never sends anything.
 - **One record from DM to dispute.** The agreed card's fingerprint rides on the PayPal order, and disputes are answered through PayPal's Disputes API with an evidence PDF built from that record, after the seller approves the exact request.
 
 ## For judges: try it in 3 minutes
@@ -27,7 +28,9 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). **Ev
 3. **[Proof](https://settle-ulya.onrender.com/proof)**: how often the warning check is right, and how often it raises a false alarm, on chats it never trained on. Try an honest chat too: "PayPal goods and services please, not friends and family" raises no warning.
 4. **[Seller timeline](https://settle-ulya.onrender.com/demo/timeline)** (Bryntum Scheduler): every demo deal over time, coloured by its check.
 
-**A live sandbox deal**: paste a chat at [/check](https://settle-ulya.onrender.com/check). Paying needs a PayPal sandbox buyer login and the seller connecting a sandbox business account; the logins are in the Devpost testing notes.
+5. **The Chrome extension** (optional, needs WhatsApp Web or Messenger in Chrome): download the repo, open `chrome://extensions`, turn on Developer mode, *Load unpacked* → the [`extension/`](extension) folder, then open a chat and click **Settle Link** in the toolbar. It makes a real deal on the live app (PayPal sandbox). The demo video shows it on a real WhatsApp Web chat.
+
+**A live sandbox deal**: paste a chat at [/check](https://settle-ulya.onrender.com/check), or use the extension. Paying needs a PayPal sandbox buyer login and the seller connecting a sandbox business account; the logins are in the Devpost testing notes.
 
 ## The problem
 
@@ -40,20 +43,21 @@ Fake sellers push Friends and Family or a bank transfer, where PayPal's Purchase
 
 ## What it does
 
-1. **One deal link from the chat.** Either side pastes the chat (or, on Android, shares it straight from WhatsApp). Settle Link reads the item, price, delivery and dates, shows the message each came from, and asks both sides anything it isn't sure of. It shows PayPal's fee and both agree who pays it. Both confirm; the card is locked by its SHA-256 fingerprint. Either side can decline with a reason the other side sees first.
+1. **One deal link from the chat.** Either side pastes the chat, shares it on Android straight from WhatsApp, or clicks the Chrome extension on a WhatsApp Web chat. Settle Link reads the item, price, delivery and dates, shows the message each came from, and asks both sides anything it isn't sure of. It shows PayPal's fee and both agree who pays it. Both confirm; the card is locked by its SHA-256 fingerprint. Either side can decline with a reason the other side sees first.
 2. **Warnings for both sides.** Friends and Family requests, payment outside PayPal, fake payment proof, "PayPal is holding your money", overpayment refunds, codes, "ship it to my cousin", moving off the chat, and instructions aimed at the AI. Each warning quotes its message and cites PayPal's terms. The AI explains; it never approves a payment or a shipment.
 3. **Pay with PayPal checkout.** The server builds the order from the locked card (total, items, and `<dealId>:<hash>` in `custom_id`), never from the browser. The money goes to the seller's own PayPal account, connected through Partner Referrals.
 4. **Ship gate.** Payment counts only after a verified PayPal webhook *and* a fresh read of the order that matches the card. The checklist (payment, address, delivery method, tracking, later messages) gives Ship, Hold or Review, citing [`docs/protection-terms.md`](docs/protection-terms.md). A new address after payment holds the parcel. Tracking goes to PayPal through PayPal's TypeScript SDK.
 5. **Meet-up mode.** For in-person deals, the buyer pays as a PayPal **hold** (`intent: AUTHORIZE`): PayPal keeps the money on the buyer's account, Settle never holds it. At the meet-up the seller shows a one-time QR code; the buyer checks the item, scans it on the phone that paid, and confirms; only then is the hold captured. Walking away, or no handover within PayPal's 3-day hold guarantee, releases it. The card still says plainly that in-person handovers aren't covered by Seller Protection.
 6. **Disputes from the record.** A verified dispute webhook opens a case file: what the record proves for that reason, honest advice (fight, refund, offer), and an evidence PDF. The seller sees the exact request and approves it before anything is sent; PayPal decides.
 7. **In the chat app.** A deal link pasted into WhatsApp, Messenger or iMessage shows a card with the item, price, delivery and status, and "Pay only through PayPal on this link. Never Friends and Family." No names, chat or contact details are in it.
-8. **Scam memory.** Declining because the other side wanted to leave PayPal, or answering "Was this a scam? Yes" on a warning, remembers that side's PayPal account, payer ID, postcode or exact script, as keyed one-way hashes only. A later deal reported by at least two other deals in the last 90 days gets a caution. It never blocks.
+8. **Settle Link for Chrome.** For sellers with many deals a day: click the toolbar button on a WhatsApp Web chat (Messenger, Facebook Marketplace and Instagram work too, or select messages on any site). It reads only that chat, only on the click, and shows who said what before anything is sent. On WhatsApp, who sent each message comes from WhatsApp's own page, never from names or typed text, so a buyer can't pass as the seller. It makes the deal through the same server path as pasting, puts the buyer's link in the reply box for the seller to send, opens the seller's own link, and lists the deals made in that browser. Permissions: only the open tab, on click (`activeTab`). Code and store listing: [`extension/`](extension).
+9. **Scam memory.** Declining because the other side wanted to leave PayPal, or answering "Was this a scam? Yes" on a warning, remembers that side's PayPal account, payer ID, postcode or exact script, as keyed one-way hashes only. A later deal reported by at least two other deals in the last 90 days gets a caution. It never blocks.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  chat["Chat (pasted or shared)"] --> redact["Redaction<br/>names, contacts → placeholders"]
+  chat["Chat (pasted, shared, or read by the Chrome extension)"] --> redact["Redaction<br/>names, contacts → placeholders"]
   redact --> model["Settle Link's own model<br/>MiniLM + one classifier per warning"]
   redact --> rules["Keyword rules"]
   model --> card["Deal card<br/>terms in code, locked by hash"]
@@ -100,11 +104,12 @@ Other approaches in this hackathon, and where Settle Link differs:
 | Warning check | Settle Link's own model and rules, on every chat | — |
 | Test chats on /proof | — | 83 chats we wrote; a sanity check, not a benchmark |
 | Scam memory | Real reports between real deals | Judge mode seeds two earlier reports, labelled |
+| Chrome extension | Reads real web chats on click; makes real deals on the live app | — |
 | Money | — | Sandbox only: no real money moves anywhere |
 
 ## Proof
 
-- **240 tests** (`npm test`, run by CI on every push), with PayPal and the model mocked, and a Playwright walk of the judge path on the deployed app (`npm run e2e`).
+- **254 tests** (`npm test`, run by CI on every push), with PayPal and the model mocked; a Playwright walk of the judge path on the deployed app (`npm run e2e`); and 8 Playwright tests of the extension's chat readers, including a buyer who types a fake `[time] Seller:` line or takes the seller's name (`npx playwright test e2e/extension-readers.spec.ts`). The /proof page shows the 240 tests at its last snapshot.
 - **10 of 10 attacks stopped** on [/demo/attacks](https://settle-ulya.onrender.com/demo/attacks), each tied to a named test.
 - **Warning check on 83 held-out chats** (model plus rules): precision 73%, recall 95%, versus 38% recall for keyword rules alone. Weakest: "move to another app" (recall 67%) and "ship somewhere else" (80%). A missed warning never makes a deal safe: payment and shipping are still checked against PayPal's records.
 - **False alarms:** 32 of 39 chats with nothing risky show no warning, and 6 of 7 honest refusals ("not friends and family", "I don't take Zelle") show none. Refusals are handled in code; a question ("why not F&F?") is never read as a refusal.
@@ -116,6 +121,7 @@ Other approaches in this hackathon, and where Settle Link differs:
 - Settle Link never holds money and never says a deal is "safe" or "protected": it says which checks pass and that PayPal decides.
 - The AI only adds caution. It never approves a payment, a shipment or a handover, and never writes dispute text (that is templated from the record).
 - Any error means Hold or Review, never "safe".
+- The Chrome extension reads a chat only when the seller clicks, never presses Send, and never opens the buyer's link. What it reads and keeps is on [/privacy](https://settle-ulya.onrender.com/privacy).
 
 ## Limitations
 
@@ -126,6 +132,7 @@ Other approaches in this hackathon, and where Settle Link differs:
 - Sharing a chat *into* Settle Link works on Android (installed from Chrome's menu); on iPhone, copy and paste. Link previews work everywhere.
 - Scam memory matches the same script word for word (after names, prices and links are removed), not reworded versions, and needs two reporting deals before it says anything. Two deals aren't proof of two different people: one person could make two deals and report a script. That's why memory only adds a caution and never blocks.
 - A deal link locks to the first device that opens it; switching phones means asking for a new link.
+- The Chrome extension works on chat sites in a desktop browser, not in phone apps (phones use the share sheet or copy and paste). It reads only messages already loaded on the page. The WhatsApp Web reader was checked on a live chat on 10 Nov 2026; Messenger, Marketplace and Instagram use a layout reader tested on sample pages, and the seller checks the preview. Chat sites change their pages, so readers can break; selecting the messages still works. Store listing pending.
 
 ## Tools used
 
@@ -147,6 +154,7 @@ npm run model:fetch         # once: downloads the 24 MB MiniLM model into ./mode
 cp env.example .env.local   # fill in PAYPAL_CLIENT_ID, PAYPAL_SECRET and the others
 npm run dev                 # http://localhost:3000, then open /demo or /check
 npm test                    # unit tests, with PayPal and the model mocked
+npm run ext:pack            # Chrome Web Store zip of extension/ → dist/
 ```
 
 - **Webhooks** need a public URL: deploy (see [`render.yaml`](render.yaml)) or tunnel, register `<host>/api/paypal/webhook` in the sandbox app with the payment, authorization, dispute and onboarding events, and put its ID in `PAYPAL_WEBHOOK_ID`.
