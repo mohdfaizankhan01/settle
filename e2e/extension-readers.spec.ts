@@ -50,8 +50,8 @@ test('WhatsApp selection: only the selected messages, sides still from the page,
   await page.evaluate(({ from, to }) => {
     const rows = document.querySelectorAll('[role=row]');
     const range = document.createRange();
-    range.setStartBefore(rows[Number(from)]);
-    range.setEndAfter(rows[Number(to)]);
+    range.setStart(rows[Number(from)], 0);
+    range.setEnd(rows[Number(to)], rows[Number(to)].childNodes.length);
     getSelection()!.addRange(range);
   }, { from: '4', to: '5' });
   const out = (await page.evaluate(readChat)) as Read;
