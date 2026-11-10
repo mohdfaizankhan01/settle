@@ -99,6 +99,12 @@ export default function CheckPage() {
             className="mt-2 w-full rounded-md border border-pp-border bg-pp-surface p-3 text-[15px] leading-relaxed focus:outline-2 focus:outline-pp-blue"
             placeholder={'Sam: is the bike still for sale?\nAlex: yes, £120 and I can post it tracked\nSam: deal'}
           />
+          <span className="mt-2 block text-xs text-pp-muted">
+            Names, contact details and addresses are removed first, and prices, dates and links become placeholders. That redacted copy is sent to Groq&apos;s API so an AI can point at the terms; the scam check runs on our own server.{' '}
+            <a href="/privacy" className="underline underline-offset-2">
+              Privacy
+            </a>
+          </span>
         </label>
 
         {speakers.length === 2 && (

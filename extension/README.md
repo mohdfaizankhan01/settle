@@ -4,7 +4,7 @@ Make a Settle Link deal straight from the chat, instead of copying and pasting i
 
 1. Open the chat in WhatsApp Web, Messenger, Facebook Marketplace or Instagram (or select the messages on any site).
 2. Click **Settle Link** in the toolbar. It reads only that chat, only now, and shows you what it read: your messages as **You**, the buyer's as **Buyer** (swap them if they're the wrong way round).
-3. **Make the deal link.** The chat goes to the Settle Link server, the same as pasting it on the website: redaction, the scam warning check and receipts all run there.
+3. **Make the deal link.** The chat goes to the Settle Link server, the same as pasting it on the website: redaction, the scam warning check and receipts all run there. To read the deal card, the server sends a redacted copy of the chat (names, contact details and addresses removed; prices, dates and links replaced by placeholders) to Groq's API; see the [privacy page](https://settle-ulya.onrender.com/privacy).
 4. **Put the buyer's link in the reply box**, then press Send yourself. Settle Link never sends messages.
 5. **Open my seller link** to confirm the deal card. Your deals stay listed in the popup on this browser.
 

@@ -43,7 +43,7 @@ Settle Link is a hackathon project. Payments run in PayPal's sandbox, so no real
 
 **Remote code:** No. All code is in the package.
 
-**Data usage (what's collected):** Personal communications (the chat messages the seller chooses to make a deal from), sent to the Settle Link server to make the deal. Not sold, not used for advertising or credit, not shared except with PayPal for the payment itself. Privacy policy: https://settle-ulya.onrender.com/privacy
+**Data usage (what's collected):** Personal communications (the chat messages the seller chooses to make a deal from), sent to the Settle Link server to make the deal. The server sends a redacted copy (names, contact details and addresses removed; prices, dates and links as placeholders) to Groq's API to read the deal card. Not sold, not used for advertising or credit, not shared except with PayPal for the payment itself. Privacy policy: https://settle-ulya.onrender.com/privacy
 
 ## Before each upload
 

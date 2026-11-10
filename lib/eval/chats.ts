@@ -15,7 +15,17 @@ export type EvalChat = {
   price: string | null;
   delivery: Delivery | null;
   note?: string;
+  // AI reader labels (PLAN M8). Missing means the chat isn't graded on that term.
+  /** The ship-by date as written in the chat, or null when none was agreed. */
+  shipBy?: string | null;
+  /** Words the item's name on the card should contain; null: not graded. */
+  item?: string | null;
+  /** The seller's statements about the item, each an exact quote of a seller message. */
+  claims?: string[];
 };
+
+/** Chats for reader prompt work. Never tune on data/test-chats.jsonl. */
+export const DEV_CHATS = join(process.cwd(), 'data', 'reader-dev-chats.jsonl');
 
 export function loadChats(path = join(process.cwd(), 'data', 'test-chats.jsonl')): EvalChat[] {
   return readFileSync(path, 'utf8')

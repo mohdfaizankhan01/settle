@@ -35,7 +35,14 @@ export default function Page() {
             When you make a deal link (on the website or from the extension), the chat messages, the seller&apos;s name and the seller&apos;s PayPal country are sent to the Settle Link server. The server keeps them as the deal record, so the buyer and seller see the same deal card with the messages it came from. Each step of the deal (confirmations, payment checks, shipping checks, disputes) adds a receipt to that record.
           </p>
           <p>
-            Before any AI check, emails, phone numbers, street addresses, and card and bank numbers are removed, and prices, dates, links and postcodes become placeholders. The scam warning check runs on Settle Link&apos;s own server. If a third-party AI check is turned on, it gets only that redacted text.
+            Before any AI sees the chat, names, emails, phone numbers, street addresses, and card and bank numbers are removed, and prices, dates, links and postcodes become placeholders. The scam warning check runs on Settle Link&apos;s own server.
+          </p>
+          <p>
+            To read the deal card, a redacted copy of the chat (the text after those removals, with the placeholders) is sent to Groq&apos;s API, where an AI model points at which placeholder is the price, which message names the item and what the seller said about it. It never sees the real prices, dates, links, names or contact details. Groq&apos;s own page says it doesn&apos;t keep inference data by default, but may keep logs for up to 30 days for reliability and abuse monitoring:{' '}
+            <a className="text-pp-blue underline underline-offset-2" href="https://console.groq.com/docs/your-data" rel="noreferrer" target="_blank">
+              Groq: your data
+            </a>
+            . A server running Settle Link can turn this off with SETTLE_READER=off; the card is then read by Settle Link&apos;s own code only.
           </p>
           <p>
             When the buyer pays, PayPal receives the order: the item, the price and the seller&apos;s PayPal account. Payment, buyer details and disputes are handled by PayPal under PayPal&apos;s own privacy statement.

@@ -35,7 +35,7 @@ export const SCENARIOS: Scenario[] = [
     side: 'buyer',
     shows: 'The seller asks to be paid as Friends and Family. The buyer is warned, with the PayPal terms it breaks, before paying.',
     seller: 'Casey',
-    chat: "Jordan: hi, is the Nintendo Switch OLED still for sale?\nCasey: yes, $260 and I post it tracked\nJordan: great, I'll take it\nCasey: please send it as friends and family so there are no fees",
+    chat: "Jordan: hi, is the Nintendo Switch OLED still for sale?\nCasey: yes, $260, barely used, comes with the dock and both Joy-Cons. I post it tracked\nJordan: great, I'll take it\nCasey: please send it as friends and family so there are no fees",
   },
   {
     id: 'fake-email',

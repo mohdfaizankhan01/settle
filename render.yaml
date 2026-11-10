@@ -32,5 +32,12 @@ services:
         sync: false
       - key: TYPESAFE_API_KEY
         sync: false
+      # AI deal reader (Groq). Set in the Dashboard; without it the card is read by code only.
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SETTLE_READER_MODEL
+        value: openai/gpt-oss-120b
+      - key: SETTLE_READER
+        sync: false
       - key: JEV_MODEL
         sync: false

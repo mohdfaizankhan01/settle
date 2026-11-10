@@ -58,3 +58,4 @@ docs/competitor-scan.md
 
 # Chrome extension zips (npm run ext:pack)
 /dist
+data/eval/reader-replies.local.json

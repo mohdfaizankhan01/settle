@@ -74,7 +74,7 @@ flowchart LR
 ```
 
 - **Redaction first.** Names, emails, phone numbers, addresses and bank details are removed before any model sees the chat. Prices, dates and links become tokens whose values stay in code.
-- **Settle Link's own AI.** Each redacted message becomes a MiniLM sentence embedding (quantized, run on our server with transformers.js); one logistic-regression classifier per warning gives a probability ([`lib/model`](lib/model)). Keyword rules add certainty where a phrase is unambiguous. No chat text goes to an AI provider. Fail closed: if the check can't run, nobody can confirm the card.
+- **Settle Link's own AI.** Each redacted message becomes a MiniLM sentence embedding (quantized, run on our server with transformers.js); one logistic-regression classifier per warning gives a probability ([`lib/model`](lib/model)). Keyword rules add certainty where a phrase is unambiguous. The warning check sends no chat text to an AI provider. Fail closed: if the check can't run, nobody can confirm the card.
 - **PayPal decides, code checks.** Amounts, payee, fees and dates are handled in code. Payment counts only from a verified webhook plus a fresh GET; screenshots, emails and client callbacks never count.
 - **Receipts.** Every decision writes a receipt into a per-deal hash chain; the deal history shows whether it verifies.
 - **Links lock to the first device that opens them.** Whoever makes a deal gets both links, so each link works only on the device that first opened it; a meet-up hold can only be placed and released from the phone that paid.
