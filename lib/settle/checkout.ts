@@ -159,11 +159,16 @@ export async function captureCheckout(dealId: string, key: string | null, orderI
     if (error instanceof StaleWriteError) throw new DealError('the deal changed while you were paying; reload and try again', 409);
     throw error;
   }
+  const outcome = { unknown: false };
   try {
-    return await sendPayment(dealId, deal, orderId, pp, deps);
+    return await sendPayment(dealId, deal, orderId, pp, deps, outcome);
   } catch (error) {
-    // Nothing was taken: unfreeze, unless the payment is recorded after all.
-    await updateWithRetry(deps.store, dealId, (d) => (d.order?.id === orderId && d.order.status === 'CREATED' ? { ...d, order: { ...d.order, paying: undefined } } : d)).catch(() => undefined);
+    // Unfreeze only when PayPal is known not to have taken anything. If the capture or hold call
+    // failed and PayPal couldn't be read back, the card stays frozen until a verified webhook or a
+    // fresh read settles it (security review: never unfreeze on an unknown outcome).
+    if (!outcome.unknown) {
+      await updateWithRetry(deps.store, dealId, (d) => (d.order?.id === orderId && d.order.status === 'CREATED' ? { ...d, order: { ...d.order, paying: undefined } } : d)).catch(() => undefined);
+    }
     throw error;
   }
 }
@@ -171,7 +176,7 @@ export async function captureCheckout(dealId: string, key: string | null, orderI
 /** How long a capture or hold call may be at PayPal before another attempt is allowed. */
 export const PAYING_GRACE_MS = 2 * 60_000;
 
-async function sendPayment(dealId: string, deal: Deal, orderId: string, pp: PayPalDeps, deps: CheckoutDeps) {
+async function sendPayment(dealId: string, deal: Deal, orderId: string, pp: PayPalDeps, deps: CheckoutDeps, outcome: { unknown: boolean }) {
   let fresh;
   try {
     fresh = await pp.getOrder(orderId, deal.payeeMerchantId!);
@@ -200,6 +205,8 @@ async function sendPayment(dealId: string, deal: Deal, orderId: string, pp: PayP
       await deps.store.addReceipt({ dealId, kind: 'capture.failed', at: now(deps), data: { orderId, debugId: debugIdOf(error) ?? null } });
       // The capture may have gone through with its answer lost: read PayPal before giving up.
       const after = await pp.getOrder(orderId, deal.payeeMerchantId!).catch(() => null);
+      // No answer, or an order PayPal shows as neither still approved nor completed: we can't tell.
+      if (!after || (after.data.status !== 'APPROVED' && after.data.status !== 'COMPLETED')) outcome.unknown = true;
       if (!after || after.data.status !== 'COMPLETED' || orderMismatches(deal, after.data).length > 0) throw error;
       captured = after;
     }

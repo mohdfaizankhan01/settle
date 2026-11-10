@@ -266,9 +266,25 @@ test('while the capture call is at PayPal the card and payee are frozen; a faile
   b.pp.captureOrder = async () => {
     throw new Error('PayPal down');
   };
-  b.pp.getOrder = async () => {
+  // The first read works; PayPal then goes quiet, so the read after the failed capture has no answer.
+  const firstGet = b.pp.getOrder;
+  let gets = 0;
+  b.pp.getOrder = async (id, m) => {
+    if (gets++ === 0) return firstGet(id, m);
     throw new Error('PayPal down');
   };
   await assert.rejects(captureCheckout(b.dealId, b.keys.buyer, o.orderId, b.co));
-  assert.equal((await b.co.store.getDeal(b.dealId))!.value.order!.paying, undefined);
+  // The capture failed and PayPal couldn't be read back: it may have gone through, so the card stays frozen.
+  assert.ok((await b.co.store.getDeal(b.dealId))!.value.order!.paying, 'unknown outcome keeps the card frozen');
+  await assert.rejects(setPayee(b.dealId, 'SELLER2', b.deps), /payee cannot change/);
+
+  // PayPal clearly refused and the order is still approved: nothing was taken, so it unfreezes.
+  const c = await lockedDeal();
+  const oc = await startCheckout(c.dealId, c.keys.buyer, c.co);
+  c.pp.approve(oc.orderId);
+  c.pp.captureOrder = async () => {
+    throw new Error('PayPal refused');
+  };
+  await assert.rejects(captureCheckout(c.dealId, c.keys.buyer, oc.orderId, c.co));
+  assert.equal((await c.co.store.getDeal(c.dealId))!.value.order!.paying, undefined);
 });
