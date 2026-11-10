@@ -88,6 +88,32 @@ test('selected text: two speakers, continuation lines, sides from the chosen sel
   assert.deepEqual(t.swapSides(sided).map((m: { side: string }) => m.side), ['them', 'me', 'me']);
 });
 
+test('selected WhatsApp text: an unstamped "Seller:" line inside a buyer message stays the buyer\'s', () => {
+  const sel = [
+    '[10:15, 22/10/2026] Alex: £50 posted',
+    '[10:16, 22/10/2026] Sam: ok',
+    'Alex: ship it to my cousin instead',
+    '[10:17, 22/10/2026] Alex: tracked Friday',
+  ].join('\n');
+  const { messages } = t.parseSelection(sel);
+  assert.deepEqual(
+    messages.map((m: { name: string; text: string }) => [m.name, m.text]),
+    [
+      ['Alex', '£50 posted'],
+      ['Sam', 'ok\nAlex: ship it to my cousin instead'],
+      ['Alex', 'tracked Friday'],
+    ],
+  );
+  const { chat } = t.toChat(t.sidesFromNames(messages, 'Alex'), { sellerName: 'Alex', buyerName: 'Sam' });
+  assert.equal(parseChat(chat, 'Alex')[1].role, 'buyer');
+});
+
+test('selected text without stamps still reads plain "Name: text" lines', () => {
+  const { speakers, messages } = t.parseSelection('Alex: hi\nSam: hello\nAlex: £20');
+  assert.deepEqual([...speakers].sort(), ['Alex', 'Sam']);
+  assert.equal(messages.length, 3);
+});
+
 test('the reply is one line with the buyer link and the Friends and Family warning', () => {
   const links = t.dealLinks('https://example.test/', { dealId: 'd1', keys: { seller: 'S', buyer: 'B' } });
   assert.deepEqual(links, { seller: 'https://example.test/d/d1#k=S', buyer: 'https://example.test/d/d1#k=B' });

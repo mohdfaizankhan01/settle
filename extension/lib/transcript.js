@@ -13,6 +13,9 @@ const INVISIBLE = /[‎‏‪-‮⁦-⁩﻿]/g;
 // (WhatsApp Web copy) or "22/10/2026, 10:15 - Name: text" (export). Matches the server's LINE.
 const LINE = /^(?:\[[^\]]{4,40}\]\s*|\d{1,4}[/.-]\d{1,2}[/.-]\d{1,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?\s+-\s+)?~?\s*([^:\n]{1,40}?)\s*:\s?(.*)$/;
 
+// A line that starts with a WhatsApp time stamp (copy or export form).
+const STAMP = /^(?:\[[^\]]{4,40}\]|\d{1,4}[/.-]\d{1,2}[/.-]\d{1,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?\s+-\s)/;
+
 export class TranscriptError extends Error {}
 
 export const clean = (s) => String(s ?? '').replace(INVISIBLE, '').replace(/\r/g, '');
@@ -44,9 +47,13 @@ export function whatsAppSender(pre) {
  */
 export function parseSelection(text) {
   const lines = clean(text).split('\n');
+  // WhatsApp stamps each message "[time, date] Name: ". When the selection has stamps, only stamped
+  // lines start a message: a buyer typing "Alex: ship it to my cousin" on a new line of their own
+  // message stays theirs instead of passing as the seller.
+  const stamped = lines.some((line) => STAMP.test(line));
   const counts = new Map();
   const parsed = lines.map((line) => {
-    const m = LINE.exec(line);
+    const m = stamped && !STAMP.test(line) ? null : LINE.exec(line);
     if (!m) return { text: line };
     const name = m[1].trim();
     counts.set(name, (counts.get(name) ?? 0) + 1);
