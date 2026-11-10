@@ -1,3 +1,4 @@
+import { isIPv4, isIPv6 } from 'node:net';
 // Server wiring shared by the deal API routes: the store, the public host, the caller's link
 // key, a simple rate limit, and error mapping. Fail closed: production without DATABASE_URL
 // refuses to run instead of falling back to memory.
@@ -59,10 +60,21 @@ export function rateLimited(request: Request, bucket: string, limit: number, glo
  * proxy saw. Coarse on purpose, so one person hopping between addresses on one network counts once.
  */
 export function clientNetwork(request: Request): string {
-  const ip = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'local';
-  if (ip.includes(':')) return ip.split(':').slice(0, 3).join(':') + '::/48';
-  const parts = ip.split('.');
-  return parts.length === 4 ? `${parts.slice(0, 3).join('.')}.0/24` : ip;
+  return networkOf(request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'local');
+}
+
+/** Canonical network of one address: parsed first (`::` expanded, IPv4-mapped IPv6 as IPv4), then masked. */
+export function networkOf(raw: string): string {
+  let ip = raw.replace(/^\[|\]$/g, '').split('%')[0];
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(ip);
+  if (mapped) ip = mapped[1];
+  if (isIPv4(ip)) return `${ip.split('.').slice(0, 3).join('.')}.0/24`;
+  if (!isIPv6(ip)) return 'other';
+  const [head, tail = ''] = ip.toLowerCase().split('::');
+  const h = head ? head.split(':') : [];
+  const t = ip.includes('::') ? (tail ? tail.split(':') : []) : [];
+  const groups = ip.includes('::') ? [...h, ...Array(8 - h.length - t.length).fill('0'), ...t] : h;
+  return `${groups.slice(0, 3).map((g) => parseInt(g, 16).toString(16)).join(':')}::/48`;
 }
 
 /** Runs a route body and maps known errors to JSON responses. Unknown errors log their name only. */

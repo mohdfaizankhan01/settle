@@ -30,15 +30,15 @@ export class StaleWriteError extends Error {
  * dealId: the deal that reported it, so each deal counts once and never matches itself.
  */
 /** `reporter`: keyed hash of the reporting network; reports are counted per reporter, not per deal. */
-export type MemoryEntry = { namespace: string; kind: string; hash: string; dealId: string; at: string; reporter?: string };
+export type MemoryEntry = { namespace: string; kind: string; hash: string; dealId: string; at: string; reporter?: string; by?: string; reason?: string };
 
 export interface DealStore {
   /** Adds reports; a deal reporting the same identifier again changes nothing. */
   addMemory(entries: MemoryEntry[]): Promise<void>;
   /** Reports in a namespace for any of these hashes since `since`. */
   findMemory(namespace: string, hashes: string[], since: string): Promise<MemoryEntry[]>;
-  /** Removes the reports a deal made (its decline was withdrawn). */
-  removeMemory(namespace: string, dealId: string): Promise<void>;
+  /** Removes one side's decline reports from a deal (that side withdrew its decline). */
+  removeMemory(namespace: string, dealId: string, by: string, reason: string): Promise<void>;
   createDeal(deal: Deal): Promise<void>;
   getDeal(id: string): Promise<Stored<Deal> | undefined>;
   /** Replaces the deal if it is still at `version`; otherwise throws StaleWriteError. */
@@ -93,8 +93,8 @@ export class MemoryDealStore implements DealStore {
     }
   }
 
-  async removeMemory(namespace: string, dealId: string) {
-    for (const [k, e] of this.memory) if (e.namespace === namespace && e.dealId === dealId) this.memory.delete(k);
+  async removeMemory(namespace: string, dealId: string, by: string, reason: string) {
+    for (const [k, e] of this.memory) if (e.namespace === namespace && e.dealId === dealId && e.by === by && e.reason === reason) this.memory.delete(k);
   }
 
   async findMemory(namespace: string, hashes: string[], since: string) {

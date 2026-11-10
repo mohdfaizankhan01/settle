@@ -44,7 +44,9 @@ CREATE TABLE IF NOT EXISTS scam_memory (
   PRIMARY KEY (namespace, kind, hash, deal_id)
 );
 CREATE INDEX IF NOT EXISTS scam_memory_lookup ON scam_memory (namespace, hash, at);
-ALTER TABLE scam_memory ADD COLUMN IF NOT EXISTS reporter text;`;
+ALTER TABLE scam_memory ADD COLUMN IF NOT EXISTS reporter text;
+ALTER TABLE scam_memory ADD COLUMN IF NOT EXISTS by_role text;
+ALTER TABLE scam_memory ADD COLUMN IF NOT EXISTS reason text;`;
 
 const json = (sql: Sql, value: unknown) => sql.json(value as JSONValue);
 
@@ -139,7 +141,7 @@ export class PgDealStore implements DealStore {
     await this.schema();
     for (const e of entries) {
       await this.sql`
-        INSERT INTO scam_memory (namespace, kind, hash, deal_id, at, reporter) VALUES (${e.namespace}, ${e.kind}, ${e.hash}, ${e.dealId}, ${e.at}, ${e.reporter ?? null})
+        INSERT INTO scam_memory (namespace, kind, hash, deal_id, at, reporter, by_role, reason) VALUES (${e.namespace}, ${e.kind}, ${e.hash}, ${e.dealId}, ${e.at}, ${e.reporter ?? null}, ${e.by ?? null}, ${e.reason ?? null})
         ON CONFLICT DO NOTHING`;
     }
   }
@@ -153,9 +155,9 @@ export class PgDealStore implements DealStore {
     return rows.map((r) => ({ namespace: r.namespace, kind: r.kind, hash: r.hash, dealId: r.deal_id, at: new Date(r.at).toISOString(), ...(r.reporter ? { reporter: r.reporter } : {}) }));
   }
 
-  async removeMemory(namespace: string, dealId: string) {
+  async removeMemory(namespace: string, dealId: string, by: string, reason: string) {
     await this.schema();
-    await this.sql`DELETE FROM scam_memory WHERE namespace = ${namespace} AND deal_id = ${dealId}`;
+    await this.sql`DELETE FROM scam_memory WHERE namespace = ${namespace} AND deal_id = ${dealId} AND by_role = ${by} AND reason = ${reason}`;
   }
 
   async saveDemoSession(session: DemoSession) {

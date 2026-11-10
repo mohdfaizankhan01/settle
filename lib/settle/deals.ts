@@ -338,7 +338,7 @@ export async function withdrawDecline(dealId: string, key: string | null, deps: 
     return { ...deal, declines: (deal.declines ?? []).filter((d) => d.role !== role) };
   });
   // A withdrawn decline takes back the scam report it made.
-  await deps.store.removeMemory(namespaceOf(stored.value), dealId).catch(() => undefined);
+  await deps.store.removeMemory(namespaceOf(stored.value), dealId, role, 'declined').catch(() => undefined);
   await deps.store.addReceipt({ dealId, kind: 'deal.decline_withdrawn', at: now(deps), data: { by: role } });
   return stored;
 }

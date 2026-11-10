@@ -97,12 +97,17 @@ export async function reportOtherSide(deal: Deal, reporter: Role, reason: Report
   // remembered. A decline reason or a "scam" click alone can't put someone's PayPal account,
   // payer or postcode on file (security audit: one person could otherwise accuse anyone).
   if (!ids.some((i) => i.kind === 'message')) return 0;
+  // The chat is pasted by whoever made the deal, so "their message" may be the reporter's own words.
+  // A person (PayPal account, payer, postcode) is put on file only if that side confirmed the card,
+  // i.e. accepted the chat as the record; otherwise only the script is remembered (security review).
+  const accepted = (await deps.store.listReceipts(deal.id)).some((r) => r.kind === 'card.confirmed' && (r.data as { by?: string }).by === about);
+  const kept = accepted ? ids : ids.filter((i) => i.kind === 'message');
   const at = nowOf(deps).toISOString();
   const reporterHash = deps.origin ? hmac(secret, 'reporter' as Kind, deps.origin) : undefined;
-  const entries: MemoryEntry[] = ids.map((i) => ({ namespace: namespaceOf(deal), kind: i.kind, hash: hmac(secret, i.kind, i.value), dealId: deal.id, at, ...(reporterHash ? { reporter: reporterHash } : {}) }));
+  const entries: MemoryEntry[] = kept.map((i) => ({ namespace: namespaceOf(deal), kind: i.kind, hash: hmac(secret, i.kind, i.value), dealId: deal.id, at, by: reporter, reason, ...(reporterHash ? { reporter: reporterHash } : {}) }));
   await deps.store.addMemory(entries);
   // The receipt keeps what was reported and why, never the values or their hashes.
-  await deps.store.addReceipt({ dealId: deal.id, kind: 'memory.reported', at, data: { by: reporter, about, reason, kinds: ids.map((i) => i.kind), signals: signalIds ?? null } });
+  await deps.store.addReceipt({ dealId: deal.id, kind: 'memory.reported', at, data: { by: reporter, about, reason, kinds: kept.map((i) => i.kind), signals: signalIds ?? null } });
   return entries.length;
 }
 

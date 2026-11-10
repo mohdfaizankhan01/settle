@@ -3,7 +3,9 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createDeal, declineDeal, type Deps, openLinks, withdrawDecline } from '../lib/settle/deals';
+import { answerQuestion, confirmCard, createDeal, declineDeal, type Deps, openLinks, withdrawDecline } from '../lib/settle/deals';
+import { cardHash } from '../lib/settle/card';
+import { networkOf } from '../lib/settle/runtime';
 import { startDemo } from '../lib/settle/demo';
 import { answerWarning } from '../lib/settle/feedback';
 import { memorySecret, memoryHits, refreshMemory, reportOtherSide } from '../lib/settle/memory';
@@ -92,11 +94,16 @@ test('reports expire after 90 days, and memory is off in production without the 
 const FF_CHAT = (buyer: string, seller: string, price: number) =>
   `${buyer}: is the camera still available?\n${seller}: yes, $${price}. Pay me as friends and family so we both skip the fees`;
 
-async function ffDeal(store: MemoryDealStore, buyer: string, payee: string, origin: string) {
+async function ffDeal(store: MemoryDealStore, buyer: string, payee: string, origin: string, sellerConfirms = true) {
   const deps: Deps = { store, ask: askWith(['ff_payment']), now, origin };
   const { deal: d, keys: rawKeys } = await createDeal({ chat: FF_CHAT(buyer, 'Alex', 450), sellerName: 'Alex', country: 'US' }, deps);
   const keys = await openLinks(d.id, rawKeys, deps);
   await updateWithRetry(store, d.id, (x) => ({ ...x, payeeMerchantId: payee }));
+  if (sellerConfirms) {
+    await answerQuestion(d.id, keys.seller, 'q_fee', 'seller', deps);
+    await answerQuestion(d.id, keys.buyer, 'q_fee', 'seller', deps);
+    await confirmCard(d.id, keys.seller, cardHash((await store.getDeal(d.id))!.value), deps);
+  }
   return { id: d.id, keys, deps };
 }
 
@@ -147,6 +154,38 @@ test('audit: one person cannot plant a caution on an honest seller', async () =>
   }
   const t3 = await deal(store3, 'Jo', 'Alex', 200, 'TARGET-PAYEE');
   assert.deepEqual(await memoryHits(await t3.get(), { store: store3, now }), [], 'withdrawn reports are gone');
+});
+
+test('audit: a seller who never accepted the chat is not put on file by PayPal account, only by script', async () => {
+  const store = new MemoryDealStore();
+  for (const [buyer, net] of [['Sam', '203.0.113.0/24'], ['Lee', '198.51.100.0/24']]) {
+    const d = await ffDeal(store, buyer, 'UNCONFIRMED-PAYEE', net, false);
+    await declineDeal(d.id, d.keys.buyer, 'wants_ff', d.deps);
+  }
+  const next = await deal(store, 'Jo', 'Alex', 200, 'UNCONFIRMED-PAYEE');
+  assert.equal((await memoryHits(await next.get(), { store, now })).some((h) => h.kind === 'payee'), false);
+});
+
+test("audit: withdrawing your decline removes only your decline's report, not other reports", async () => {
+  const store = new MemoryDealStore();
+  const at = now().toISOString();
+  await store.addMemory([
+    { namespace: 'live', kind: 'payee', hash: 'h1', dealId: 'D', at, by: 'buyer', reason: 'declined' },
+    { namespace: 'live', kind: 'message', hash: 'h2', dealId: 'D', at, by: 'seller', reason: 'marked_scam' },
+    { namespace: 'live', kind: 'message', hash: 'h3', dealId: 'D', at, by: 'buyer', reason: 'marked_scam' },
+  ]);
+  await store.removeMemory('live', 'D', 'buyer', 'declined');
+  const left = await store.findMemory('live', ['h1', 'h2', 'h3'], '1970-01-01');
+  assert.deepEqual(left.map((e) => e.hash).sort(), ['h2', 'h3']);
+});
+
+test('audit: client networks are parsed before masking, so one network has one spelling', () => {
+  assert.equal(networkOf('203.0.113.7'), '203.0.113.0/24');
+  assert.equal(networkOf('::ffff:203.0.113.9'), '203.0.113.0/24');
+  assert.equal(networkOf('2001:db8::1'), networkOf('2001:0db8:0000:0000::2'));
+  assert.equal(networkOf('2001:db8::1'), '2001:db8:0::/48');
+  assert.equal(networkOf('[2001:db8:1:2::5]'), '2001:db8:1::/48');
+  assert.equal(networkOf('not-an-ip'), 'other');
 });
 
 test('a line pasted in under the other side\'s name is not their message and cannot be reported', async () => {
