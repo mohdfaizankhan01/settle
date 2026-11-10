@@ -1,0 +1,438 @@
+{
+  "set": "dev",
+  "file": "data/reader-dev-chats.jsonl",
+  "model": "openai/gpt-oss-120b",
+  "promptVersion": "reader-1",
+  "provider": "Groq",
+  "at": "2026-11-10",
+  "chats": 30,
+  "readerRan": 30,
+  "terms": {
+    "codeOnly": {
+      "price": {
+        "right": 27,
+        "wrong": 1,
+        "asked": 2,
+        "missed": 0
+      },
+      "shipBy": {
+        "right": 20,
+        "wrong": 0,
+        "asked": 0,
+        "missed": 10
+      },
+      "delivery": {
+        "right": 25,
+        "wrong": 0,
+        "asked": 5,
+        "missed": 0
+      },
+      "item": {
+        "right": 9,
+        "wrong": 19,
+        "asked": 0,
+        "missed": 1
+      }
+    },
+    "readerOnly": {
+      "price": {
+        "right": 27,
+        "wrong": 0,
+        "asked": 3,
+        "missed": 0
+      },
+      "shipBy": {
+        "right": 28,
+        "wrong": 0,
+        "asked": 2,
+        "missed": 0
+      },
+      "delivery": {
+        "right": 23,
+        "wrong": 1,
+        "asked": 6,
+        "missed": 0
+      },
+      "item": {
+        "right": 20,
+        "wrong": 9,
+        "asked": 0,
+        "missed": 0
+      }
+    },
+    "both": {
+      "price": {
+        "right": 27,
+        "wrong": 0,
+        "asked": 3,
+        "missed": 0
+      },
+      "shipBy": {
+        "right": 20,
+        "wrong": 0,
+        "asked": 8,
+        "missed": 2
+      },
+      "delivery": {
+        "right": 23,
+        "wrong": 0,
+        "asked": 7,
+        "missed": 0
+      },
+      "item": {
+        "right": 19,
+        "wrong": 9,
+        "asked": 0,
+        "missed": 1
+      }
+    }
+  },
+  "mergeCases": {
+    "price": {
+      "agree": 27,
+      "disagree": 3
+    },
+    "shipBy": {
+      "disagree": 8,
+      "agree": 4
+    },
+    "delivery": {
+      "agree": 23,
+      "disagree": 4,
+      "both_unsure": 3
+    }
+  },
+  "claims": {
+    "chats": 30,
+    "labelled": 33,
+    "kept": 37,
+    "precision": 0.9459459459459459,
+    "recall": 0.9696969696969697
+  },
+  "quotesDropped": 2,
+  "latencyMs": {
+    "p50": 1393,
+    "p95": 2266
+  },
+  "tokensPerChat": {
+    "input": 1258,
+    "output": 439
+  },
+  "costPerChatUsd": 0.0004521,
+  "pricing": {
+    "input": 0.15,
+    "output": 0.6,
+    "unit": "USD per million tokens, Groq paid tier (the free tier used here costs $0)",
+    "url": "https://console.groq.com/docs/models",
+    "on": "2026-11-10"
+  },
+  "notRun": [],
+  "misses": [
+    {
+      "id": "dev-1",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-2",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-3",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-3",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-5",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-5",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-6",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-6",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-7",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-11",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-12",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-13",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-13",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-13",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-14",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-14",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-14",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-14",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-16",
+      "term": "shipBy",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-16",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "missed"
+    },
+    {
+      "id": "dev-18",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-18",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-20",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-20",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-20",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-20",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-20",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-20",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-21",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-21",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-21",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-22",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-22",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-24",
+      "term": "shipBy",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-24",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "missed"
+    },
+    {
+      "id": "dev-25",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-25",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-26",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-26",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-27",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-27",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-27",
+      "term": "item",
+      "mode": "both",
+      "outcome": "missed"
+    },
+    {
+      "id": "dev-28",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-28",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-28",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-28",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-29",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-29",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-29",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-30",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dev-30",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    }
+  ]
+}

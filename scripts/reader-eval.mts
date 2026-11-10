@@ -54,7 +54,7 @@ const stored = (key: string): AskReader => async (req, m) => {
 
 type Outcome = 'right' | 'wrong' | 'asked' | 'missed';
 type Term = 'price' | 'shipBy' | 'delivery' | 'item';
-const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/^(the|a|an) /, '').trim();
 
 function grade(term: Term, c: EvalChat, card: DealCard, questions: Question[]): Outcome | undefined {
   const asked = questions.some((q) => q.term === term && !q.resolved);
@@ -62,8 +62,11 @@ function grade(term: Term, c: EvalChat, card: DealCard, questions: Question[]): 
     if (!c.item) return undefined;
     const v = card.item?.value;
     if (!v) return 'missed';
-    // Right: names the item without carrying the rest of the message along.
-    return norm(v).includes(norm(c.item)) && v.length <= c.item.length * 2 + 12 ? 'right' : 'wrong';
+    // Right: names the item (either name contains the other: "Brompton M6L" for "Brompton M6L,
+    // 2019") without carrying the rest of the message along.
+    const a = norm(v);
+    const b = norm(c.item);
+    return (a.includes(b) || (a.length >= 3 && b.includes(a))) && v.length <= c.item.length * 2 + 12 ? 'right' : 'wrong';
   }
   if (term === 'shipBy' && c.shipBy === undefined) return undefined;
   const want = term === 'price' ? c.price : term === 'delivery' ? c.delivery : c.shipBy;
