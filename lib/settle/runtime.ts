@@ -54,6 +54,17 @@ export function rateLimited(request: Request, bucket: string, limit: number, glo
   return false;
 }
 
+/**
+ * The caller's network, for counting scam reporters: the IPv4 /24 or IPv6 /48 of the address the
+ * proxy saw. Coarse on purpose, so one person hopping between addresses on one network counts once.
+ */
+export function clientNetwork(request: Request): string {
+  const ip = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'local';
+  if (ip.includes(':')) return ip.split(':').slice(0, 3).join(':') + '::/48';
+  const parts = ip.split('.');
+  return parts.length === 4 ? `${parts.slice(0, 3).join('.')}.0/24` : ip;
+}
+
 /** Runs a route body and maps known errors to JSON responses. Unknown errors log their name only. */
 export async function api(fn: () => Promise<unknown>): Promise<Response> {
   try {

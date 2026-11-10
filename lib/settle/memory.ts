@@ -6,7 +6,8 @@
 //
 // Rules: no chat text and no raw values are stored, only HMAC-SHA-256 with a server secret, so a
 // short value like a postcode can't be recovered by guessing. A side can only report the other
-// side, each deal counts once, and a deal never matches its own reports. Memory adds caution only:
+// side, with a flagged message of theirs as evidence; each reporting network counts once; a
+// withdrawn decline takes its report back; and a deal never matches its own reports. Memory adds caution only:
 // it never blocks, approves or decides. Judge sessions have their own memory. Without the secret
 // in production, memory is off: nothing is stored or matched (fail closed, never a crash).
 
@@ -24,7 +25,7 @@ const DAY_MS = 24 * 3600_000;
 
 type Kind = MemoryHit['kind'];
 type Id = { kind: Kind; about: Role; value: string; signalId?: string; messageId?: string };
-export type MemoryDeps = { store: DealStore; now?: () => Date; secret?: string };
+export type MemoryDeps = { store: DealStore; now?: () => Date; secret?: string; origin?: string };
 
 const nowOf = (deps: MemoryDeps) => (deps.now ?? (() => new Date()))();
 const other = (role: Role): Role => (role === 'seller' ? 'buyer' : 'seller');
@@ -72,6 +73,8 @@ export function identifiersOf(deal: Deal, about: Role, signalIds?: string[]): Id
     if (!w.messageId || (signalIds && !signalIds.includes(w.signalId))) continue;
     const m = deal.messages.find((x) => x.id === w.messageId);
     if (m?.role !== about) continue;
+    // A line the other person pasted in under this side's name is not this side's own message.
+    if (m.added && m.added.by !== about) continue;
     redacted ??= redactChat(deal.messages).messages;
     const fp = messageFingerprint(deal, m.id, redacted);
     if (fp && !out.some((x) => x.kind === 'message' && x.value === fp)) out.push({ kind: 'message', about, value: fp, signalId: w.signalId, messageId: m.id });
@@ -90,8 +93,13 @@ export async function reportOtherSide(deal: Deal, reporter: Role, reason: Report
   if (!secret) return 0;
   const about = other(reporter);
   const ids = identifiersOf(deal, about, signalIds);
+  // Evidence first: only a report backed by a flagged message the other side wrote themselves is
+  // remembered. A decline reason or a "scam" click alone can't put someone's PayPal account,
+  // payer or postcode on file (security audit: one person could otherwise accuse anyone).
+  if (!ids.some((i) => i.kind === 'message')) return 0;
   const at = nowOf(deps).toISOString();
-  const entries: MemoryEntry[] = ids.map((i) => ({ namespace: namespaceOf(deal), kind: i.kind, hash: hmac(secret, i.kind, i.value), dealId: deal.id, at }));
+  const reporterHash = deps.origin ? hmac(secret, 'reporter' as Kind, deps.origin) : undefined;
+  const entries: MemoryEntry[] = ids.map((i) => ({ namespace: namespaceOf(deal), kind: i.kind, hash: hmac(secret, i.kind, i.value), dealId: deal.id, at, ...(reporterHash ? { reporter: reporterHash } : {}) }));
   await deps.store.addMemory(entries);
   // The receipt keeps what was reported and why, never the values or their hashes.
   await deps.store.addReceipt({ dealId: deal.id, kind: 'memory.reported', at, data: { by: reporter, about, reason, kinds: ids.map((i) => i.kind), signals: signalIds ?? null } });
@@ -108,8 +116,9 @@ export async function memoryHits(deal: Deal, deps: MemoryDeps): Promise<MemoryHi
   const found = await deps.store.findMemory(namespaceOf(deal), [...new Set(ids.map((i) => i.hash))], since);
   const hits: MemoryHit[] = [];
   for (const i of ids) {
-    // Distinct reporting deals, never this deal itself.
-    const reporters = new Set(found.filter((e) => e.hash === i.hash && e.kind === i.kind && e.dealId !== deal.id).map((e) => e.dealId));
+    // Distinct reporters, never this deal itself. A reporter is the network a report came from, so
+    // one person making several deals counts once; reports from before that was kept count per deal.
+    const reporters = new Set(found.filter((e) => e.hash === i.hash && e.kind === i.kind && e.dealId !== deal.id).map((e) => e.reporter ?? `deal:${e.dealId}`));
     if (reporters.size >= MIN_REPORTS) hits.push({ kind: i.kind, about: i.about, count: reporters.size, ...(i.signalId ? { signalId: i.signalId } : {}), ...(i.messageId ? { messageId: i.messageId } : {}) });
   }
   return hits;

@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createDeal, declineDeal, type Deps, openLinks } from '../lib/settle/deals';
+import { createDeal, declineDeal, type Deps, openLinks, withdrawDecline } from '../lib/settle/deals';
 import { startDemo } from '../lib/settle/demo';
 import { answerWarning } from '../lib/settle/feedback';
 import { memorySecret, memoryHits, refreshMemory, reportOtherSide } from '../lib/settle/memory';
@@ -89,10 +89,21 @@ test('reports expire after 90 days, and memory is off in production without the 
   assert.ok(memorySecret({ NODE_ENV: 'production', SETTLE_MEMORY_KEY: 'k'.repeat(32) }));
 });
 
-test('declining because they want Friends and Family reports their PayPal account', async () => {
+const FF_CHAT = (buyer: string, seller: string, price: number) =>
+  `${buyer}: is the camera still available?\n${seller}: yes, $${price}. Pay me as friends and family so we both skip the fees`;
+
+async function ffDeal(store: MemoryDealStore, buyer: string, payee: string, origin: string) {
+  const deps: Deps = { store, ask: askWith(['ff_payment']), now, origin };
+  const { deal: d, keys: rawKeys } = await createDeal({ chat: FF_CHAT(buyer, 'Alex', 450), sellerName: 'Alex', country: 'US' }, deps);
+  const keys = await openLinks(d.id, rawKeys, deps);
+  await updateWithRetry(store, d.id, (x) => ({ ...x, payeeMerchantId: payee }));
+  return { id: d.id, keys, deps };
+}
+
+test("declining because the seller asked for Friends and Family reports their PayPal account, from two reporters", async () => {
   const store = new MemoryDealStore();
-  for (const buyer of ['Sam', 'Lee']) {
-    const d = await deal(store, buyer, 'Alex', 450, 'SCAMMER-PAYEE');
+  for (const [buyer, net] of [['Sam', '203.0.113.0/24'], ['Lee', '198.51.100.0/24']]) {
+    const d = await ffDeal(store, buyer, 'SCAMMER-PAYEE', net);
     await declineDeal(d.id, d.keys.buyer, 'wants_ff', d.deps);
   }
   const next = await deal(store, 'Jo', 'Alex', 200, 'SCAMMER-PAYEE');
@@ -100,12 +111,52 @@ test('declining because they want Friends and Family reports their PayPal accoun
   assert.ok(hits.some((h) => h.kind === 'payee' && h.about === 'seller' && h.count === 2));
   // "The terms are wrong" isn't a scam report.
   const store2 = new MemoryDealStore();
-  for (const buyer of ['Sam', 'Lee']) {
-    const d = await deal(store2, buyer, 'Alex', 450, 'HONEST-PAYEE');
+  for (const [buyer, net] of [['Sam', '203.0.113.0/24'], ['Lee', '198.51.100.0/24']]) {
+    const d = await ffDeal(store2, buyer, 'HONEST-PAYEE', net);
     await declineDeal(d.id, d.keys.buyer, 'terms_wrong', d.deps);
   }
   const ok = await deal(store2, 'Jo', 'Alex', 200, 'HONEST-PAYEE');
   assert.deepEqual(await memoryHits(await ok.get(), { store: store2, now }), []);
+});
+
+test('audit: one person cannot plant a caution on an honest seller', async () => {
+  // 1. No evidence: the seller never asked to leave PayPal, so a "wants F&F" decline reports nothing.
+  const store = new MemoryDealStore();
+  for (const net of ['203.0.113.0/24', '198.51.100.0/24']) {
+    const d = await deal(store, 'Sam', 'Alex', 450, 'HONEST-PAYEE');
+    await declineDeal(d.id, d.keys.buyer, 'wants_ff', { ...d.deps, origin: net });
+  }
+  const next = await deal(store, 'Jo', 'Alex', 200, 'HONEST-PAYEE');
+  assert.deepEqual(await memoryHits(await next.get(), { store, now }), [], 'no seller message was flagged');
+
+  // 2. Two deals from one network count as one reporter.
+  const store2 = new MemoryDealStore();
+  for (const buyer of ['Sam', 'Lee']) {
+    const d = await ffDeal(store2, buyer, 'TARGET-PAYEE', '203.0.113.0/24');
+    await declineDeal(d.id, d.keys.buyer, 'wants_ff', d.deps);
+  }
+  const t2 = await deal(store2, 'Jo', 'Alex', 200, 'TARGET-PAYEE');
+  assert.deepEqual(await memoryHits(await t2.get(), { store: store2, now }), [], 'one network is one reporter');
+
+  // 3. A withdrawn decline takes its report back.
+  const store3 = new MemoryDealStore();
+  for (const [buyer, net] of [['Sam', '203.0.113.0/24'], ['Lee', '198.51.100.0/24']]) {
+    const d = await ffDeal(store3, buyer, 'TARGET-PAYEE', net);
+    await declineDeal(d.id, d.keys.buyer, 'wants_ff', d.deps);
+    await withdrawDecline(d.id, d.keys.buyer, d.deps);
+  }
+  const t3 = await deal(store3, 'Jo', 'Alex', 200, 'TARGET-PAYEE');
+  assert.deepEqual(await memoryHits(await t3.get(), { store: store3, now }), [], 'withdrawn reports are gone');
+});
+
+test('a line pasted in under the other side\'s name is not their message and cannot be reported', async () => {
+  const store = new MemoryDealStore();
+  const d = await deal(store, 'Sam', 'Alex', 450);
+  const deal0 = (await store.getDeal(d.id))!.value;
+  const fakeId = deal0.messages.at(-1)!.id;
+  await updateWithRetry(store, d.id, (x) => ({ ...x, messages: x.messages.map((m) => (m.id === fakeId ? { ...m, added: { at: x.createdAt, by: 'seller' as const } } : m)) }));
+  // The flagged message is now one the seller pasted in as the buyer's: reporting the buyer finds no evidence.
+  assert.equal(await answerWarning(d.id, d.keys.seller, 'fake_payment_proof', 'scam', { ...d.deps, origin: '203.0.113.0/24' }).then((r) => r.reported), false);
 });
 
 test('judge mode: the fake-email deal matches two seeded reports in its own session only', async () => {

@@ -29,13 +29,16 @@ export class StaleWriteError extends Error {
  * namespace: 'live', or 'demo:<session>' for a judge session (never shared with real deals).
  * dealId: the deal that reported it, so each deal counts once and never matches itself.
  */
-export type MemoryEntry = { namespace: string; kind: string; hash: string; dealId: string; at: string };
+/** `reporter`: keyed hash of the reporting network; reports are counted per reporter, not per deal. */
+export type MemoryEntry = { namespace: string; kind: string; hash: string; dealId: string; at: string; reporter?: string };
 
 export interface DealStore {
   /** Adds reports; a deal reporting the same identifier again changes nothing. */
   addMemory(entries: MemoryEntry[]): Promise<void>;
   /** Reports in a namespace for any of these hashes since `since`. */
   findMemory(namespace: string, hashes: string[], since: string): Promise<MemoryEntry[]>;
+  /** Removes the reports a deal made (its decline was withdrawn). */
+  removeMemory(namespace: string, dealId: string): Promise<void>;
   createDeal(deal: Deal): Promise<void>;
   getDeal(id: string): Promise<Stored<Deal> | undefined>;
   /** Replaces the deal if it is still at `version`; otherwise throws StaleWriteError. */
@@ -88,6 +91,10 @@ export class MemoryDealStore implements DealStore {
       const k = `${e.namespace}|${e.kind}|${e.hash}|${e.dealId}`;
       if (!this.memory.has(k)) this.memory.set(k, clone(e));
     }
+  }
+
+  async removeMemory(namespace: string, dealId: string) {
+    for (const [k, e] of this.memory) if (e.namespace === namespace && e.dealId === dealId) this.memory.delete(k);
   }
 
   async findMemory(namespace: string, hashes: string[], since: string) {

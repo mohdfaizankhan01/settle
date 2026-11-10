@@ -9,7 +9,7 @@ import { engineFor, type CheckEngine } from '../model/engine';
 import { applyAnswer, blockers, buildCard, cardHash, formatMoney, isLocked, termWarnings } from './card';
 import { sha256Hex } from './canonical';
 import { ChatError, parseChat, parseMore, type Role } from './chat';
-import { reportOtherSide } from './memory';
+import { namespaceOf, reportOtherSide } from './memory';
 import { MAX_CHAT_CHARS } from './policy';
 import { redactChat } from './redact';
 import { ruleWarnings } from './rules';
@@ -17,7 +17,8 @@ import { syncGate } from './ship-gate';
 import { StaleWriteError, type DealStore, type Stored } from './store';
 import { CURRENCY_OF, type CheckRun, type Country, type Deal, type DealCard, type DeclineReason } from './types';
 
-export type Deps = { store: DealStore; ask?: AskJev; engine?: CheckEngine; now?: () => Date };
+/** `origin`: the caller's network (runtime.clientNetwork), so scam memory can count reporters, not deals. */
+export type Deps = { store: DealStore; ask?: AskJev; engine?: CheckEngine; now?: () => Date; origin?: string };
 
 export class DealError extends Error {
   constructor(
@@ -320,7 +321,7 @@ export async function declineDeal(dealId: string, key: string | null, reason: st
   await deps.store.addReceipt({ dealId, kind: 'deal.declined', at, data: { by: role, reason, cardHash: cardHash(stored.value) } });
   // Declined because the other side wanted to leave PayPal: scam memory remembers that side.
   const signals = SCAM_DECLINES[reason as DeclineReason];
-  if (signals) await reportOtherSide(stored.value, role, 'declined', { store: deps.store, now: deps.now }, signals).catch(() => undefined);
+  if (signals) await reportOtherSide(stored.value, role, 'declined', { store: deps.store, now: deps.now, origin: deps.origin }, signals).catch(() => undefined);
   return stored;
 }
 
@@ -336,6 +337,8 @@ export async function withdrawDecline(dealId: string, key: string | null, deps: 
     if (!(deal.declines ?? []).some((d) => d.role === role)) throw new DealError('you have not declined this deal', 409);
     return { ...deal, declines: (deal.declines ?? []).filter((d) => d.role !== role) };
   });
+  // A withdrawn decline takes back the scam report it made.
+  await deps.store.removeMemory(namespaceOf(stored.value), dealId).catch(() => undefined);
   await deps.store.addReceipt({ dealId, kind: 'deal.decline_withdrawn', at: now(deps), data: { by: role } });
   return stored;
 }

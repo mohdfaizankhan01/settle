@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS scam_memory (
   at timestamptz NOT NULL,
   PRIMARY KEY (namespace, kind, hash, deal_id)
 );
-CREATE INDEX IF NOT EXISTS scam_memory_lookup ON scam_memory (namespace, hash, at);`;
+CREATE INDEX IF NOT EXISTS scam_memory_lookup ON scam_memory (namespace, hash, at);
+ALTER TABLE scam_memory ADD COLUMN IF NOT EXISTS reporter text;`;
 
 const json = (sql: Sql, value: unknown) => sql.json(value as JSONValue);
 
@@ -138,7 +139,7 @@ export class PgDealStore implements DealStore {
     await this.schema();
     for (const e of entries) {
       await this.sql`
-        INSERT INTO scam_memory (namespace, kind, hash, deal_id, at) VALUES (${e.namespace}, ${e.kind}, ${e.hash}, ${e.dealId}, ${e.at})
+        INSERT INTO scam_memory (namespace, kind, hash, deal_id, at, reporter) VALUES (${e.namespace}, ${e.kind}, ${e.hash}, ${e.dealId}, ${e.at}, ${e.reporter ?? null})
         ON CONFLICT DO NOTHING`;
     }
   }
@@ -146,10 +147,15 @@ export class PgDealStore implements DealStore {
   async findMemory(namespace: string, hashes: string[], since: string) {
     if (hashes.length === 0) return [];
     await this.schema();
-    const rows = await this.sql<{ namespace: string; kind: string; hash: string; deal_id: string; at: Date }[]>`
-      SELECT namespace, kind, hash, deal_id, at FROM scam_memory
+    const rows = await this.sql<{ namespace: string; kind: string; hash: string; deal_id: string; at: Date; reporter: string | null }[]>`
+      SELECT namespace, kind, hash, deal_id, at, reporter FROM scam_memory
       WHERE namespace = ${namespace} AND hash IN ${this.sql(hashes)} AND at >= ${since}`;
-    return rows.map((r) => ({ namespace: r.namespace, kind: r.kind, hash: r.hash, dealId: r.deal_id, at: new Date(r.at).toISOString() }));
+    return rows.map((r) => ({ namespace: r.namespace, kind: r.kind, hash: r.hash, dealId: r.deal_id, at: new Date(r.at).toISOString(), ...(r.reporter ? { reporter: r.reporter } : {}) }));
+  }
+
+  async removeMemory(namespace: string, dealId: string) {
+    await this.schema();
+    await this.sql`DELETE FROM scam_memory WHERE namespace = ${namespace} AND deal_id = ${dealId}`;
   }
 
   async saveDemoSession(session: DemoSession) {

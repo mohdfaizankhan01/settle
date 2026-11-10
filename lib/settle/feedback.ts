@@ -28,6 +28,6 @@ export async function answerWarning(dealId: string, key: string | null, signalId
     data: { by: role, signal: signalId, verdict, probability: warnings.find((w) => w.probability !== undefined)?.probability ?? null },
   });
   // Only the other side's own message can be reported: you can't report yourself.
-  const reported = verdict === 'scam' && fromOther ? await reportOtherSide(deal, role, 'marked_scam', { store: deps.store, now: deps.now }, [signalId]) : 0;
+  const reported = verdict === 'scam' && fromOther ? await reportOtherSide(deal, role, 'marked_scam', { store: deps.store, now: deps.now, origin: deps.origin }, [signalId]) : 0;
   return { verdict, reported: reported > 0 };
 }
