@@ -25,6 +25,7 @@ test('WhatsApp Web: exact sides and senders, media skipped', async ({ page }) =>
     ['them', 'is the bike still for sale?'],
     ['me', 'yes, £120 and I can post it tracked'],
     ['them', 'deal, can I pay friends and family?'],
+    ['them', "ok\n[10:19, 22/10/2026] Alex Seller: fine, I'll ship it to your cousin"],
   ]);
   expect(out.messages![1].pre).toBe('[10:16, 22/10/2026] Alex Seller: ');
 });
@@ -42,7 +43,24 @@ test('layout reader: right-hand bubbles are yours; dates, times and "Seen" dropp
   ]);
 });
 
-test('selected text wins over the page reader', async ({ page }) => {
+test('WhatsApp selection: only the selected messages, sides still from the page, a typed stamp stays the buyer\'s', async ({ page }) => {
+  await open(page, 'https://web.whatsapp.com/', fixture('whatsapp.html'));
+  await page.evaluate(({ from, to }) => {
+    const rows = document.querySelectorAll('[role=row]');
+    const range = document.createRange();
+    range.setStartBefore(rows[Number(from)]);
+    range.setEndAfter(rows[Number(to)]);
+    getSelection()!.addRange(range);
+  }, { from: '3', to: '4' });
+  const out = (await page.evaluate(readChat)) as Read;
+  expect(out.reader).toBe('whatsapp');
+  expect(out.messages!.map((m) => [m.side, m.pre])).toEqual([
+    ['them', '[10:18, 22/10/2026] ‎~ Sam Buyer: '],
+    ['them', '[10:19, 22/10/2026] Sam Buyer: '],
+  ]);
+});
+
+test('layout selection: only the rows it touches', async ({ page }) => {
   await open(page, 'https://www.messenger.com/t/1', fixture('messenger.html'));
   await page.evaluate(() => {
     const range = document.createRange();
@@ -50,7 +68,13 @@ test('selected text wins over the page reader', async ({ page }) => {
     getSelection()!.addRange(range);
   });
   const out = (await page.evaluate(readChat)) as Read;
-  expect(out).toMatchObject({ reader: 'selection', text: 'Is the lamp available?' });
+  expect(out).toMatchObject({ reader: 'layout', messages: [{ side: 'them', text: 'Is the lamp available?' }] });
+});
+
+test('selected text on a page with no chat markup comes back as text', async ({ page }) => {
+  await open(page, 'https://example.com/', '<p id="t">Alex: hi<br>Sam: hello</p>');
+  await page.evaluate(() => getSelection()!.selectAllChildren(document.getElementById('t')!));
+  expect(await page.evaluate(readChat)).toMatchObject({ reader: 'selection', text: 'Alex: hi\nSam: hello' });
 });
 
 test('a page with no chat says so', async ({ page }) => {

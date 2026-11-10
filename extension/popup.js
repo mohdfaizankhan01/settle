@@ -54,7 +54,7 @@ async function read() {
     found = { reader: 'selection', title: result.title, speakers, messages };
   } else {
     const messages = result.messages.map((m) => ({ side: m.side, name: m.pre ? whatsAppSender(m.pre) : '', text: m.text }));
-    found = { reader: result.reader, title: result.title, messages };
+    found = { reader: result.reader, title: result.title, messages, selected: result.selected };
     if (result.reader === 'whatsapp') {
       // Names come from WhatsApp itself: the buyer's from their messages, yours if not set yet.
       $('buyer-name').value = mostCommon(messages.filter((m) => m.side === 'them').map((m) => m.name));
@@ -83,7 +83,9 @@ function showFound() {
   $('status').hidden = true;
   $('found').hidden = false;
   const where = found.title ? ` (${found.title})` : '';
-  $('summary').textContent = `Read ${found.messages.length} message${found.messages.length === 1 ? '' : 's'} from ${READER_NAMES[found.reader]}${where}.`;
+  const which = found.selected ? 'selected ' : '';
+  $('summary').textContent = `Read ${found.messages.length} ${which}message${found.messages.length === 1 ? '' : 's'} from ${READER_NAMES[found.reader]}${where}.`;
+  $('text-hint').hidden = found.reader !== 'selection';
   $('layout-hint').hidden = found.reader !== 'layout';
   const picking = found.reader === 'selection';
   $('pick-seller').hidden = !picking;

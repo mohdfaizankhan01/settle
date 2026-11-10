@@ -5,7 +5,8 @@
 
 /**
  * Reads the open chat. Returns { reader, title, messages: [{ side?, name?, text }] } or
- * { reader: 'none' }. Selected text wins, since the seller chose it; then the site's own reader.
+ * { reader: 'none' }. A selection narrows what's read to the messages it touches; plain selected
+ * text is the last resort, on pages with no chat markup.
  * Only messages already loaded on the page are read: nothing scrolls or clicks.
  */
 export function readChat() {
@@ -13,8 +14,12 @@ export function readChat() {
   const clean = (s) => String(s ?? '').replace(INVISIBLE, '').replace(/\r/g, '').trim();
   const MAX_ROWS = 400;
 
-  const selection = clean(String(window.getSelection?.() ?? ''));
-  if (selection) return { reader: 'selection', title: clean(document.title), text: selection.slice(-40_000) };
+  // With a selection, only the messages it touches are read. Who said what still comes from the
+  // page (WhatsApp's own markup, or where the bubble sits), never from the selected text, so a
+  // buyer can't type "[10:17, 22/10/2026] Alex: ..." into their message and pass as the seller.
+  const sel = window.getSelection?.();
+  const selected = clean(String(sel ?? ''));
+  const touched = (el) => !selected || !!sel?.containsNode(el, true);
 
   // WhatsApp Web: each message carries "[time, date] Sender: " and sits in .message-out (yours) or
   // .message-in, so who said what is exact.
@@ -23,20 +28,23 @@ export function readChat() {
     if (!main) return { reader: 'none', why: 'Open a chat in WhatsApp Web first.' };
     const header = main.querySelector('header');
     const title = clean(header?.querySelector('span[title]')?.getAttribute('title') ?? header?.querySelector('span[dir="auto"]')?.textContent ?? '');
-    const nodes = [...main.querySelectorAll('[data-pre-plain-text]')].slice(-MAX_ROWS);
+    const nodes = [...main.querySelectorAll('[data-pre-plain-text]')].filter(touched).slice(-MAX_ROWS);
     const messages = [];
     for (const node of nodes) {
       const text = clean((node.querySelector('.selectable-text') ?? node).innerText);
       if (!text) continue; // photos, stickers and voice notes have no text
       messages.push({ side: node.closest('.message-out') ? 'me' : 'them', pre: node.getAttribute('data-pre-plain-text') ?? '', text });
     }
-    return { reader: 'whatsapp', title, messages };
+    if (messages.length > 0 || !selected) return { reader: 'whatsapp', title, messages, selected: !!selected };
   }
 
   // Other web chats (Messenger, Facebook Marketplace, Instagram): rows of the conversation, with
   // your bubbles on the right. The popup shows the result so the seller can check and swap sides.
   const root = document.querySelector('[role="main"]') ?? document.body;
-  const rows = [...root.querySelectorAll('[role="row"]')].slice(-MAX_ROWS);
+  const rows = [...root.querySelectorAll('[role="row"]')].filter(touched).slice(-MAX_ROWS);
+  // Selected text on a page without chat rows: names come from the text itself, so the popup
+  // asks the seller to check who said what.
+  if (rows.length === 0 && selected) return { reader: 'selection', title: clean(document.title), text: selected.slice(-40_000) };
   if (rows.length === 0) return { reader: 'none', why: 'No chat found on this page. Select the messages you want, then click Settle Link again.' };
   const box = root.getBoundingClientRect();
   const mid = box.left + box.width / 2;
@@ -71,7 +79,7 @@ export function readChat() {
     const side = centre > mid + margin ? 'me' : centre < mid - margin ? 'them' : null;
     if (side) messages.push({ side, text });
   }
-  return { reader: 'layout', title, messages };
+  return { reader: 'layout', title, messages, selected: !!selected };
 }
 
 /**
