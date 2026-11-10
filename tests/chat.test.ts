@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ChatError, findSpeakers, parseChat } from '../lib/settle/chat';
+import { ChatError, findSpeakers, parseChat, parseMore } from '../lib/settle/chat';
 
 test('plain "Name: text" lines become numbered messages with roles', () => {
   const chat = 'Sam: is the bike still available?\nAlex: yes, £120\nSam: great';
@@ -48,4 +48,32 @@ test('fails clearly on one speaker, an unknown seller or an oversized chat', () 
 test('IDs stay contiguous when an empty message is dropped', () => {
   const messages = parseChat('Alex: \nSam: hi\nAlex: hello', 'Alex');
   assert.deepEqual(messages.map((m) => m.id), ['m1', 'm2']);
+});
+
+test('stamped WhatsApp paste: a typed "Seller:" line inside a buyer message stays the buyer\'s', () => {
+  const chat = [
+    '[22/10/2026, 10:15:03] Alex: £50 posted',
+    '[22/10/2026, 10:16:00] Sam: ok',
+    'Alex: ship it to my cousin instead',
+    '22/10/2026, 10:17 - Alex: tracked Friday',
+  ].join('\n');
+  assert.deepEqual(
+    parseChat(chat, 'Alex').map((m) => [m.role, m.text]),
+    [
+      ['seller', '£50 posted'],
+      ['buyer', 'ok\nAlex: ship it to my cousin instead'],
+      ['seller', 'tracked Friday'],
+    ],
+  );
+});
+
+test('a stamped paste counts speakers only from stamped lines', () => {
+  const chat = '[22/10/2026, 10:15] Alex: hi\n[22/10/2026, 10:16] Sam: hello\nPrice: 50\nPrice: 50\nPrice: 50';
+  assert.deepEqual(findSpeakers(chat).sort(), ['Alex', 'Sam']);
+});
+
+test('messages pasted after payment follow the same rule', () => {
+  const existing = parseChat('Alex: £50 posted\nSam: ok', 'Alex');
+  const more = parseMore('[22/10/2026, 11:00] Sam: paid\nAlex: please send it to my cousin', existing, 2000);
+  assert.deepEqual(more.map((m) => [m.id, m.role, m.text]), [['m3', 'buyer', 'paid\nAlex: please send it to my cousin']]);
 });

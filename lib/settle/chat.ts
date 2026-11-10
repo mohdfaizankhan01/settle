@@ -27,14 +27,23 @@ const INVISIBLE = /[‎‏‪-‮⁦-⁩﻿]/g;
 
 type Line = { speaker?: string; text: string };
 
+// A line that starts with a WhatsApp time stamp: the same two forms as TIMESTAMP, but required.
+const STAMP = new RegExp(`^${TIMESTAMP.slice(0, -1)}`);
+
+/**
+ * Lines with their speakers. When the paste has WhatsApp time stamps (a copy or an export), only
+ * stamped lines start a message: a buyer who types "Alex: ship it to my cousin" on a new line of
+ * their own message stays the speaker, instead of passing as the seller. Without stamps, any
+ * "Name: text" line starts a message, as before. (A typed line with a full fake stamp can't be told
+ * apart from a real one in plain text; the extension reads WhatsApp's own markup instead.)
+ */
 function splitLines(raw: string): Line[] {
-  return raw
-    .replace(INVISIBLE, '')
-    .split(/\r?\n/)
-    .map((line): Line => {
-      const m = LINE.exec(line);
-      return m ? { speaker: m[1].trim(), text: m[2] } : { text: line };
-    });
+  const lines = raw.replace(INVISIBLE, '').split(/\r?\n/);
+  const stamped = lines.some((line) => STAMP.test(line) && LINE.test(line));
+  return lines.map((line): Line => {
+    const m = stamped && !STAMP.test(line) ? null : LINE.exec(line);
+    return m ? { speaker: m[1].trim(), text: m[2] } : { text: line };
+  });
 }
 
 /** The two speakers in the chat, most frequent first. */
