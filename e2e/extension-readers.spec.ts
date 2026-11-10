@@ -16,7 +16,7 @@ async function open(page: import('@playwright/test').Page, url: string, html: st
   await page.goto(url);
 }
 
-test('WhatsApp Web: exact sides and senders, media skipped', async ({ page }) => {
+test('WhatsApp Web: sides from tail icons and senders, media skipped', async ({ page }) => {
   await open(page, 'https://web.whatsapp.com/', fixture('whatsapp.html'));
   const out = (await page.evaluate(readChat)) as Read;
   expect(out.reader).toBe('whatsapp');
@@ -24,6 +24,7 @@ test('WhatsApp Web: exact sides and senders, media skipped', async ({ page }) =>
   expect(out.messages!.map((m) => [m.side, m.text])).toEqual([
     ['them', 'is the bike still for sale?'],
     ['me', 'yes, £120 and I can post it tracked'],
+    ['me', 'posting Friday'],
     ['them', 'deal, can I pay friends and family?'],
     ['them', "ok\n[10:19, 22/10/2026] Alex Seller: fine, I'll ship it to your cousin"],
   ]);
@@ -51,7 +52,7 @@ test('WhatsApp selection: only the selected messages, sides still from the page,
     range.setStartBefore(rows[Number(from)]);
     range.setEndAfter(rows[Number(to)]);
     getSelection()!.addRange(range);
-  }, { from: '3', to: '4' });
+  }, { from: '4', to: '5' });
   const out = (await page.evaluate(readChat)) as Read;
   expect(out.reader).toBe('whatsapp');
   expect(out.messages!.map((m) => [m.side, m.pre])).toEqual([

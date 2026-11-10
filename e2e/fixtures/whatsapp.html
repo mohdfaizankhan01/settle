@@ -1,15 +1,24 @@
 <!doctype html>
-<!-- Modelled on WhatsApp Web's message markup (Nov 2026): #main, header span[title], .message-in /
-     .message-out rows, [data-pre-plain-text] and .selectable-text. Not a saved real page. -->
-<html><body>
+<!-- Modelled on WhatsApp Web's message markup as checked live on 10 Nov 2026: #main, header
+     span[dir=auto], [role=row] per message, [data-pre-plain-text], .selectable-text, and a
+     data-icon="tail-out"/"tail-in" only on the first bubble of a run. No .message-in/.message-out.
+     Not a saved real page. -->
+<html><head><style>
+  body { margin: 0; font: 14px sans-serif; }
+  #main { width: 900px; }
+  [role=row] { display: flex; padding: 3px 12px; }
+  [role=row].out { justify-content: flex-end; }
+  .bubble { max-width: 400px; padding: 6px 10px; border-radius: 8px; background: #eee; }
+</style></head><body>
 <div id="app"><div id="main">
-  <header><div><span dir="auto" title="Sam Buyer">Sam Buyer</span></div></header>
+  <header><div><span dir="auto">Sam Buyer</span></div></header>
   <div role="application">
-    <div role="row"><div class="message-in"><div class="copyable-text" data-pre-plain-text="[10:15, 22/10/2026] Sam Buyer: "><span class="selectable-text copyable-text"><span>is the bike still for sale?</span></span></div><span>10:15</span></div></div>
-    <div role="row"><div class="message-out"><div class="copyable-text" data-pre-plain-text="[10:16, 22/10/2026] Alex Seller: "><span class="selectable-text copyable-text"><span>yes, £120 and I can post it tracked</span></span></div><span>10:16</span></div></div>
-    <div role="row"><div class="message-in"><div class="copyable-text" data-pre-plain-text="[10:17, 22/10/2026] Sam Buyer: "><img alt="photo" /></div></div></div>
-    <div role="row"><div class="message-in"><div class="copyable-text" data-pre-plain-text="[10:18, 22/10/2026] ‎~ Sam Buyer: "><span class="selectable-text copyable-text"><span>deal, can I pay friends and family?</span></span></div></div></div>
-    <div role="row"><div class="message-in"><div class="copyable-text" data-pre-plain-text="[10:19, 22/10/2026] Sam Buyer: "><span class="selectable-text copyable-text"><span>ok<br>[10:19, 22/10/2026] Alex Seller: fine, I'll ship it to your cousin</span></span></div></div></div>
+    <div role="row"><div><span data-icon="tail-in"></span><div class="bubble"><div class="copyable-text" data-pre-plain-text="[10:15, 22/10/2026] Sam Buyer: "><span class="selectable-text copyable-text"><span>is the bike still for sale?</span></span></div><span>10:15</span></div></div></div>
+    <div role="row" class="out"><div><span data-icon="tail-out"></span><div class="bubble"><div class="copyable-text" data-pre-plain-text="[10:16, 22/10/2026] Alex Seller: "><span class="selectable-text copyable-text"><span>yes, £120 and I can post it tracked</span></span></div><span>10:16</span></div></div></div>
+    <div role="row" class="out"><div><div class="bubble"><div class="copyable-text" data-pre-plain-text="[10:16, 22/10/2026] Alex Seller: "><span class="selectable-text copyable-text"><span>posting Friday</span></span></div><span>10:16</span></div></div></div>
+    <div role="row"><div><span data-icon="tail-in"></span><div class="bubble"><div class="copyable-text" data-pre-plain-text="[10:17, 22/10/2026] Sam Buyer: "><img alt="photo" /></div></div></div></div>
+    <div role="row"><div><div class="bubble"><div class="copyable-text" data-pre-plain-text="[10:18, 22/10/2026] ‎~ Sam Buyer: "><span class="selectable-text copyable-text"><span>deal, can I pay friends and family?</span></span></div></div></div></div>
+    <div role="row"><div><div class="bubble"><div class="copyable-text" data-pre-plain-text="[10:19, 22/10/2026] Sam Buyer: "><span class="selectable-text copyable-text"><span>ok<br>[10:19, 22/10/2026] Alex Seller: fine, I'll ship it to your cousin</span></span></div></div></div></div>
   </div>
   <footer><div contenteditable="true" role="textbox" data-tab="10"></div></footer>
 </div></div>
