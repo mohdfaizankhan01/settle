@@ -124,7 +124,7 @@ export function HandoverPanel({ dealId, role, h, judge, busy, act }: { dealId: s
       )}
 
       {h.state === 'held' && role === 'seller' && (
-        <div className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
+        <div className="surface rounded-2xl p-4 text-sm">
           <h3 className="font-semibold">At the handover</h3>
           {code ? (
             <div className="mt-3 flex flex-wrap items-start gap-5">
@@ -159,7 +159,7 @@ export function HandoverPanel({ dealId, role, h, judge, busy, act }: { dealId: s
       )}
 
       {h.state === 'held' && role === 'buyer' && (
-        <div className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
+        <div className="surface rounded-2xl p-4 text-sm">
           <h3 className="font-semibold">At the handover</h3>
           <ol className="mt-2 list-decimal space-y-1 pl-5">
             <li>Bring the phone you placed the hold with: only that phone can confirm the handover.</li>

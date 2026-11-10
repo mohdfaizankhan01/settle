@@ -101,7 +101,7 @@ export function HandoverScan({ dealId }: { dealId: string }) {
         </div>
       ) : view && h?.state === 'held' ? (
         <div className="mt-6 space-y-4">
-          <div className="rounded-md border border-pp-border bg-pp-surface p-4">
+          <div className="surface rounded-2xl p-4">
             <p className="text-sm text-pp-muted">You&apos;re paying</p>
             <p className="text-3xl font-semibold text-pp-navy">{total}</p>
             <p className="mt-1">{item}</p>

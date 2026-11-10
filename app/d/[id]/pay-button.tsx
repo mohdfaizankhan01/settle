@@ -124,7 +124,7 @@ export function PayButton(props: { dealId: string; getKey: () => string; checkou
   }
 
   return (
-    <section className="rounded-md border border-pp-border bg-pp-surface p-4">
+    <section className="surface rounded-2xl p-4">
       <h2 className="font-semibold">{checkout.hold ? 'Hold the payment with PayPal' : 'Pay with PayPal'}</h2>
       <p className="mt-1 text-sm text-pp-muted">
         {checkout.hold

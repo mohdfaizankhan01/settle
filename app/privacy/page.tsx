@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { TopBar } from '@/app/components/brand';
 
 // /privacy: what Settle Link and its Chrome extension read, send and keep. Linked from the
 // extension popup and the Chrome Web Store listing (extension/STORE.md). Keep it in step with the
@@ -9,9 +10,7 @@ export const metadata = { title: 'Privacy: Settle Link' };
 export default function Page() {
   return (
     <div className="min-h-full">
-      <div className="bg-pp-navy px-4 py-2 text-center text-sm text-white">
-        Settle Link is a hackathon project. Payments run in PayPal&apos;s sandbox, so no real money moves.
-      </div>
+      <TopBar note={"Settle Link is a hackathon project. Payments run in PayPal's sandbox, so no real money moves."} />
       <main className="mx-auto w-full max-w-3xl px-4 py-10 font-paypal text-pp-ink sm:py-12">
         <p className="text-sm">
           <Link href="/" className="text-pp-blue underline underline-offset-2">

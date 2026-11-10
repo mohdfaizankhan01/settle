@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import type { AttackResult } from '@/lib/settle/attacks';
+import { TopBar } from '@/app/components/brand';
 
 export function AttackLab() {
   const [results, setResults] = useState<AttackResult[] | null>(null);
@@ -30,9 +31,7 @@ export function AttackLab() {
 
   return (
     <div className="min-h-full">
-      <div className="bg-pp-navy px-4 py-2 text-center text-sm text-white">
-        Judge mode: these attacks run through Settle&apos;s real server code in a throwaway store. PayPal is stood in, so nothing reaches PayPal and no money moves.
-      </div>
+      <TopBar note={"Judge mode: these attacks run through Settle's real server code in a throwaway store. PayPal is stood in, so nothing reaches PayPal and no money moves."} />
       <main className="mx-auto w-full max-w-4xl px-4 py-10 font-paypal text-pp-ink sm:py-12">
         <p className="text-sm">
           <Link href="/demo" className="text-pp-blue underline underline-offset-2">
@@ -58,7 +57,7 @@ export function AttackLab() {
               {stopped} of {results.length} stopped
               <span className="ml-2 text-sm font-normal text-pp-muted">run at {new Date(ranAt!).toLocaleTimeString()}</span>
             </p>
-            <ul className="mt-4 divide-y divide-pp-gridline rounded-md border border-pp-border bg-pp-surface">
+            <ul className="mt-4 divide-y divide-pp-gridline surface rounded-2xl">
               {results.map((r) => (
                 <li key={r.id} className="grid gap-1 px-5 py-4 text-sm sm:grid-cols-[1.5rem_minmax(0,1fr)]">
                   <span aria-hidden className={`text-lg font-semibold leading-6 ${r.stopped ? 'text-pp-success' : 'text-pp-danger'}`}>

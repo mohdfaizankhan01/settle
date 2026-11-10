@@ -143,7 +143,7 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
     // In-person deals: the agreed date is when they meet, not when something ships.
     const label = key === 'shipBy' && handover ? 'Meet by' : TERM_LABELS[key];
     const readBy = t?.source.kind === 'message' ? (t.readBy ?? null) : null;
-    const readLabel = readBy === 'code' && deal.reader && deal.reader.status !== 'ran' ? `Read by code only: the AI reader didn't run (${deal.reader.reason ?? 'unknown reason'})` : readBy ? TERM_CASE_LABEL[readBy] : null;
+    const readLabel = readBy ? TERM_CASE_LABEL[readBy] : null;
     return { key, label, display: t?.display ?? null, source: t ? sourceView(deal, t.source) : null, readLabel };
   });
   // What the seller said about the item (PLAN M8): exact quotes, prices and dates put back.
@@ -204,6 +204,8 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
       })),
     claims,
     removedClaims,
+    // Said once on the card, not on every term: why the card was read by code alone.
+    readerNote: deal.reader && deal.reader.status !== 'ran' ? `Read by code only: the AI reader didn't run (${deal.reader.reason ?? 'unknown reason'}).` : null,
     canReadAgain: !!deal.reader && deal.reader.status !== 'ran' && !readAgainBlocker(deal),
     explainNote: EXPLAIN_NOTE,
     money: (() => {

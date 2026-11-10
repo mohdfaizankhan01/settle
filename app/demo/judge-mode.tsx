@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { DealPage } from '@/app/d/[id]/deal-page';
 import { rememberPayer } from '@/app/d/[id]/handover-panel';
+import { TopBar } from '@/app/components/brand';
 
 type DemoDeal = { dealId: string; scenario: string; keys: { seller: string; buyer: string; payer?: string }; title: string; side: 'buyer' | 'seller'; shows: string };
 type Session = { createdAt: string; expiresAt: string; deals: DemoDeal[] };
@@ -59,30 +60,31 @@ export function JudgeMode() {
 
   return (
     <div className="min-h-full">
-      <div className="bg-pp-navy px-4 py-2 text-center text-sm text-white">
-        Judge mode: demo deals in a private session. Settle&apos;s checks run live; PayPal is replayed from a real sandbox run, so nothing reaches PayPal and no money moves.
-      </div>
+      <TopBar width="max-w-[1400px]" note={"Judge mode: demo deals in a private session. Settle's checks run live; PayPal is replayed from a real sandbox run, so nothing reaches PayPal and no money moves."} />
       <main className="mx-auto w-full max-w-[1400px] px-4 py-10 font-paypal text-pp-ink sm:py-12">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
-            <h1 className="text-[28px] font-semibold text-pp-navy">Judge mode</h1>
-            <p className="mt-1 text-pp-muted">
+            <h1 className="text-[36px] font-semibold tracking-[-0.035em] text-pp-navy">
+              Judge <span className="font-serif font-normal italic text-pp-blue">mode</span>
+            </h1>
+            <p className="mt-2 text-lg leading-relaxed text-pp-muted">
               One deal at each stage, from the first DM to a dispute. Pick one to see the buyer and the seller side by side, and act as either.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-sm">
             {session && (
-              <Link href="/demo/timeline" className="rounded-full border border-pp-border bg-pp-surface px-4 py-2 font-semibold">
+              <Link href="/demo/timeline" className="lift rounded-full border border-pp-border bg-pp-surface px-4 py-2 font-semibold text-pp-navy shadow-[var(--pp-shadow-sm)]">
                 Seller timeline
               </Link>
             )}
-            <Link href="/demo/attacks" className="rounded-full border border-pp-border bg-pp-surface px-4 py-2 font-semibold">
+            <Link href="/demo/attacks" className="lift rounded-full border border-pp-border bg-pp-surface px-4 py-2 font-semibold text-pp-navy shadow-[var(--pp-shadow-sm)]">
               Try to fool it
             </Link>
-            <Link href="/proof" className="rounded-full border border-pp-border bg-pp-surface px-4 py-2 font-semibold">
+            <Link href="/proof" className="lift rounded-full border border-pp-border bg-pp-surface px-4 py-2 font-semibold text-pp-navy shadow-[var(--pp-shadow-sm)]">
               Proof
             </Link>
-            <button onClick={start} disabled={busy} className="rounded-full bg-pp-blue px-5 py-2 font-semibold text-white disabled:opacity-40">
+            <button onClick={start} disabled={busy} aria-busy={busy} className="btn-primary inline-flex items-center gap-2 rounded-full px-5 py-2 font-semibold disabled:opacity-40">
+              {busy && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />}
               {busy ? 'Setting up seven deals…' : session ? 'Start over with fresh deals' : 'Start judge mode'}
             </button>
           </div>
@@ -103,13 +105,14 @@ export function JudgeMode() {
         {session && current && (
           <div className="mt-10 grid gap-8 xl:grid-cols-[18rem_minmax(0,1fr)]">
             <nav aria-label="Demo deals">
-              <ul className="divide-y divide-pp-gridline rounded-md border border-pp-border bg-pp-surface">
+              <ul className="stagger surface space-y-1 rounded-2xl p-1.5">
                 {session.deals.map((d) => {
                   const on = d.scenario === current.scenario;
                   return (
                     <li key={d.dealId}>
-                      <button onClick={() => pick(d)} aria-current={on} className={`block w-full px-4 py-3 text-left text-sm ${on ? 'bg-pp-highlight' : 'hover:bg-pp-canvas'}`}>
-                        <span className={`block ${on ? 'font-semibold text-pp-navy' : 'font-semibold'}`}>{d.title}</span>
+                      <button onClick={() => pick(d)} aria-current={on} className={`relative block w-full rounded-xl px-4 py-3 text-left text-sm ${on ? 'bg-pp-highlight' : 'hover:bg-pp-canvas'}`}>
+                        <span className={`absolute inset-y-3 left-0 w-[3px] rounded-full bg-pp-blue transition-opacity duration-200 ${on ? 'opacity-100' : 'opacity-0'}`} aria-hidden="true" />
+                        <span className={`block font-semibold ${on ? 'text-pp-navy' : ''}`}>{d.title}</span>
                         <span className="mt-0.5 block text-pp-muted">Best seen as the {d.side}</span>
                       </button>
                     </li>
@@ -120,18 +123,21 @@ export function JudgeMode() {
             </nav>
 
             <section aria-label={current.title}>
-              <p className="max-w-3xl">{current.shows}</p>
+              <p key={current.scenario} className="rise max-w-3xl text-[15px] leading-relaxed">{current.shows}</p>
               <div className="mt-4 flex gap-2 lg:hidden" role="tablist" aria-label="Whose view">
                 {(['buyer', 'seller'] as const).map((s) => (
-                  <button key={s} role="tab" aria-selected={side === s} onClick={() => setSide(s)} className={`rounded-full border px-4 py-1.5 text-sm ${side === s ? 'border-pp-blue bg-pp-highlight font-semibold' : 'border-pp-border'}`}>
+                  <button key={s} role="tab" aria-selected={side === s} onClick={() => setSide(s)} className={`rounded-full border px-4 py-1.5 text-sm ${side === s ? 'border-pp-blue bg-pp-highlight font-semibold text-pp-navy' : 'border-pp-border bg-pp-surface'}`}>
                     {s === 'buyer' ? "Buyer's view" : "Seller's view"}
                   </button>
                 ))}
               </div>
               <div className="mt-4 grid gap-6 lg:grid-cols-2">
                 {(['buyer', 'seller'] as const).map((s) => (
-                  <div key={`${current.dealId}-${s}`} className={`rounded-lg border border-pp-border bg-pp-canvas p-4 ${side === s ? '' : 'hidden lg:block'}`}>
-                    <h2 className="mb-3 text-sm font-semibold text-pp-muted">{s === 'buyer' ? "Buyer's view" : "Seller's view"}</h2>
+                  <div key={`${current.dealId}-${s}`} className={`rise rounded-3xl border border-pp-border/80 bg-gradient-to-b from-pp-surface to-pp-canvas p-5 shadow-[var(--pp-shadow-md)] ${side === s ? '' : 'hidden lg:block'}`}>
+                    <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-pp-navy">
+                      <span className={`h-2 w-2 rounded-full ${s === 'buyer' ? 'bg-pp-sky' : 'bg-pp-navy'}`} aria-hidden="true" />
+                      {s === 'buyer' ? "Buyer's view" : "Seller's view"}
+                    </h2>
                     <DealPage dealId={current.dealId} linkKey={current.keys[s]} embedded />
                   </div>
                 ))}

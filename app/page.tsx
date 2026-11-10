@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { devPagesEnabled } from '@/lib/settle/dev-pages';
+import { TopBar } from '@/app/components/brand';
+import { HeroCard } from '@/app/components/hero-card';
 
 // Home: what Settle Link does, and the two ways in (make a link from a chat, or judge mode).
 // The boilerplate PayPal data pages are linked only where dev pages are on (lib/settle/dev-pages.ts).
@@ -26,50 +28,66 @@ export default async function Home() {
   // Checked per request, so SETTLE_DEV_PAGES on Render takes effect without a rebuild.
   await connection();
   return (
-    <div className="min-h-full">
-      <div className="bg-pp-navy px-4 py-2 text-center text-sm text-white">PayPal sandbox build for the PayPal AI Hackathon: no real money moves.</div>
-      <main className="mx-auto w-full max-w-5xl px-4 py-14 font-paypal text-pp-ink sm:py-20">
-        <section className="max-w-3xl">
-          <h1 className="text-[40px] font-semibold leading-[1.1] text-pp-navy sm:text-[52px]">One link to settle a deal made in a DM.</h1>
-          <p className="mt-5 text-lg leading-relaxed text-pp-muted">
+    <div className="hero-glow min-h-full">
+      <TopBar note="PayPal sandbox build for the PayPal AI Hackathon: no real money moves." />
+      <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-14 font-paypal text-pp-ink sm:pt-24">
+        <div className="grid items-center gap-16 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+        <section className="stagger max-w-3xl">
+          <p className="inline-flex items-center gap-2 rounded-full border border-pp-border bg-pp-surface/80 px-3 py-1 text-xs font-medium text-pp-muted shadow-[var(--pp-shadow-sm)]">
+            <span className="dot-live h-1.5 w-1.5 rounded-full bg-pp-success" aria-hidden="true" />
+            Paid through PayPal checkout, straight to the seller&apos;s own account
+          </p>
+          <h1 className="mt-6 text-[44px] font-semibold leading-[1.02] tracking-[-0.035em] text-pp-navy sm:text-[64px]">
+            One link to <span className="font-serif font-normal italic tracking-[-0.01em] text-pp-blue">settle</span> a deal made in a DM.
+          </h1>
+          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-pp-muted sm:text-xl">
             Strangers who agree a sale in a chat get stuck on who goes first. Settle Link turns the chat into one card both people confirm, paid through PayPal checkout instead of Friends and Family or a bank transfer, and keeps the record from the first message to a dispute.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/demo" className="rounded-full bg-pp-blue px-6 py-3 font-semibold text-white">
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            <Link href="/demo" className="btn-primary rounded-full px-7 py-3.5 font-semibold">
               Try it in judge mode
             </Link>
-            <Link href="/check" className="rounded-full border border-pp-border bg-pp-surface px-6 py-3 font-semibold">
+            <Link href="/check" className="lift rounded-full border border-pp-border bg-pp-surface px-7 py-3.5 font-semibold text-pp-navy shadow-[var(--pp-shadow-sm)]">
               Make a deal link from your chat
             </Link>
           </div>
-          <p className="mt-3 text-sm text-pp-muted">Judge mode sets up seven demo deals, one at each stage, with buyer and seller side by side. Nothing reaches PayPal.</p>
+          <p className="mt-4 text-sm text-pp-muted">Judge mode sets up seven demo deals, one at each stage, with buyer and seller side by side. Nothing reaches PayPal.</p>
         </section>
+        <HeroCard />
+        </div>
 
-        <section className="mt-16" aria-labelledby="how">
-          <h2 id="how" className="text-xl font-semibold">
-            How a deal goes
-          </h2>
-          <ol className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+        <section className="mt-24" aria-labelledby="how">
+          <div className="flex items-end justify-between gap-6">
+            <h2 id="how" className="text-2xl font-semibold tracking-[-0.02em] text-pp-navy">
+              How a deal goes
+            </h2>
+            <p className="hidden max-w-sm text-right text-sm text-pp-muted md:block">One record follows the deal, from the chat to the payment to a dispute.</p>
+          </div>
+          <ol className="stagger mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {STEPS.map((s, i) => (
-              <li key={s.title} className="border-t-2 border-pp-navy pt-3">
-                <span className="text-sm font-semibold text-pp-muted tabular-nums">{i + 1}</span>
-                <h3 className="mt-1 font-semibold">{s.title}</h3>
-                <p className="mt-1 text-sm leading-relaxed">{s.text}</p>
+              <li key={s.title} className="surface lift rounded-2xl p-5">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-pp-highlight text-xs font-semibold tabular-nums text-pp-blue">{i + 1}</span>
+                <h3 className="mt-4 font-semibold tracking-[-0.01em] text-pp-navy">{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-pp-muted">{s.text}</p>
               </li>
             ))}
           </ol>
         </section>
 
-        <section className="mt-16 flex flex-wrap gap-x-8 gap-y-2 text-sm">
-          <Link href="/proof" className="text-pp-blue underline underline-offset-2">
-            Proof: how often the checks are right
+        <section className="mt-16 grid gap-4 sm:grid-cols-2">
+          <Link href="/proof" className="surface lift group rounded-2xl p-5">
+            <span className="text-sm font-semibold text-pp-navy">Proof</span>
+            <span className="mt-1 block text-sm text-pp-muted">How often the checks are right, with the counts behind every number.</span>
+            <span className="mt-3 inline-block text-sm font-semibold text-pp-blue transition-transform duration-200 group-hover:translate-x-0.5">See the numbers →</span>
           </Link>
-          <Link href="/demo/attacks" className="text-pp-blue underline underline-offset-2">
-            Try to fool it
+          <Link href="/demo/attacks" className="surface lift group rounded-2xl p-5">
+            <span className="text-sm font-semibold text-pp-navy">Try to fool it</span>
+            <span className="mt-1 block text-sm text-pp-muted">Run ten attacks through the real server code: fake payment emails, forged webhooks, cards edited after confirming.</span>
+            <span className="mt-3 inline-block text-sm font-semibold text-pp-blue transition-transform duration-200 group-hover:translate-x-0.5">Run the attacks →</span>
           </Link>
         </section>
 
-        <p className="mt-10 max-w-3xl text-xs text-pp-muted">
+        <p className="mt-12 max-w-3xl text-xs leading-relaxed text-pp-muted">
           Settle Link explains warnings; it never approves a payment or a shipment. It never says a deal is protected: it shows which of PayPal&apos;s published requirements the record meets, and PayPal decides eligibility and disputes.
         </p>
 

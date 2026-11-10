@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { TimelineData } from './scheduler';
+import { TopBar } from '@/app/components/brand';
 
 // Bryntum Scheduler needs the browser, so it loads on the client only.
 const Scheduler = dynamic(() => import('./scheduler'), { ssr: false, loading: () => <p className="text-pp-muted">Loading the timeline…</p> });
@@ -20,9 +21,7 @@ export function SellerTimeline() {
 
   return (
     <div className="min-h-full">
-      <div className="bg-pp-navy px-4 py-2 text-center text-sm text-white">
-        Judge mode: demo deals with back-dated demo dates. Payment, tracking and dispute data are replayed from a real PayPal sandbox run.
-      </div>
+      <TopBar note={"Judge mode: demo deals with back-dated demo dates. Payment, tracking and dispute data are replayed from a real PayPal sandbox run."} />
       <main className="mx-auto w-full max-w-[1400px] px-4 py-10 font-paypal text-pp-ink sm:py-12">
         <p className="text-sm">
           <Link href="/demo" className="text-pp-blue underline underline-offset-2">

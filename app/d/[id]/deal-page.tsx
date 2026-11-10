@@ -99,7 +99,9 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
       <Realness view={view} />
       <header className="mt-4 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-semibold text-pp-navy">Deal card</h1>
+          <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-pp-navy">
+            Deal <span className="font-serif font-normal italic text-pp-blue">card</span>
+          </h1>
           <p className="text-pp-muted">
             You are the <strong className="text-pp-ink">{me}</strong>. {view.locked ? 'Both of you confirmed this card.' : `Both of you confirm it before the buyer pays.`}
           </p>
@@ -120,7 +122,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
             <section className="space-y-4">
               <h2 className="text-lg font-semibold">Settle these first</h2>
               {view.questions.map((q) => (
-                <div key={q.id} className="rounded-md border border-pp-border bg-pp-surface p-4">
+                <div key={q.id} className="surface appear rounded-2xl p-5">
                   <p className="font-semibold">{q.prompt}</p>
                   {q.why && <p className="mt-1 text-sm text-pp-muted">{q.why}</p>}
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -129,7 +131,8 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
                         key={o.id}
                         disabled={busy}
                         onClick={() => act('/answer', { questionId: q.id, optionId: o.id })}
-                        className={`rounded-full border px-4 py-1.5 text-sm ${q.mine === o.id ? 'border-pp-blue bg-pp-highlight font-semibold' : 'border-pp-border hover:border-pp-blue'}`}
+                        aria-pressed={q.mine === o.id}
+                        className={`rounded-full border px-4 py-2 text-sm ${q.mine === o.id ? 'border-pp-blue bg-pp-highlight font-semibold text-pp-navy shadow-[0_0_0_3px_rgba(0,112,224,0.12)]' : 'border-pp-border bg-pp-surface hover:border-pp-blue'}`}
                       >
                         {o.label}
                       </button>
@@ -148,7 +151,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
           )}
 
           {view.canReadAgain && (
-            <section className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
+            <section className="surface rounded-2xl p-5 text-sm">
               <p className="text-pp-muted">The AI reader didn&apos;t read this card. You can ask it to read the chat again before anyone answers or confirms.</p>
               <button disabled={busy} onClick={() => act('/read')} className="mt-2 rounded-full border border-pp-border px-4 py-1.5 font-semibold disabled:opacity-40">
                 Read the card again
@@ -159,7 +162,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
           {view.canEnter.length > 0 && <EnterTerms view={view} busy={busy} act={act} />}
 
           {me === 'seller' && !view.payee.connected && (
-            <section className="rounded-md border border-pp-border bg-pp-surface p-4">
+            <section className="surface rounded-2xl p-5">
               <h2 className="font-semibold">Get paid to your own PayPal account</h2>
               <p className="mt-1 text-sm text-pp-muted">
                 Connect your PayPal business account so the buyer pays you directly. PayPal opens in a new tab; come back here when you&apos;re done.
@@ -173,7 +176,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
                     if (out?.actionUrl && tab) tab.location.href = out.actionUrl;
                     else tab?.close();
                   }}
-                  className="rounded-full bg-pp-blue px-5 py-2 font-semibold text-white disabled:opacity-40"
+                  className="btn-primary rounded-full px-5 py-2.5 font-semibold disabled:opacity-40"
                 >
                   Connect PayPal
                 </button>
@@ -188,13 +191,13 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
           <Decline view={view} busy={busy} act={act} />
 
           {me === 'buyer' && view.realness.mode === 'judge' && view.locked && !view.order && (
-            <p className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
+            <p className="surface rounded-2xl p-5 text-sm">
               Here the buyer would pay with PayPal checkout, for exactly the total on the card. Judge mode never takes a payment; the &ldquo;Paid and ready to ship&rdquo; deal shows what happens next.
             </p>
           )}
           {me === 'buyer' && view.checkout && !view.payBlocker && <PayButton dealId={dealId} getKey={() => keyRef.current ?? ''} checkout={view.checkout} onDone={() => load(keyRef.current ?? '')} onError={setError} />}
           {view.order && !view.afterPayment && (
-            <section className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
+            <section className="surface rounded-2xl p-5 text-sm">
               <p>
                 PayPal order <span className="font-mono">{view.order.id}</span>: created, waiting for the buyer to approve it in PayPal.
               </p>
@@ -229,12 +232,20 @@ function EmbeddedFrame({ children }: { children: React.ReactNode; wide?: boolean
 function Realness({ view }: { view: DealView }) {
   const judge = view.realness.mode === 'judge';
   return (
-    <div className={`rounded-md border px-3 py-2 text-xs ${judge ? 'border-pp-warning/50 bg-[#fff8eb]' : 'border-pp-border bg-pp-surface'}`}>
+    <div className={`rounded-xl border px-4 py-3 text-xs leading-relaxed ${judge ? 'border-pp-warning/40 bg-[#fffaf0]' : 'surface'}`}>
       <p>
-        <strong>{judge ? 'Judge mode (demo deal).' : 'Live deal.'}</strong> {view.realness.paypal}
+        <strong className="font-semibold">{judge ? 'Judge mode (demo deal).' : 'Live deal.'}</strong> {view.realness.paypal}
       </p>
-      <p className="mt-0.5 text-pp-muted">{view.realness.check}</p>
-      <p className="mt-0.5 text-pp-muted">{view.realness.reader}</p>
+      <ul className="mt-1.5 space-y-1 text-pp-muted">
+        <li className="flex gap-2">
+          <span className={`mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full ${view.check.status === 'ran' ? 'bg-pp-success' : 'bg-pp-danger'}`} aria-hidden="true" />
+          {view.realness.check}
+        </li>
+        <li className="flex gap-2">
+          <span className={`mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full ${view.realness.reader.includes("didn't run") || view.realness.reader.includes('not used') ? 'bg-pp-border' : 'bg-pp-blue'}`} aria-hidden="true" />
+          {view.realness.reader}
+        </li>
+      </ul>
     </div>
   );
 }
@@ -248,8 +259,10 @@ function sourceText(s: SourceView | null) {
 
 function Card({ view, busy, act }: { view: DealView; busy: boolean; act: (p: string, b?: unknown) => Promise<unknown> }) {
   return (
-    <section aria-label="Deal card" className="relative rounded-lg border border-pp-border bg-pp-surface shadow-[0_1px_0_var(--pp-border),0_12px_24px_-16px_rgba(0,28,100,0.25)]">
-      <dl className="divide-y divide-pp-border/60">
+    <section aria-label="Deal card" className="surface-raised relative overflow-hidden rounded-2xl">
+      <div className="h-1 bg-gradient-to-r from-pp-navy via-pp-blue to-pp-sky" aria-hidden="true" />
+      {view.readerNote && <p className="border-b border-dashed border-pp-border bg-pp-canvas/60 px-6 py-2 text-xs text-pp-muted">{view.readerNote}</p>}
+      <dl className="stagger divide-y divide-pp-border/60">
         {view.terms.map((t) => {
           const src = sourceText(t.source);
           return (
@@ -257,18 +270,25 @@ function Card({ view, busy, act }: { view: DealView; busy: boolean; act: (p: str
               <dt className="text-sm text-pp-muted">{t.label}</dt>
               <dd>
                 {t.display ? (
-                  <p className={t.key === 'price' ? 'text-2xl font-semibold tabular-nums text-pp-navy' : 'font-semibold'}>{t.display}</p>
+                  <p className={t.key === 'price' ? 'text-3xl font-semibold tracking-[-0.02em] tabular-nums text-pp-navy' : 'font-semibold text-pp-ink'}>{t.display}</p>
                 ) : (
                   <p className="text-pp-muted">{t.key === 'shipBy' ? 'No date agreed' : 'Not settled yet'}</p>
                 )}
                 {src && (
                   <figure className="mt-1.5 text-sm">
-                    {src.quote && <blockquote className="border-l-2 border-pp-sky pl-3 text-pp-ink/80">“{src.quote}”</blockquote>}
+                    {src.quote && <blockquote className="rounded-r-lg border-l-2 border-pp-sky bg-pp-canvas/70 py-1.5 pl-3 pr-2 text-pp-ink/80">“{src.quote}”</blockquote>}
                     <figcaption className="mt-1 text-pp-muted">{src.label}</figcaption>
                   </figure>
                 )}
                 {t.readLabel && (
-                  <p className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs ${t.readLabel.startsWith('Code and') ? 'bg-pp-highlight text-pp-navy' : 'border border-dashed border-pp-border text-pp-muted'}`}>{t.readLabel}</p>
+                  <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${t.readLabel.startsWith('Code and') ? 'bg-pp-highlight text-pp-navy' : 'border border-dashed border-pp-border text-pp-muted'}`}>
+                    {t.readLabel.startsWith('Code and') && (
+                      <svg viewBox="0 0 16 16" className="h-3 w-3 text-pp-blue" aria-hidden="true">
+                        <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                    {t.readLabel}
+                  </p>
                 )}
               </dd>
             </div>
@@ -295,7 +315,7 @@ function Card({ view, busy, act }: { view: DealView; busy: boolean; act: (p: str
           </p>
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-lg border-t border-dashed border-pp-border bg-pp-canvas px-6 py-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-pp-border bg-pp-canvas/80 px-6 py-3.5 text-sm">
         <span className="min-w-0 text-pp-muted">
           Fingerprint <span className="break-all font-mono text-xs text-pp-ink" title={view.cardHash}>{view.cardHash.slice(0, 16)}…</span>
         </span>
@@ -314,17 +334,20 @@ const CLAIM_KIND: Record<string, string> = { condition: 'Condition', included: '
 function Claims({ view, busy, act }: { view: DealView; busy: boolean; act: (p: string, b?: unknown) => Promise<unknown> }) {
   return (
     <section aria-label="What the seller said about it" className="border-t border-pp-border/60 px-6 py-4">
-      <h3 className="text-sm text-pp-muted">What the seller said about it</h3>
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-pp-navy">
+        What the seller said about it
+        <span className="rounded-full bg-pp-highlight px-2 py-0.5 text-[11px] font-medium text-pp-blue">Quoted by AI, checked by code</span>
+      </h3>
       <ul className="mt-2 space-y-2">
         {view.claims.map((c) => (
-          <li key={`${c.messageId}-${c.index}`} className="flex flex-wrap items-start justify-between gap-2 text-sm">
+          <li key={`${c.messageId}-${c.index}`} className="appear flex flex-wrap items-start justify-between gap-2 rounded-xl border border-pp-border/70 bg-pp-canvas/50 px-3 py-2.5 text-sm">
             <span className="min-w-0">
               <span className="mr-2 rounded bg-pp-canvas px-1.5 py-0.5 text-xs text-pp-muted">{CLAIM_KIND[c.kind] ?? c.kind}</span>
               {c.text}
-              <span className="block text-xs text-pp-muted">From the seller, message {c.messageId.slice(1)}. Quoted by the AI reader; code checked the words are in that message.</span>
+              <span className="mt-0.5 block text-xs text-pp-muted">From the seller, message {c.messageId.slice(1)}.</span>
             </span>
             {c.canRemove && (
-              <button disabled={busy} onClick={() => act('/claims', { index: c.index })} className="shrink-0 rounded-full border border-pp-border px-3 py-0.5 text-xs hover:border-pp-blue disabled:opacity-40">
+              <button disabled={busy} onClick={() => act('/claims', { index: c.index })} className="shrink-0 rounded-full border border-pp-border bg-pp-surface px-3 py-1 text-xs font-medium hover:border-pp-danger hover:text-pp-danger disabled:opacity-40">
                 Not part of the deal
               </button>
             )}
@@ -343,7 +366,10 @@ function Claims({ view, busy, act }: { view: DealView; busy: boolean; act: (p: s
 
 function Stamp({ who, at }: { who: string; at: string | null }) {
   return at ? (
-    <span className="rounded-full border border-pp-success px-3 py-0.5 font-semibold text-pp-success" title={new Date(at).toLocaleString()}>
+    <span className="stamp-in inline-flex items-center gap-1.5 rounded-full border border-pp-success/60 bg-[#ecfdf5] px-3 py-0.5 font-semibold text-pp-success" title={new Date(at).toLocaleString()}>
+      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden="true">
+        <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
       {who} confirmed
     </span>
   ) : (
@@ -357,8 +383,8 @@ function Confirm({ view, busy, act }: { view: DealView; busy: boolean; act: (p: 
   return (
     <section className="space-y-3">
       {view.blockers.length > 0 ? (
-        <div className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
-          <p className="font-semibold">Before you can confirm</p>
+        <div className="surface rounded-2xl p-5 text-sm">
+          <p className="font-semibold text-pp-navy">Before you can confirm</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-pp-muted">
             {view.blockers.map((b) => (
               <li key={b}>{b}</li>
@@ -373,7 +399,7 @@ function Confirm({ view, busy, act }: { view: DealView; busy: boolean; act: (p: 
           <button
             disabled={busy}
             onClick={() => act('/confirm', { cardHash: view.cardHash })}
-            className="rounded-full bg-pp-navy px-6 py-3 font-semibold text-white disabled:opacity-40"
+            className="btn-navy rounded-full px-7 py-3.5 font-semibold disabled:opacity-40"
           >
             Confirm this card
           </button>
@@ -386,7 +412,7 @@ function Confirm({ view, busy, act }: { view: DealView; busy: boolean; act: (p: 
 function EnterTerms({ view, busy, act }: { view: DealView; busy: boolean; act: (p: string, b?: unknown) => Promise<unknown> }) {
   const [values, setValues] = useState<Record<string, string>>({});
   return (
-    <section className="rounded-md border border-pp-border bg-pp-surface p-4">
+    <section className="surface rounded-2xl p-5">
       <h2 className="font-semibold">Fill in what the chat didn&apos;t settle</h2>
       <p className="mt-1 text-sm text-pp-muted">The buyer sees that you typed it and still has to confirm the card.</p>
       {view.canEnter.map((term) => (
@@ -517,7 +543,7 @@ function Decline({ view, busy, act }: { view: DealView; busy: boolean; act: (p: 
   if (view.order && view.order.status !== 'CREATED') return null;
   if (view.myDecline) {
     return (
-      <section className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
+      <section className="surface rounded-2xl p-5 text-sm">
         <p>
           You declined this deal: {view.declineReasons[view.myDecline as keyof typeof view.declineReasons].toLowerCase()}. The other side can see this.
         </p>
@@ -534,7 +560,7 @@ function Decline({ view, busy, act }: { view: DealView; busy: boolean; act: (p: 
           Decline this deal
         </button>
       ) : (
-        <div className="rounded-md border border-pp-border bg-pp-surface p-4">
+        <div className="surface rounded-2xl p-5">
           <p className="font-semibold">Why are you declining?</p>
           <p className="mt-1 text-pp-muted">The other side sees your reason. Nothing is paid.</p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -616,7 +642,7 @@ function ShipPanel({ a, gate, busy, act }: { a: After; gate: Gate; busy: boolean
         <p className="mt-2 text-sm text-pp-muted">{gate.note}</p>
       </div>
 
-      <ul aria-label="Seller Protection checklist" className="divide-y divide-pp-gridline rounded-md border border-pp-border bg-pp-surface">
+      <ul aria-label="Seller Protection checklist" className="divide-y divide-pp-gridline surface rounded-2xl">
         {gate.checks.map((c) => (
           <li key={c.id} className="flex gap-3 px-4 py-3">
             <span aria-hidden className={`w-5 shrink-0 text-center text-lg font-semibold leading-6 ${MARK[c.status].tone}`}>
@@ -678,7 +704,7 @@ function ShippedPanel({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
   );
 }
 
-const input = 'w-full rounded-md border border-pp-border bg-white px-3 py-2 text-sm focus:border-pp-blue focus:outline-none focus:ring-2 focus:ring-pp-blue/30';
+const input = 'w-full rounded-xl border border-pp-border bg-white px-3 py-2.5 text-sm transition-[border-color,box-shadow] duration-200 focus:border-pp-blue focus:outline-none focus:ring-2 focus:ring-pp-blue/30';
 const primary = 'rounded-full bg-pp-blue px-5 py-2 text-sm font-semibold text-white disabled:opacity-40';
 
 function LabelForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
@@ -721,7 +747,7 @@ function TrackingForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
   }
   return (
     <form
-      className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm"
+      className="surface rounded-2xl p-5 text-sm"
       onSubmit={(e) => {
         e.preventDefault();
         act('/tracking', { carrier, number, ...(carrier === 'OTHER' ? { carrierName: name } : {}) });
@@ -915,7 +941,7 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
 
       <div>
         <h3 className="text-lg font-semibold">What the record shows</h3>
-        <ul className="mt-2 divide-y divide-pp-gridline rounded-md border border-pp-border bg-pp-surface">
+        <ul className="mt-2 divide-y divide-pp-gridline surface rounded-2xl">
           {cf.proofs.map((p) => (
             <li key={p.id} className="flex gap-3 px-4 py-3 text-sm">
               <span aria-hidden className={`w-5 shrink-0 text-center text-lg font-semibold leading-6 ${PROOF_MARK[p.status].tone}`}>
@@ -955,7 +981,7 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
       </div>
 
       {!resolved && choices.length > 0 && (
-        <div className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
+        <div className="surface rounded-2xl p-5 text-sm">
           <h3 className="font-semibold">Respond to PayPal</h3>
           <p className="mt-1 text-pp-muted">Only the responses PayPal offers on this case right now. You see the exact request before anything is sent.</p>
           <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Response">
@@ -1057,7 +1083,7 @@ function History({ view }: { view: DealView }) {
   const h = view.history;
   if (h.items.length === 0) return null;
   return (
-    <details className="rounded-md border border-pp-border bg-pp-surface text-sm">
+    <details className="surface rounded-2xl text-sm">
       <summary className="cursor-pointer px-4 py-3 font-semibold">
         History of this deal ({h.items.length} steps){' '}
         <span className={`font-normal ${h.chain.ok ? 'text-pp-success' : 'text-pp-danger'}`}>

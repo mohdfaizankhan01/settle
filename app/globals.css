@@ -2,12 +2,15 @@
 
 @theme inline {
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-serif);
 }
 
 body {
   background: var(--pp-canvas);
   color: var(--pp-ink);
   font-family: var(--pp-font);
+  font-feature-settings: "ss01", "cv11";
+  text-rendering: optimizeLegibility;
 }
 
 /*
@@ -21,16 +24,28 @@ body {
   --pp-blue-dark: #003087;
   --pp-sky: #009cde;
   --pp-highlight: #e6f0fc;
-  --pp-canvas: #f5f7fa;
+  --pp-canvas: #f6f7fb;
   --pp-surface: #ffffff;
-  --pp-border: #dbe1e8;
+  --pp-border: #dde3eb;
   --pp-gridline: #e9edf2;
   --pp-ink: #001435;
   --pp-muted: #545d68;
   --pp-success: #00875a;
   --pp-warning: #b45309;
   --pp-danger: #c4122f;
-  --pp-font: "PayPal Open", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --pp-font: var(--font-geist), "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Surfaces: a hairline plus two soft layers, so cards lift without looking heavy. */
+  --pp-shadow-sm: 0 1px 2px rgba(0, 20, 53, 0.04), 0 1px 1px rgba(0, 20, 53, 0.03);
+  --pp-shadow-md: 0 1px 2px rgba(0, 20, 53, 0.04), 0 8px 24px -12px rgba(0, 28, 100, 0.18);
+  --pp-shadow-lg: 0 2px 4px rgba(0, 20, 53, 0.04), 0 24px 48px -24px rgba(0, 28, 100, 0.28);
+
+  /* Motion (Emil Kowalski's curves): strong ease-out for anything entering or responding. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-press: 160ms;
+  --dur-ui: 220ms;
+  --dur-enter: 520ms;
 
   /* Chart series, PayPal blue and navy first. */
   --pp-chart-1: #0070e0;
@@ -67,4 +82,177 @@ body {
    "Meet by Nov 10" without cutting it off. */
 .settle-timeline .b-sch-event-content {
   margin-inline: 10px;
+}
+
+/* ---- Interaction and motion layer ---------------------------------------------------------- */
+
+::selection {
+  background: rgba(0, 112, 224, 0.16);
+}
+
+:focus-visible {
+  outline: 2px solid var(--pp-blue);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Everything you can press answers the press: a small scale, never a layout change. */
+button,
+a.rounded-full,
+.pressable {
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-ui) ease,
+    border-color var(--dur-ui) ease,
+    color var(--dur-ui) ease,
+    box-shadow var(--dur-ui) ease,
+    opacity var(--dur-ui) ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+button:not(:disabled),
+a.rounded-full {
+  cursor: pointer;
+}
+button:not(:disabled):active,
+a.rounded-full:active,
+.pressable:active {
+  transform: scale(0.97);
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Hover lift only where there is a real pointer (touch would trigger it on tap). */
+@media (hover: hover) and (pointer: fine) {
+  .lift:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--pp-shadow-md);
+  }
+}
+
+/* A primary button with depth: navy to blue, a top highlight, and a soft blue glow. */
+.btn-primary {
+  background-image: linear-gradient(180deg, #1a7df0 0%, var(--pp-blue) 55%, #0062c6 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 1px 2px rgba(0, 20, 53, 0.18),
+    0 8px 20px -10px rgba(0, 112, 224, 0.7);
+  color: #fff;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.26),
+      0 1px 2px rgba(0, 20, 53, 0.2),
+      0 12px 28px -12px rgba(0, 112, 224, 0.85);
+  }
+}
+.btn-navy {
+  background-image: linear-gradient(180deg, #0b2f86 0%, var(--pp-navy) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 8px 20px -12px rgba(0, 28, 100, 0.8);
+  color: #fff;
+}
+
+.surface {
+  background: var(--pp-surface);
+  border: 1px solid var(--pp-border);
+  box-shadow: var(--pp-shadow-sm);
+}
+.surface-raised {
+  background: var(--pp-surface);
+  border: 1px solid rgba(0, 28, 100, 0.08);
+  box-shadow: var(--pp-shadow-lg);
+}
+
+/* Entrances: rise into place once, staggered, so a page assembles instead of blinking in. */
+@keyframes settle-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+.rise {
+  animation: settle-rise var(--dur-enter) var(--ease-out) both;
+}
+.stagger > * {
+  animation: settle-rise var(--dur-enter) var(--ease-out) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 50ms; }
+.stagger > *:nth-child(3) { animation-delay: 100ms; }
+.stagger > *:nth-child(4) { animation-delay: 150ms; }
+.stagger > *:nth-child(5) { animation-delay: 200ms; }
+.stagger > *:nth-child(6) { animation-delay: 250ms; }
+.stagger > *:nth-child(n + 7) { animation-delay: 300ms; }
+
+/* Things that appear later (a new question, a claim, a stamp): enter from a near-visible state. */
+.appear {
+  transition:
+    opacity var(--dur-ui) var(--ease-out),
+    transform var(--dur-ui) var(--ease-out);
+  @starting-style {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
+/* A confirmation stamp lands with a little weight. */
+@keyframes settle-stamp {
+  0% { opacity: 0; transform: scale(1.18) rotate(-4deg); }
+  60% { opacity: 1; transform: scale(0.97) rotate(0deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+.stamp-in {
+  animation: settle-stamp 420ms var(--ease-out) both;
+}
+
+/* A soft pulse for live status dots (the AI reader, a check running). */
+@keyframes settle-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 135, 90, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(0, 135, 90, 0); }
+}
+.dot-live {
+  animation: settle-pulse 2.4s ease-in-out infinite;
+}
+
+/* The hero's backdrop: two quiet blue glows on the canvas. */
+.hero-glow {
+  background:
+    radial-gradient(56rem 30rem at 10% -6%, rgba(0, 112, 224, 0.16), transparent 62%),
+    radial-gradient(44rem 30rem at 92% 12%, rgba(0, 156, 222, 0.16), transparent 64%),
+    var(--pp-canvas);
+}
+
+/* Fewer, gentler animations when asked: keep fades that aid understanding, drop movement. */
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .stagger > *,
+  .stamp-in {
+    animation-name: settle-fade;
+    animation-duration: 200ms;
+  }
+  .dot-live {
+    animation: none;
+  }
+  button:not(:disabled):active,
+  a.rounded-full:active,
+  .pressable:active {
+    transform: none;
+  }
+  .appear {
+    @starting-style {
+      transform: none;
+    }
+  }
+}
+@keyframes settle-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

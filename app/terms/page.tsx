@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { loadTerms } from '@/lib/settle/terms-doc';
+import { TopBar } from '@/app/components/brand';
 
 // /terms: every PayPal clause Settle cites, with PayPal's own wording, read from
 // docs/protection-terms.md at build time. Each check on a deal page links to a row here.
@@ -14,9 +15,7 @@ export default function Page() {
   const buyer = rows.filter((r) => r.id.startsWith('PP-'));
   return (
     <div className="min-h-full">
-      <div className="bg-pp-navy px-4 py-2 text-center text-sm text-white">
-        PayPal&apos;s own wording, copied from its pages. PayPal decides every claim; Settle only shows which checks pass.
-      </div>
+      <TopBar note={"PayPal's own wording, copied from its pages. PayPal decides every claim; Settle only shows which checks pass."} />
       <main className="mx-auto w-full max-w-4xl px-4 py-10 font-paypal text-pp-ink sm:py-12">
         <p className="text-sm">
           <Link href="/demo" className="text-pp-blue underline underline-offset-2">
@@ -52,7 +51,7 @@ function Section({ title, rows }: { title: string; rows: ReturnType<typeof loadT
       <h2 className="text-xl font-semibold">{title}</h2>
       <ul className="mt-3 space-y-3">
         {rows.map((r) => (
-          <li key={r.id} id={r.id} className="scroll-mt-6 rounded-md border border-pp-border bg-pp-surface p-4 target:border-pp-blue target:ring-2 target:ring-pp-blue/30">
+          <li key={r.id} id={r.id} className="scroll-mt-6 surface rounded-2xl p-4 target:border-pp-blue target:ring-2 target:ring-pp-blue/30">
             <p className="font-semibold">
               {plain(r.requirement)} <span className="font-mono text-xs font-normal text-pp-muted">{r.id}</span>
             </p>
