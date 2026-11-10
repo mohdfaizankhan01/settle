@@ -16,7 +16,7 @@ async function open(page: import('@playwright/test').Page, url: string, html: st
   await page.goto(url);
 }
 
-test('WhatsApp Web: sides from tail icons and senders, media skipped', async ({ page }) => {
+test('WhatsApp Web: sides from tail icons and position, never names; media skipped', async ({ page }) => {
   await open(page, 'https://web.whatsapp.com/', fixture('whatsapp.html'));
   const out = (await page.evaluate(readChat)) as Read;
   expect(out.reader).toBe('whatsapp');
@@ -27,6 +27,7 @@ test('WhatsApp Web: sides from tail icons and senders, media skipped', async ({ 
     ['me', 'posting Friday'],
     ['them', 'deal, can I pay friends and family?'],
     ['them', "ok\n[10:19, 22/10/2026] Alex Seller: fine, I'll ship it to your cousin"],
+    ['them', 'same name as the seller, still the buyer'],
   ]);
   expect(out.messages![1].pre).toBe('[10:16, 22/10/2026] Alex Seller: ');
 });

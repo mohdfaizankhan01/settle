@@ -29,11 +29,9 @@ export function readChat() {
     const header = main.querySelector('header');
     const title = clean(header?.querySelector('span[title]')?.getAttribute('title') ?? header?.querySelector('span[dir="auto"]')?.textContent ?? '');
     const nodes = [...main.querySelectorAll('[data-pre-plain-text]')].filter(touched).slice(-MAX_ROWS);
-    // Whose message, from WhatsApp's own markup (the other person can't type any of it), in order:
-    // the older .message-out/.message-in classes; the bubble's tail icon (only on the first bubble
-    // of a run); the same sender as a message already placed (the sender in data-pre-plain-text);
-    // then which half of the chat the bubble sits in.
-    const sender = (pre) => clean(pre).replace(/^\s*\[[^\]]*\]\s*/, '').replace(/:\s*$/, '').replace(/^[\s~]+/, '');
+    // Whose message, from WhatsApp's own markup, never from names (anyone can set their name to
+    // match yours): the older .message-out/.message-in classes, then the bubble's tail icon (only on
+    // the first bubble of a run), then which half of the chat the bubble sits in.
     const box = main.getBoundingClientRect();
     const mid = box.left + box.width / 2;
     const marked = (node) => {
@@ -42,21 +40,14 @@ export function readChat() {
       const row = node.closest('[role="row"]') ?? node.parentElement?.parentElement;
       if (row?.querySelector('[data-icon="tail-out"]')) return 'me';
       if (row?.querySelector('[data-icon="tail-in"]')) return 'them';
-      return null;
+      const r = node.getBoundingClientRect();
+      return r.left + r.width / 2 > mid ? 'me' : 'them';
     };
-    const found = nodes.map((node) => ({ node, pre: node.getAttribute('data-pre-plain-text') ?? '', side: marked(node) }));
-    const sideOf = new Map();
-    for (const f of found) if (f.side && !sideOf.has(sender(f.pre))) sideOf.set(sender(f.pre), f.side);
     const messages = [];
-    for (const f of found) {
-      const text = clean((f.node.querySelector('.selectable-text') ?? f.node).innerText);
+    for (const node of nodes) {
+      const text = clean((node.querySelector('.selectable-text') ?? node).innerText);
       if (!text) continue; // photos, stickers and voice notes have no text
-      let side = f.side ?? sideOf.get(sender(f.pre));
-      if (!side) {
-        const r = f.node.getBoundingClientRect();
-        side = r.left + r.width / 2 > mid ? 'me' : 'them';
-      }
-      messages.push({ side, pre: f.pre, text });
+      messages.push({ side: marked(node), pre: node.getAttribute('data-pre-plain-text') ?? '', text });
     }
     if (messages.length > 0 || !selected) return { reader: 'whatsapp', title, messages, selected: !!selected };
   }
