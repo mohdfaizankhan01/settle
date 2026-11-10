@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { AskJev } from '../lib/jev/deal-check';
 import { buildCard, cardHash, isLocked, itemText } from '../lib/settle/card';
 import { verifyChain } from '../lib/settle/receipts';
-import { answerQuestion, confirmCard, createDeal, DealError, enterTerm, recheckDeal, roleFor, setPayee, type Deps } from '../lib/settle/deals';
+import { answerQuestion, confirmCard, createDeal, DealError, enterTerm, recheckDeal, roleFor, setPayee, type Deps, openLinks } from '../lib/settle/deals';
 import { SIGNALS } from '../lib/settle/signals';
 import { MemoryDealStore } from '../lib/settle/store';
 
@@ -34,7 +34,8 @@ const deps = (ask = jev()): Deps => ({ store: new MemoryDealStore(), ask, now: (
 
 async function setup(ask?: AskJev) {
   const d = deps(ask);
-  const { deal, keys } = await createDeal({ chat: CHAT, sellerName: 'Alex', country: 'UK' }, d);
+  const { deal, keys: rawKeys } = await createDeal({ chat: CHAT, sellerName: 'Alex', country: 'UK' }, d);
+  const keys = await openLinks(deal.id, rawKeys, d);
   return { d, deal, keys };
 }
 
@@ -115,7 +116,7 @@ test('both confirmations lock the card; any later change unlocks it and old conf
   const receipts = await d.store.listReceipts(deal.id);
   assert.deepEqual(
     receipts.map((r) => r.kind),
-    ['deal.checked', 'question.answered', 'question.answered', 'payee.connected', 'card.confirmed', 'card.confirmed', 'payee.connected'],
+    ['deal.checked', 'link.claimed', 'link.claimed', 'question.answered', 'question.answered', 'payee.connected', 'card.confirmed', 'card.confirmed', 'payee.connected'],
   );
   assert.equal(verifyChain(receipts).ok, true);
 });

@@ -14,7 +14,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import * as paypal from '../paypal';
 import { cardHash, isHandoverDeal, isLocked, paysByHold } from './card';
 import { orderMismatches } from './checkout';
-import { roleFor, DealError } from './deals';
+import { actingRole, DealError } from './deals';
 import { paypalFor, replayedEvent } from './demo-paypal';
 import { applyVerifiedEvent, refreshPayment, type PaymentDeps } from './payment';
 import { updateWithRetry, type DealStore } from './store';
@@ -85,7 +85,7 @@ async function load(store: DealStore, dealId: string) {
 /** The seller shows a one-time code at the meet-up. Only its hash is kept. */
 export async function showHandoverCode(dealId: string, key: string | null, deps: HandoverDeps) {
   const deal = await load(deps.store, dealId);
-  if (roleFor(deal, key) !== 'seller') throw new DealError('only the seller shows the handover code', 403);
+  if (actingRole(deal, key) !== 'seller') throw new DealError('only the seller shows the handover code', 403);
   if (!paysByHold(deal)) throw new DealError('this deal is not paid as a PayPal hold', 409);
   if (!isHeld(deal)) throw new DealError('PayPal does not show the money held for this deal yet, so there is nothing to hand over', 409);
   const at = nowOf(deps);
@@ -113,7 +113,7 @@ function tokenMatches(deal: Deal, token: string, at: Date): string | undefined {
  */
 export async function releaseHandover(dealId: string, key: string | null, token: string, payer: string | null, deps: HandoverDeps) {
   const deal = await load(deps.store, dealId);
-  if (roleFor(deal, key) !== 'buyer') throw new DealError('only the buyer can release the money at the handover', 403);
+  if (actingRole(deal, key) !== 'buyer') throw new DealError('only the buyer can release the money at the handover', 403);
   const at = nowOf(deps);
   const iso = at.toISOString();
   const refuse = async (reason: string, debugId?: string) => {
@@ -233,7 +233,7 @@ export async function voidHold(dealId: string, by: 'buyer' | 'seller' | 'meet_by
 /** The buyer walks away, or the seller calls it off: either side may release the hold. */
 export async function cancelHandover(dealId: string, key: string | null, deps: HandoverDeps) {
   const deal = await load(deps.store, dealId);
-  const role = roleFor(deal, key);
+  const role = actingRole(deal, key);
   if (!role) throw new DealError('this link is not valid for the deal', 403);
   return voidHold(dealId, role, deps);
 }

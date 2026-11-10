@@ -4,7 +4,7 @@ import type { AskJev } from '../lib/jev/deal-check';
 import type { Order, OrderRequest } from '../lib/paypal';
 import { cardHash } from '../lib/settle/card';
 import { captureCheckout, customIdFor, startCheckout, type PayPalDeps } from '../lib/settle/checkout';
-import { answerQuestion, confirmCard, createDeal, declineDeal, enterTerm, setPayee, withdrawDecline, type Deps } from '../lib/settle/deals';
+import { answerQuestion, confirmCard, createDeal, declineDeal, enterTerm, setPayee, withdrawDecline, type Deps, openLinks } from '../lib/settle/deals';
 import { SIGNALS } from '../lib/settle/signals';
 import { MemoryDealStore } from '../lib/settle/store';
 
@@ -52,7 +52,8 @@ function fakePayPal() {
 async function lockedDeal(feePayer: 'seller' | 'buyer' = 'seller') {
   const store = new MemoryDealStore();
   const deps: Deps = { store, ask, now: () => new Date('2026-10-22T12:00:00Z') };
-  const { deal, keys } = await createDeal({ chat: 'Sam: is the PS5 £350?\nAlex: yes, I post it tracked\nSam: deal', sellerName: 'Alex', country: 'UK' }, deps);
+  const { deal, keys: rawKeys } = await createDeal({ chat: 'Sam: is the PS5 £350?\nAlex: yes, I post it tracked\nSam: deal', sellerName: 'Alex', country: 'UK' }, deps);
+  const keys = await openLinks(deal.id, rawKeys, deps);
   await answerQuestion(deal.id, keys.seller, 'q_fee', feePayer, deps);
   await answerQuestion(deal.id, keys.buyer, 'q_fee', feePayer, deps);
   const stored = await setPayee(deal.id, 'SELLER1', deps);

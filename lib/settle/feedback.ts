@@ -3,7 +3,7 @@
 // model probability, time; never chat text), so the warning check can be measured on real use.
 // "Scam" also reports the other side to scam memory, only for a message the other side wrote.
 
-import { DealError, roleFor, type Deps } from './deals';
+import { DealError, actingRole, type Deps } from './deals';
 import { reportOtherSide } from './memory';
 import { shownTo } from './signals';
 
@@ -15,7 +15,7 @@ export async function answerWarning(dealId: string, key: string | null, signalId
   const stored = await deps.store.getDeal(dealId);
   if (!stored) throw new DealError('no such deal', 404);
   const deal = stored.value;
-  const role = roleFor(deal, key);
+  const role = actingRole(deal, key);
   if (!role) throw new DealError('this link is not valid for the deal', 403);
   const warnings = deal.warnings.filter((w) => w.signalId === signalId && shownTo(w.audience, role));
   if (warnings.length === 0) throw new DealError('there is no such warning for you on this deal', 404);

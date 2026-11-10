@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { cardHash } from '../lib/settle/card';
-import { answerQuestion, confirmCard, createDeal, setPayee, type Deps } from '../lib/settle/deals';
+import { answerQuestion, confirmCard, createDeal, setPayee, type Deps, openLinks } from '../lib/settle/deals';
 import { previewFor, previewStatus, PREVIEW_NUDGE } from '../lib/settle/preview';
 import { scriptJson, sharedChat, sharePage, SHARED_CHAT_SLOT } from '../lib/settle/share';
 import { MemoryDealStore, updateWithRetry } from '../lib/settle/store';
@@ -21,7 +21,8 @@ const PRIVATE = ['Samantha', 'Reyes', 'Alexander', 'Brooks', '07700', 'example.c
 async function deal(chat = CHAT, seller = 'Alexander Brooks') {
   const store = new MemoryDealStore();
   const deps: Deps = { store, ask: askWith() };
-  const { deal: d, keys } = await createDeal({ chat, sellerName: seller, country: 'UK' }, deps);
+  const { deal: d, keys: rawKeys } = await createDeal({ chat, sellerName: seller, country: 'UK' }, deps);
+  const keys = await openLinks(d.id, rawKeys, deps);
   return { store, deps, keys, id: d.id, get: async () => (await store.getDeal(d.id))!.value };
 }
 

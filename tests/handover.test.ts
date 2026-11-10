@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { PayPalApiError, type Authorization, type Capture, type Order, type OrderRequest, type WebhookEvent } from '../lib/paypal';
 import { cardHash } from '../lib/settle/card';
 import { captureCheckout, customIdFor, startCheckout } from '../lib/settle/checkout';
-import { answerQuestion, confirmCard, createDeal, setPayee, type Deps } from '../lib/settle/deals';
+import { answerQuestion, confirmCard, createDeal, setPayee, type Deps, openLinks } from '../lib/settle/deals';
 import { cancelHandover, CODE_TTL_MS, isHeld, payerHash, releaseExpiredHold, releaseHandover as release, showHandoverCode, type HandoverDeps, type HandoverPayPal } from '../lib/settle/handover';
 import { paidCheck } from '../lib/settle/paid-check';
 import { applyVerifiedEvent, isPaid } from '../lib/settle/payment';
@@ -24,7 +24,8 @@ async function meetupSetup() {
   clock.at = new Date('2026-11-05T12:00:00Z');
   const store = new MemoryDealStore();
   const deps: Deps = { store, ask: askWith(), now };
-  const { deal, keys } = await createDeal({ chat: 'Sam: is the PS5 £350?\nAlex: yes, meet at the station on Saturday\nSam: deal', sellerName: 'Alex', country: 'UK' }, deps);
+  const { deal, keys: rawKeys } = await createDeal({ chat: 'Sam: is the PS5 £350?\nAlex: yes, meet at the station on Saturday\nSam: deal', sellerName: 'Alex', country: 'UK' }, deps);
+  const keys = await openLinks(deal.id, rawKeys, deps);
   // The card's delivery is a meet-up (the mocked check always picks post, so set it here).
   await updateWithRetry(store, deal.id, (d) => ({ ...d, card: { ...d.card, delivery: { value: 'meetup', display: 'Meet up in person', source: { kind: 'message', messageId: 'm2' } } } }));
   await answerQuestion(deal.id, keys.seller, 'q_fee', 'seller', deps);

@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createDeal, declineDeal, type Deps } from '../lib/settle/deals';
+import { createDeal, declineDeal, type Deps, openLinks } from '../lib/settle/deals';
 import { startDemo } from '../lib/settle/demo';
 import { answerWarning } from '../lib/settle/feedback';
 import { memorySecret, memoryHits, refreshMemory, reportOtherSide } from '../lib/settle/memory';
@@ -21,7 +21,8 @@ const now = () => clock;
 
 async function deal(store: MemoryDealStore, buyer = 'Sam', seller = 'Alex', price = 450, payee?: string) {
   const deps: Deps = { store, ask: askWith(['fake_payment_proof']), now };
-  const { deal: d, keys } = await createDeal({ chat: SCRIPT(buyer, seller, price), sellerName: seller, country: 'US' }, deps);
+  const { deal: d, keys: rawKeys } = await createDeal({ chat: SCRIPT(buyer, seller, price), sellerName: seller, country: 'US' }, deps);
+  const keys = await openLinks(d.id, rawKeys, deps);
   if (payee) await updateWithRetry(store, d.id, (x) => ({ ...x, payeeMerchantId: payee }));
   return { id: d.id, keys, deps, get: async () => (await store.getDeal(d.id))!.value };
 }

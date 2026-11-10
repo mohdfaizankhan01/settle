@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { AskJev } from '../lib/jev/deal-check';
 import type { SellerStatus } from '../lib/paypal';
 import { checkConnect, finishConnect, startConnect, type ConnectPayPal } from '../lib/settle/connect';
-import { createDeal } from '../lib/settle/deals';
+import { createDeal, openLinks } from '../lib/settle/deals';
 import { MemoryDealStore } from '../lib/settle/store';
 
 // PayPal is mocked. Jev fails (irrelevant here; the deal is still created).
@@ -29,7 +29,8 @@ function setup(status: SellerStatus | undefined) {
 const ok: SellerStatus = { merchantId: 'SELLER1', paymentsReceivable: true, primaryEmailConfirmed: true, granted: true };
 
 async function newDeal(store: MemoryDealStore) {
-  return createDeal({ chat: 'Sam: hi\nAlex: hello', sellerName: 'Alex', country: 'US' }, { store, ask });
+  const made = await createDeal({ chat: 'Sam: hi\nAlex: hello', sellerName: 'Alex', country: 'US' }, { store, ask });
+  return { ...made, keys: await openLinks(made.deal.id, made.keys, { store }) };
 }
 
 test('the seller starts onboarding with our own tracking ID in the return URL', async () => {

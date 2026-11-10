@@ -5,7 +5,7 @@
 
 import { randomBytes } from 'node:crypto';
 import * as paypal from '../paypal';
-import { DealError, roleFor, setPayee } from './deals';
+import { DealError, actingRole, setPayee } from './deals';
 import { StaleWriteError, type DealStore } from './store';
 
 export type ConnectPayPal = Pick<typeof paypal, 'createPartnerReferral' | 'sellerByTrackingId'>;
@@ -17,7 +17,7 @@ export async function startConnect(dealId: string, key: string | null, deps: Con
   const pp = deps.paypal ?? paypal;
   const stored = await deps.store.getDeal(dealId);
   if (!stored) throw new DealError('no such deal', 404);
-  if (roleFor(stored.value, key) !== 'seller') throw new DealError('only the seller connects a PayPal account', 403);
+  if (actingRole(stored.value, key) !== 'seller') throw new DealError('only the seller connects a PayPal account', 403);
   if (stored.value.demo) throw new DealError('judge mode never connects a PayPal account; this is a demo deal', 409);
 
   const trackingId = randomBytes(18).toString('base64url');
@@ -62,7 +62,7 @@ export async function finishConnect(trackingId: string, deps: ConnectDeps): Prom
 export async function checkConnect(dealId: string, key: string | null, deps: ConnectDeps): Promise<ConnectResult> {
   const stored = await deps.store.getDeal(dealId);
   if (!stored) throw new DealError('no such deal', 404);
-  if (roleFor(stored.value, key) !== 'seller') throw new DealError('only the seller connects a PayPal account', 403);
+  if (actingRole(stored.value, key) !== 'seller') throw new DealError('only the seller connects a PayPal account', 403);
   if (stored.value.demo) return { dealId, connected: !!stored.value.payeeMerchantId };
   if (!stored.value.connect) return { dealId, connected: !!stored.value.payeeMerchantId };
   return finishConnect(stored.value.connect.trackingId, deps);

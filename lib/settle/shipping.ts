@@ -6,7 +6,7 @@ import { PayPalApiError } from '../paypal';
 import { addTrackingViaSdk } from '../paypal-sdk';
 import { sdkFor } from './demo-paypal';
 import { CARRIERS } from './carriers';
-import { DealError, roleFor } from './deals';
+import { DealError, actingRole } from './deals';
 import { refreshPayment, type PaymentPayPal } from './payment';
 import { isPaid, normalPostcode, syncGate, trackerShown } from './ship-gate';
 import { updateWithRetry, type DealStore } from './store';
@@ -26,7 +26,7 @@ const nowOf = (deps: ShippingDeps) => (deps.now ?? (() => new Date()))().toISOSt
 export async function sellerDeal(store: DealStore, dealId: string, key: string | null) {
   const stored = await store.getDeal(dealId);
   if (!stored) throw new DealError('no such deal', 404);
-  if (roleFor(stored.value, key) !== 'seller') throw new DealError('only the seller can do this', 403);
+  if (actingRole(stored.value, key) !== 'seller') throw new DealError('only the seller can do this', 403);
   if (!stored.value.order || stored.value.order.status === 'CREATED') throw new DealError('the buyer has not paid yet', 409);
   return stored;
 }

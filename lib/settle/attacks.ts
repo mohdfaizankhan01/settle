@@ -6,7 +6,7 @@
 import * as paypal from '../paypal';
 import { cardHash, isLocked } from './card';
 import { captureCheckout, startCheckout } from './checkout';
-import { addMessages, answerQuestion, confirmCard, createDeal, setPayee, type Deps } from './deals';
+import { addMessages, answerQuestion, confirmCard, createDeal, openLinks, setPayee, type Deps } from './deals';
 import { RECORDED, replayedEvent, replayPayPal } from './demo-paypal';
 import { newPayerSecret, payerHash, releaseHandover, showHandoverCode } from './handover';
 import { paidCheck } from './paid-check';
@@ -64,7 +64,8 @@ function checkoutStandIn() {
 
 async function lockedDeal(store: MemoryDealStore, chat = CHAT) {
   const deps: Deps = { store };
-  const { deal, keys } = await createDeal({ chat, sellerName: 'Alex', country: 'US' }, deps);
+  const { deal, keys: rawKeys } = await createDeal({ chat, sellerName: 'Alex', country: 'US' }, deps);
+  const keys = await openLinks(deal.id, rawKeys, deps);
   await answerQuestion(deal.id, keys.seller, 'q_fee', 'seller', deps);
   await answerQuestion(deal.id, keys.buyer, 'q_fee', 'seller', deps);
   const s = await setPayee(deal.id, 'SELLERATTACKLAB', deps);

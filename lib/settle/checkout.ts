@@ -6,7 +6,7 @@
 
 import * as paypal from '../paypal';
 import { cardHash, isHandoverDeal, isLocked, moneyOf, paysByHold } from './card';
-import { roleFor, DealError } from './deals';
+import { actingRole, DealError } from './deals';
 import { newPayerSecret, OTHER_DEVICE, payerHash, payerMatches } from './handover';
 import { StaleWriteError, type DealStore } from './store';
 import type { Deal } from './types';
@@ -29,7 +29,7 @@ export function payBlocker(deal: Deal): string | undefined {
 async function buyerDeal(store: DealStore, dealId: string, key: string | null) {
   const stored = await store.getDeal(dealId);
   if (!stored) throw new DealError('no such deal', 404);
-  if (roleFor(stored.value, key) !== 'buyer') throw new DealError('only the buyer can pay', 403);
+  if (actingRole(stored.value, key) !== 'buyer') throw new DealError('only the buyer can pay', 403);
   return stored;
 }
 

@@ -5,7 +5,7 @@
 // differ from PayPal's record. The text itself is not stored or sent to any model.
 
 import { formatMoney, moneyOf } from './card';
-import { DealError, roleFor } from './deals';
+import { DealError, actingRole } from './deals';
 import { refreshPayment, type PaymentDeps } from './payment';
 import { redactChat } from './redact';
 import { isPaid, readFailedLast } from './ship-gate';
@@ -53,7 +53,7 @@ export async function paidCheck(dealId: string, key: string | null, text: string
   if (text.length > MAX_PASTE_CHARS) throw new DealError(`paste at most ${MAX_PASTE_CHARS} characters`);
   const stored = await deps.store.getDeal(dealId);
   if (!stored) throw new DealError('no such deal', 404);
-  if (roleFor(stored.value, key) !== 'seller') throw new DealError('only the seller can check a payment', 403);
+  if (actingRole(stored.value, key) !== 'seller') throw new DealError('only the seller can check a payment', 403);
   const at = (deps.now ?? (() => new Date()))().toISOString();
 
   let deal = stored.value;

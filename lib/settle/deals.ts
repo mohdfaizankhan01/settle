@@ -59,6 +59,21 @@ export function roleFor(deal: Deal, key: string | null | undefined): Role | unde
   return undefined;
 }
 
+export const UNCLAIMED_LINK = 'Open this link on your own device first, then try again.';
+
+/**
+ * The role for a link that is about to act (confirm, answer, pay, ship...). It must have been
+ * opened (claimed) on a device first: otherwise whoever made the deal, who holds both links, could
+ * act as the other side before that person ever opens their link, and the claim afterwards would
+ * hide it. Only GET /api/deals/[id] claims; pages always load before they act. Judge-mode deals are
+ * never claimed.
+ */
+export function actingRole(deal: Deal, key: string | null | undefined): Role | undefined {
+  const role = roleFor(deal, key);
+  if (role && !deal.demo && !deal.claims?.[role]) throw new DealError(UNCLAIMED_LINK, 409);
+  return role;
+}
+
 /**
  * First open of a link on a device: the device gets a secret that the link needs from now on.
  * Returns the secret only to the first device; later opens return nothing. Judge-mode deals are
@@ -82,10 +97,20 @@ export async function claimLink(dealId: string, key: string | null | undefined, 
   return secret;
 }
 
+/**
+ * Opens both links as two devices would (each GET claims its side) and returns the keys bound to
+ * those devices. For tests and the attack lab, which play both people.
+ */
+export async function openLinks(dealId: string, keys: { seller: string; buyer: string }, deps: Deps) {
+  const seller = await claimLink(dealId, keys.seller, deps);
+  const buyer = await claimLink(dealId, keys.buyer, deps);
+  return { seller: withDevice(keys.seller, seller) ?? keys.seller, buyer: withDevice(keys.buyer, buyer) ?? keys.buyer };
+}
+
 async function load(deps: Deps, dealId: string, key: string | null | undefined) {
   const stored = await deps.store.getDeal(dealId);
   if (!stored) throw new DealError('no such deal', 404);
-  const role = roleFor(stored.value, key);
+  const role = actingRole(stored.value, key);
   if (!role) throw new DealError('this link is not valid for the deal', 403);
   return { stored, role };
 }
