@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { rateLimited } from '../lib/settle/runtime';
+import { jsonBody, rateLimited } from '../lib/settle/runtime';
 
 const req = (xff: string) => new Request('http://x/', { headers: { 'x-forwarded-for': xff } });
 
@@ -15,4 +15,20 @@ test('a global cap applies across addresses only when asked for', () => {
   assert.equal(rateLimited(req('198.51.100.200'), 'b2', 2, 20), true);
   for (let i = 0; i < 20; i++) rateLimited(req(`198.51.100.${i}`), 'b3', 2);
   assert.equal(rateLimited(req('198.51.100.200'), 'b3', 2), false);
+});
+
+test('audit: a JSON body over the cap is refused without reading it all', async () => {
+  let pulled = 0;
+  const chunk = new TextEncoder().encode('x'.repeat(16 * 1024));
+  const stream = new ReadableStream<Uint8Array>({
+    pull(c) {
+      pulled += chunk.byteLength;
+      if (pulled > 8 * 1024 * 1024) c.close();
+      else c.enqueue(chunk);
+    },
+  });
+  const request = new Request('http://x', { method: 'POST', body: stream, duplex: 'half' } as RequestInit);
+  await assert.rejects(jsonBody(request), /request too large/);
+  assert.ok(pulled < 256 * 1024, `stopped after ${pulled} bytes, not 8 MiB`);
+  assert.deepEqual(await jsonBody(new Request('http://x', { method: 'POST', body: '{"a":1}' })), { a: 1 });
 });

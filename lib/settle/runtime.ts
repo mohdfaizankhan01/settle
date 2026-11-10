@@ -8,6 +8,7 @@ import { ChatError } from './chat';
 import { DealError, withDevice } from './deals';
 import { PgDealStore } from './pg-store';
 import { MemoryDealStore, type DealStore } from './store';
+import { readBodyLimited } from './webhook';
 
 const g = globalThis as unknown as { settleStore?: DealStore; settleHits?: Map<string, number[]>; settleSwept?: number };
 
@@ -95,9 +96,12 @@ export async function api(fn: () => Promise<unknown>): Promise<Response> {
   }
 }
 
+/** Largest JSON body a deal route accepts. Reading stops at the cap, so a huge body is never buffered. */
+export const MAX_JSON_BYTES = 64 * 1024;
+
 export async function jsonBody(request: Request): Promise<Record<string, unknown>> {
-  const text = await request.text();
-  if (text.length > 64 * 1024) throw new DealError('request too large');
+  const text = await readBodyLimited(request, MAX_JSON_BYTES);
+  if (text === undefined) throw new DealError('request too large');
   try {
     const v = JSON.parse(text || '{}');
     if (typeof v !== 'object' || v === null || Array.isArray(v)) throw new Error();
