@@ -1,5 +1,5 @@
 import { applyVerifiedEvent } from '@/lib/settle/payment';
-import { getStore } from '@/lib/settle/runtime';
+import { getStore, rateLimited } from '@/lib/settle/runtime';
 import { handleWebhook, readBodyLimited } from '@/lib/settle/webhook';
 
 // PayPal webhook endpoint, registered in the sandbox app as <SETTLE_PUBLIC_HOST>/api/paypal/webhook.
@@ -8,6 +8,11 @@ import { handleWebhook, readBodyLimited } from '@/lib/settle/webhook';
 // buyer names and addresses.
 
 export async function POST(request: Request) {
+  // Per address only: a global cap would let a stranger block PayPal's own events.
+  if (rateLimited(request, 'webhook', 600)) {
+    console.log('[webhook] {"status":429,"outcome":"rejected","reason":"rate limited"}');
+    return Response.json({ outcome: 'rejected' }, { status: 429 });
+  }
   const body = await readBodyLimited(request);
   if (body === undefined) {
     console.log('[webhook] {"status":413,"outcome":"rejected","reason":"body too large"}');

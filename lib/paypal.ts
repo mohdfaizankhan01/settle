@@ -273,6 +273,16 @@ const SIGNATURE_HEADERS = {
   transmission_time: 'paypal-transmission-time',
 } as const;
 
+/** True for an https URL on PayPal's own API hosts, where PayPal serves its webhook certificates. */
+export function isPayPalCertUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    return u.protocol === 'https:' && (u.hostname === 'api.paypal.com' || u.hostname === 'api.sandbox.paypal.com' || u.hostname === 'api-m.paypal.com' || u.hostname === 'api-m.sandbox.paypal.com');
+  } catch {
+    return false;
+  }
+}
+
 export type WebhookEvent = { id: string; event_type: string; resource?: Record<string, unknown> } & Record<string, unknown>;
 
 /**
@@ -291,6 +301,9 @@ export async function verifyWebhookSignature(
     Object.entries(SIGNATURE_HEADERS).map(([field, header]) => [field, headers.get(header)]),
   );
   if (Object.values(fields).some((value) => !value)) return 'FAILURE';
+  // PayPal signs with a certificate it hosts itself. Anything else is forged: refuse it here, so a
+  // stranger's POST never costs a call on our PayPal credential (security audit).
+  if (!isPayPalCertUrl(fields.cert_url!)) return 'FAILURE';
 
   const envelope = JSON.stringify({ ...fields, webhook_id: webhookId });
   const { verification_status } = await post<{ verification_status: string }>(

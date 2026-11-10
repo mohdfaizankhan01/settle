@@ -18,7 +18,7 @@ export async function GET() {
 /** Starts a fresh session (also the reset button): new cookie, new deals. */
 export async function POST(request: Request) {
   return api(async () => {
-    if (rateLimited(request, 'demo-start', 10, 200)) throw new DealError('too many judge sessions from here; try again in an hour', 400);
+    if (rateLimited(request, 'demo-start', 10, 500)) throw new DealError('too many judge sessions from here; try again in an hour', 400);
     const session = await startDemo(getStore());
     (await cookies()).set(COOKIE, session.id, {
       httpOnly: true,

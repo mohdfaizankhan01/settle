@@ -1,8 +1,14 @@
+import { DealError } from '@/lib/settle/deals';
 import { startConnect } from '@/lib/settle/connect';
-import { api, getStore, linkKey, publicHost } from '@/lib/settle/runtime';
+import { api, limitedKey, requireLink, rateLimited, getStore, linkKey, publicHost } from '@/lib/settle/runtime';
 
 // Starts PayPal seller onboarding (Partner Referrals) and returns PayPal's URL.
 export async function POST(request: Request, ctx: RouteContext<'/api/deals/[id]/connect'>) {
   const { id } = await ctx.params;
-  return api(() => startConnect(id, linkKey(request), { store: getStore(), publicHost: publicHost(request) }));
+  return api(async () => {
+    if (rateLimited(request, 'deal-action', 240)) throw new DealError('too many requests from this address; try again later', 400);
+    await requireLink(id, request); // per-deal limit only for holders of a working link
+    if (limitedKey(`connect:${id}`, 6)) throw new DealError('too many onboarding attempts for this deal; try again in an hour', 400);
+    return startConnect(id, linkKey(request), { store: getStore(), publicHost: publicHost(request) });
+  });
 }

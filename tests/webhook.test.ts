@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { PayPalApiError } from '../lib/paypal';
+import { isPayPalCertUrl, PayPalApiError, verifyWebhookSignature } from '../lib/paypal';
 import { handleWebhook, readBodyLimited } from '../lib/settle/webhook';
 
 // verify-webhook-signature is mocked; only SUCCESS may count as verified.
@@ -72,4 +72,23 @@ test('a body over the cap is refused, whether or not it declares its length', as
 
 test('a body under the cap is read exactly', async () => {
   assert.equal(await readBodyLimited(new Request('http://x', { method: 'POST', body })), body);
+});
+
+test("audit: a forged certificate URL is refused before any call to PayPal", async () => {
+  assert.equal(isPayPalCertUrl('https://api.sandbox.paypal.com/v1/notifications/certs/CERT-1'), true);
+  assert.equal(isPayPalCertUrl('https://api.paypal.com/v1/notifications/certs/CERT-1'), true);
+  for (const bad of ['http://api.paypal.com/c', 'https://evil.example/c', 'https://api.paypal.com.evil.example/c', 'not a url']) assert.equal(isPayPalCertUrl(bad), false, bad);
+  const calls: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (u: string) => {
+    calls.push(String(u));
+    throw new Error('no network in tests');
+  }) as typeof fetch;
+  try {
+    const h = new Headers({ 'paypal-auth-algo': 'SHA256withRSA', 'paypal-cert-url': 'https://evil.example/cert', 'paypal-transmission-id': 't', 'paypal-transmission-sig': 's', 'paypal-transmission-time': '2026-11-10T00:00:00Z' });
+    assert.equal(await verifyWebhookSignature(h, '{"id":"WH-1","event_type":"X"}', 'WH-ID'), 'FAILURE');
+    assert.deepEqual(calls, []);
+  } finally {
+    globalThis.fetch = original;
+  }
 });

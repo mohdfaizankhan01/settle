@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { jsonBody, rateLimited } from '../lib/settle/runtime';
+import { jsonBody, limitedKey, rateLimited } from '../lib/settle/runtime';
 
 const req = (xff: string) => new Request('http://x/', { headers: { 'x-forwarded-for': xff } });
 
@@ -31,4 +31,13 @@ test('audit: a JSON body over the cap is refused without reading it all', async 
   await assert.rejects(jsonBody(request), /request too large/);
   assert.ok(pulled < 256 * 1024, `stopped after ${pulled} bytes, not 8 MiB`);
   assert.deepEqual(await jsonBody(new Request('http://x', { method: 'POST', body: '{"a":1}' })), { a: 1 });
+});
+
+test('audit: per-key limits count across addresses; per-address limits have no shared cap', () => {
+  const key = `test-deal-${Date.now()}`;
+  for (let i = 0; i < 6; i++) assert.equal(limitedKey(key, 6), false);
+  assert.equal(limitedKey(key, 6), true);
+  const req = (ip: string) => new Request('http://x', { headers: { 'x-forwarded-for': ip } });
+  const bucket = `audit-${Date.now()}`;
+  for (let i = 0; i < 40; i++) assert.equal(rateLimited(req(`10.9.${i}.1`), bucket, 5), false, 'no global cap blocks a new address');
 });

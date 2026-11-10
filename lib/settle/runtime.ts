@@ -5,7 +5,7 @@ import { isIPv4, isIPv6 } from 'node:net';
 
 import { PayPalApiError } from '../paypal';
 import { ChatError } from './chat';
-import { DealError, withDevice } from './deals';
+import { actingRole, DealError, withDevice } from './deals';
 import { PgDealStore } from './pg-store';
 import { MemoryDealStore, type DealStore } from './store';
 import { readBodyLimited } from './webhook';
@@ -76,6 +76,26 @@ export function networkOf(raw: string): string {
   const t = ip.includes('::') ? (tail ? tail.split(':') : []) : [];
   const groups = ip.includes('::') ? [...h, ...Array(8 - h.length - t.length).fill('0'), ...t] : h;
   return `${groups.slice(0, 3).map((g) => parseInt(g, 16).toString(16)).join(':')}::/48`;
+}
+
+/** At most `limit` hits per `windowMs` for one key (e.g. one deal), across all addresses. */
+export function limitedKey(key: string, limit: number, windowMs = 60 * 60 * 1000): boolean {
+  const hits = (g.settleHits ??= new Map<string, number[]>());
+  const cutoff = Date.now() - windowMs;
+  const recent = (hits.get(`key:${key}`) ?? []).filter((t) => t > cutoff);
+  if (recent.length >= limit) return true;
+  hits.set(`key:${key}`, [...recent, Date.now()]);
+  return false;
+}
+
+/**
+ * The caller's role, checked before a shared rate-limit bucket is charged: strangers without a
+ * working link for this deal can't use up everyone's allowance (security audit).
+ */
+export async function requireLink(dealId: string, request: Request): Promise<void> {
+  const stored = await getStore().getDeal(dealId);
+  if (!stored) throw new DealError('no such deal', 404);
+  if (!actingRole(stored.value, linkKey(request))) throw new DealError('this link is not valid for the deal', 403);
 }
 
 /** Runs a route body and maps known errors to JSON responses. Unknown errors log their name only. */
