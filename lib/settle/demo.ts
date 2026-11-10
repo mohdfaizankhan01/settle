@@ -7,6 +7,7 @@
 
 import { randomBytes } from 'node:crypto';
 import type { CheckEngine } from '../model/engine';
+import { cachedReader, type DealReader } from '../reader/deal-reader';
 import { cardHash } from './card';
 import { answerQuestion, confirmCard, createDeal, addMessages, setPayee, type Deps } from './deals';
 import { replayedEvent, replayPayPal, replaySdk, RECORDED } from './demo-paypal';
@@ -74,12 +75,13 @@ const STEPS: Record<string, Partial<Record<'chat' | 'confirm' | 'paid' | 'label'
   meetup: { chat: 6, confirm: 5, paid: 4 },
 };
 
-async function seedOne(store: DealStore, session: string, s: Scenario, start: Date, engine: CheckEngine | undefined, created: (dealId: string, keys: DemoKeys) => void) {
+async function seedOne(store: DealStore, session: string, s: Scenario, start: Date, engine: CheckEngine | undefined, reader: DealReader, created: (dealId: string, keys: DemoKeys) => void) {
   const steps = STEPS[s.id];
   let at = start;
   const step = (name: keyof (typeof STEPS)[string]) => void (at = new Date(start.getTime() - (steps[name] ?? 0) * 3600_000));
   const now = () => at;
-  const deps: Deps = { store, now, ...(engine ? { engine } : {}) };
+  // The AI reader: the cache, else the recorded readings; never the provider per session (PLAN M8).
+  const deps: Deps = { store, now, reader, ...(engine ? { engine } : {}) };
   step('chat');
   const { deal, keys: made } = await createDeal({ chat: s.chat, sellerName: s.seller, country: 'US' }, deps);
   // The session keeps this object; a meet-up deal adds its payer secret below.
@@ -146,14 +148,14 @@ async function seedOne(store: DealStore, session: string, s: Scenario, start: Da
 }
 
 /** Starts a fresh judge session: purges expired ones, then seeds one deal per scenario. */
-export async function startDemo(store: DealStore, now: () => Date = () => new Date(), engine?: CheckEngine): Promise<DemoSession> {
+export async function startDemo(store: DealStore, now: () => Date = () => new Date(), engine?: CheckEngine, reader: DealReader = cachedReader(store, { now })): Promise<DemoSession> {
   await store.purgeDemo(new Date(now().getTime() - DEMO_TTL_MS).toISOString());
   const id = sessionId();
   const deals: DemoSession['deals'] = [];
   const start = now();
   // Independent deals, seeded together. Whatever was created is saved in the session even if one
   // seed fails, so the purge can always find (and later delete) every demo deal.
-  const results = await Promise.allSettled(SCENARIOS.map((s) => seedOne(store, id, s, start, engine, (dealId, keys) => void deals.push({ scenario: s.id, dealId, keys }))));
+  const results = await Promise.allSettled(SCENARIOS.map((s) => seedOne(store, id, s, start, engine, reader, (dealId, keys) => void deals.push({ scenario: s.id, dealId, keys }))));
   deals.sort((a, b) => SCENARIOS.findIndex((s) => s.id === a.scenario) - SCENARIOS.findIndex((s) => s.id === b.scenario));
   const session = { id, createdAt: start.toISOString(), deals };
   await store.saveDemoSession(session);

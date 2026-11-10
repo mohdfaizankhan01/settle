@@ -7,6 +7,7 @@ import { PayPalApiError } from '../paypal';
 import { ChatError, type Role } from './chat';
 import { actingRole, DealError, withDevice } from './deals';
 import { PgDealStore } from './pg-store';
+import { skippedReader, type DealReader } from '../reader/deal-reader';
 import { MemoryDealStore, type DealStore } from './store';
 import { readBodyLimited } from './webhook';
 
@@ -137,3 +138,20 @@ export const str = (v: unknown, name: string) => {
   if (typeof v !== 'string' || v.length === 0) throw new DealError(`${name} is required`);
   return v;
 };
+
+/** The AI reader's caps (PLAN M8), sized to Groq's free tier: 8,000 tokens a minute, 200,000 a day. */
+export const READER_LIMITS = { perAddressHour: 10, totalMinute: 3, totalDay: 80 } as const;
+
+/**
+ * The reader for a request that would read a chat: undefined (the normal live reader) while under
+ * every cap, else one that skips with the reason, so the deal is still made and labelled. Without a
+ * key nothing is counted: the reader skips on its own.
+ */
+export function readerForRequest(request: Request): DealReader | undefined {
+  if (!process.env.GROQ_API_KEY || process.env.SETTLE_READER === 'off') return undefined;
+  const L = READER_LIMITS;
+  if (rateLimited(request, 'reader', L.perAddressHour)) return skippedReader(`the AI reader's limit for this address was reached (${L.perAddressHour} an hour)`);
+  if (rateLimited(request, 'reader-minute', Infinity, L.totalMinute, 60_000)) return skippedReader(`the AI reader is busy (${L.totalMinute} reads a minute in total)`);
+  if (rateLimited(request, 'reader-day', Infinity, L.totalDay, 24 * 60 * 60 * 1000)) return skippedReader(`the AI reader's daily limit was reached (${L.totalDay} a day in total)`);
+  return undefined;
+}

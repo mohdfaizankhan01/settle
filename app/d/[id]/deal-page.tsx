@@ -114,7 +114,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
 
       <div className={`mt-8 grid gap-8 ${embedded ? '' : 'lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]'}`}>
         <div className={`order-2 space-y-8 ${embedded ? '' : 'lg:order-1'}`}>
-          <Card view={view} />
+          <Card view={view} busy={busy} act={act} />
 
           {view.questions.length > 0 && (
             <section className="space-y-4">
@@ -122,6 +122,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
               {view.questions.map((q) => (
                 <div key={q.id} className="rounded-md border border-pp-border bg-pp-surface p-4">
                   <p className="font-semibold">{q.prompt}</p>
+                  {q.why && <p className="mt-1 text-sm text-pp-muted">{q.why}</p>}
                   <div className="mt-3 flex flex-wrap gap-2">
                     {q.options.map((o) => (
                       <button
@@ -143,6 +144,15 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
                   </p>
                 </div>
               ))}
+            </section>
+          )}
+
+          {view.canReadAgain && (
+            <section className="rounded-md border border-pp-border bg-pp-surface p-4 text-sm">
+              <p className="text-pp-muted">The AI reader didn&apos;t read this card. You can ask it to read the chat again before anyone answers or confirms.</p>
+              <button disabled={busy} onClick={() => act('/read')} className="mt-2 rounded-full border border-pp-border px-4 py-1.5 font-semibold disabled:opacity-40">
+                Read the card again
+              </button>
             </section>
           )}
 
@@ -224,6 +234,7 @@ function Realness({ view }: { view: DealView }) {
         <strong>{judge ? 'Judge mode (demo deal).' : 'Live deal.'}</strong> {view.realness.paypal}
       </p>
       <p className="mt-0.5 text-pp-muted">{view.realness.check}</p>
+      <p className="mt-0.5 text-pp-muted">{view.realness.reader}</p>
     </div>
   );
 }
@@ -235,7 +246,7 @@ function sourceText(s: SourceView | null) {
   return { label: `Typed in by the ${s.by}`, quote: null };
 }
 
-function Card({ view }: { view: DealView }) {
+function Card({ view, busy, act }: { view: DealView; busy: boolean; act: (p: string, b?: unknown) => Promise<unknown> }) {
   return (
     <section aria-label="Deal card" className="relative rounded-lg border border-pp-border bg-pp-surface shadow-[0_1px_0_var(--pp-border),0_12px_24px_-16px_rgba(0,28,100,0.25)]">
       <dl className="divide-y divide-pp-border/60">
@@ -256,11 +267,15 @@ function Card({ view }: { view: DealView }) {
                     <figcaption className="mt-1 text-pp-muted">{src.label}</figcaption>
                   </figure>
                 )}
+                {t.readLabel && (
+                  <p className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs ${t.readLabel.startsWith('Code and') ? 'bg-pp-highlight text-pp-navy' : 'border border-dashed border-pp-border text-pp-muted'}`}>{t.readLabel}</p>
+                )}
               </dd>
             </div>
           );
         })}
       </dl>
+      {(view.claims.length > 0 || view.removedClaims.length > 0) && <Claims view={view} busy={busy} act={act} />}
       {view.money && (
         <div className="grid gap-1 border-t border-pp-border/60 px-6 py-4 text-sm sm:grid-cols-3">
           <p>
@@ -289,6 +304,39 @@ function Card({ view }: { view: DealView }) {
           <Stamp who="Buyer" at={view.confirmed.buyer} />
         </span>
       </div>
+    </section>
+  );
+}
+
+const CLAIM_KIND: Record<string, string> = { condition: 'Condition', included: 'Included', authenticity: 'Authentic', works: 'Works' };
+
+/** What the seller said about the item, quoted by the AI reader and checked by code (PLAN M8). */
+function Claims({ view, busy, act }: { view: DealView; busy: boolean; act: (p: string, b?: unknown) => Promise<unknown> }) {
+  return (
+    <section aria-label="What the seller said about it" className="border-t border-pp-border/60 px-6 py-4">
+      <h3 className="text-sm text-pp-muted">What the seller said about it</h3>
+      <ul className="mt-2 space-y-2">
+        {view.claims.map((c) => (
+          <li key={`${c.messageId}-${c.index}`} className="flex flex-wrap items-start justify-between gap-2 text-sm">
+            <span className="min-w-0">
+              <span className="mr-2 rounded bg-pp-canvas px-1.5 py-0.5 text-xs text-pp-muted">{CLAIM_KIND[c.kind] ?? c.kind}</span>
+              {c.text}
+              <span className="block text-xs text-pp-muted">From the seller, message {c.messageId.slice(1)}. Quoted by the AI reader; code checked the words are in that message.</span>
+            </span>
+            {c.canRemove && (
+              <button disabled={busy} onClick={() => act('/claims', { index: c.index })} className="shrink-0 rounded-full border border-pp-border px-3 py-0.5 text-xs hover:border-pp-blue disabled:opacity-40">
+                Not part of the deal
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {view.removedClaims.map((c, i) => (
+        <p key={i} className="mt-2 text-xs text-pp-muted">
+          {c.byYou ? 'You' : `The ${c.by}`} marked {c.text} as not part of the deal.
+        </p>
+      ))}
+      <p className="mt-2 text-xs text-pp-muted">These lines are part of the card you both confirm, and go on the PayPal order. Removing one clears both confirmations.</p>
     </section>
   );
 }

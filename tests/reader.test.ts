@@ -362,3 +362,19 @@ test('not as described: the case file lists the confirmed claims with their quot
   assert.ok(cf.notes.some((n) => /correctly described \(PP-SNAD-DEF\)/.test(n)));
   assert.ok(!cf.notes.join(' ').match(/will win|protected/));
 });
+
+test('reader caps: over 3 reads a minute in total the reader is skipped with the reason; without a key nothing counts', async () => {
+  const { readerForRequest } = await import('../lib/settle/runtime');
+  const req = (ip: string) => new Request('http://x/api/deals', { method: 'POST', headers: { 'x-forwarded-for': ip } });
+  assert.equal(readerForRequest(req('10.0.0.1')), undefined, 'no key: the live reader skips on its own');
+  process.env.GROQ_API_KEY = 'test-key';
+  try {
+    const got = [1, 2, 3, 4].map((n) => readerForRequest(req(`10.9.0.${n}`)));
+    assert.deepEqual(got.slice(0, 3), [undefined, undefined, undefined]);
+    const skipped = await got[3]!(redacted());
+    assert.equal(skipped.run.status, 'skipped');
+    assert.match((skipped.run as { reason: string }).reason, /3 reads a minute/);
+  } finally {
+    delete process.env.GROQ_API_KEY;
+  }
+});

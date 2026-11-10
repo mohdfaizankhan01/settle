@@ -11,7 +11,8 @@ import { history } from './history';
 import type { Receipt } from './receipts';
 import type { Role } from './chat';
 import { payBlocker } from './checkout';
-import { DECLINE_REASONS } from './deals';
+import { DECLINE_REASONS, paymentStarted, readAgainBlocker } from './deals';
+import { claimText } from './quote';
 import { FEE_RATES } from './fees';
 import { CODE_TTL_MS, holdDeadline, HOLD_DAYS, isHeld } from './handover';
 import { isPaid, readFailedLast, shipGate } from './ship-gate';
@@ -42,6 +43,24 @@ function sourceView(deal: Deal, source: TermSource): SourceView {
   }
   return { kind: 'entered', by: source.by };
 }
+
+/** "gpt-oss-120b on Groq": the model's short name and who ran it. */
+export const readerName = (model?: string) => `${model?.split('/').pop() ?? 'the AI model'} on Groq`;
+
+/** One line for the "what's real" box: who read the card, and when. */
+function readerLine(deal: Deal): string {
+  const r = deal.reader;
+  if (!r) return 'AI reader: not used on this deal (made before the reader existed). The card was read by code.';
+  if (r.status !== 'ran') return `AI reader: didn't run (${r.reason ?? 'unknown reason'}), so the card was read by code only.`;
+  const day = (r.readAt ?? r.at).slice(0, 10);
+  const who = r.source === 'recorded' ? `Reading recorded on ${day} (${readerName(r.model)})` : `Read by ${readerName(r.model)} on ${day}`;
+  return `AI reader: ${who}, over a redacted copy of the chat. It can only point at the chat; code checked every pointer, and you both confirm.`;
+}
+
+const TERM_CASE_LABEL = {
+  both: 'Code and the AI reader agree',
+  code: 'Read by code only',
+} as const;
 
 const MEMORY_TITLES: Record<NonNullable<Deal['memory']>['hits'][number]['kind'], string> = {
   payee: "This seller's PayPal account was reported before",
@@ -123,8 +142,22 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
     const t = deal.card[key];
     // In-person deals: the agreed date is when they meet, not when something ships.
     const label = key === 'shipBy' && handover ? 'Meet by' : TERM_LABELS[key];
-    return { key, label, display: t?.display ?? null, source: t ? sourceView(deal, t.source) : null };
+    const readBy = t?.source.kind === 'message' ? (t.readBy ?? null) : null;
+    const readLabel = readBy === 'code' && deal.reader && deal.reader.status !== 'ran' ? `Read by code only: the AI reader didn't run (${deal.reader.reason ?? 'unknown reason'})` : readBy ? TERM_CASE_LABEL[readBy] : null;
+    return { key, label, display: t?.display ?? null, source: t ? sourceView(deal, t.source) : null, readLabel };
   });
+  // What the seller said about the item (PLAN M8): exact quotes, prices and dates put back.
+  const canChange = !paymentStarted(deal);
+  const claims = (deal.card.claims ?? []).map((c, index) => ({ index, kind: c.kind, text: claimText(deal, c), messageId: c.messageId, canRemove: canChange }));
+  const removedClaims = (deal.removedClaims ?? []).map((c) => ({ text: claimText(deal, c), by: c.by, byYou: c.by === role }));
+  /** Why a question was asked, in words, with both readings when code and the reader differed. */
+  const whyAsked = (q: Deal['questions'][number]) => {
+    if (!q.why) return null;
+    if (q.why === 'both_unsure') return 'Code and the AI reader were both unsure, so you both answer.';
+    const term = q.term as 'price' | 'shipBy' | 'delivery';
+    const label = (id?: string) => (id ? (q.options.find((o) => o.id === id)?.label ?? (id === 'none' ? 'none agreed' : id === 'unclear' ? 'not clear from the chat' : id)) : 'nothing');
+    return `Code read ${label(deal.codePicks?.[term]?.id)}; the AI reader read ${label(deal.reader?.readerIds?.[term])}. They disagree, so you both answer.`;
+  };
 
   const other: Role = role === 'seller' ? 'buyer' : 'seller';
   const confirmedNow = (r: Role) => deal.confirmations.find((c) => c.role === r && c.cardHash === hash)?.at ?? null;
@@ -144,6 +177,7 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
         deal.check.status === 'ran'
           ? `Warning check: ran on ${deal.check.at.slice(0, 10)} with ${deal.check.model?.startsWith('jev') ? 'Jev (TypeSafe)' : `Settle Link's own model (${deal.check.model ?? 'local'})`} plus keyword rules, over a redacted copy of the chat.`
           : 'Warning check: did not run, so nothing on this card can be confirmed yet.',
+      reader: readerLine(deal),
     },
     check:
       deal.check.status === 'ran'
@@ -166,7 +200,11 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
         mine: q.answers[role] ?? null,
         otherAnswered: !!q.answers[other],
         disagree: !!q.answers[role] && !!q.answers[other] && q.answers[role] !== q.answers[other],
+        why: whyAsked(q),
       })),
+    claims,
+    removedClaims,
+    canReadAgain: !!deal.reader && deal.reader.status !== 'ran' && !readAgainBlocker(deal),
     explainNote: EXPLAIN_NOTE,
     money: (() => {
       const m = moneyOf(deal);
