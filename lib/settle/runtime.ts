@@ -4,7 +4,7 @@ import { isIPv4, isIPv6 } from 'node:net';
 // refuses to run instead of falling back to memory.
 
 import { PayPalApiError } from '../paypal';
-import { ChatError } from './chat';
+import { ChatError, type Role } from './chat';
 import { actingRole, DealError, withDevice } from './deals';
 import { PgDealStore } from './pg-store';
 import { MemoryDealStore, type DealStore } from './store';
@@ -92,10 +92,12 @@ export function limitedKey(key: string, limit: number, windowMs = 60 * 60 * 1000
  * The caller's role, checked before a shared rate-limit bucket is charged: strangers without a
  * working link for this deal can't use up everyone's allowance (security audit).
  */
-export async function requireLink(dealId: string, request: Request): Promise<void> {
+export async function requireLink(dealId: string, request: Request): Promise<Role> {
   const stored = await getStore().getDeal(dealId);
   if (!stored) throw new DealError('no such deal', 404);
-  if (!actingRole(stored.value, linkKey(request))) throw new DealError('this link is not valid for the deal', 403);
+  const role = actingRole(stored.value, linkKey(request));
+  if (!role) throw new DealError('this link is not valid for the deal', 403);
+  return role;
 }
 
 /** Runs a route body and maps known errors to JSON responses. Unknown errors log their name only. */
