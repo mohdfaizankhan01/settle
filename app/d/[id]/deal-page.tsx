@@ -469,11 +469,18 @@ function Warnings({ view, act }: { view: DealView; act?: Act }) {
         <p className="mt-1 text-sm text-pp-muted">That&apos;s not a guarantee. Pay and get paid only through this page, and PayPal decides on any claim.</p>
       )}
       <p className="mt-2 text-xs text-pp-muted">{view.explainNote}</p>
-      <ul className="mt-4 space-y-4">
+      <ul className="stagger mt-4 space-y-4">
         {view.warnings.map((w) => (
-          <li key={w.signalId} className="rounded-md border-l-4 border-pp-warning bg-pp-surface p-4">
-            <p className="font-semibold">{w.title}</p>
-            {w.quote && <blockquote className="mt-2 border-l-2 border-pp-border pl-3 text-sm text-pp-ink/80">“{w.quote.text}”</blockquote>}
+          <li key={w.signalId} className="relative overflow-hidden rounded-2xl border border-pp-warning/25 bg-gradient-to-br from-[#fffaf0] to-pp-surface p-5 pl-6 shadow-[var(--pp-shadow-sm)]">
+            <span className="absolute inset-y-0 left-0 w-1 bg-pp-warning" aria-hidden="true" />
+            <p className="flex items-start gap-2 font-semibold text-pp-ink">
+              <svg viewBox="0 0 20 20" className="mt-0.5 h-4 w-4 shrink-0 text-pp-warning" aria-hidden="true">
+                <path d="M10 3l8 14H2L10 3z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                <path d="M10 8v4m0 2.5v.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              {w.title}
+            </p>
+            {w.quote && <blockquote className="mt-2 rounded-r-lg border-l-2 border-pp-warning/40 bg-white/70 py-1.5 pl-3 pr-2 text-sm text-pp-ink/80">“{w.quote.text}”</blockquote>}
             <p className="mt-2 text-sm">{w.means}</p>
             <p className="mt-1 text-sm font-semibold">{w.todo}</p>
             <p className="mt-2 text-xs text-pp-muted">
@@ -521,10 +528,10 @@ function Chat({ view }: { view: DealView }) {
   return (
     <section aria-label="The chat">
       <h2 className="text-sm font-semibold text-pp-muted">The chat this card came from</h2>
-      <ol className="mt-3 space-y-2">
+      <ol className="stagger mt-3 space-y-2">
         {view.messages.map((m) => (
-          <li key={m.id} id={m.id} className={`flex ${m.from === 'seller' ? 'justify-start' : 'justify-end'}`}>
-            <p className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${m.from === 'seller' ? 'bg-white' : 'bg-pp-highlight'}`}>
+          <li key={m.id} id={m.id} className={`flex scroll-mt-24 ${m.from === 'seller' ? 'justify-start' : 'justify-end'}`}>
+            <p className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm shadow-[var(--pp-shadow-sm)] ${m.from === 'seller' ? 'rounded-bl-md border border-pp-border/60 bg-white' : 'rounded-br-md bg-pp-highlight'}`}>
               <span className="block text-xs text-pp-muted">
                 {m.from}, message {m.id.slice(1)}
                 {m.added && `, added after payment by the ${m.added.by}`}
