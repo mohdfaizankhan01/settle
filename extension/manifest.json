@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Settle Link",
+  "short_name": "Settle Link",
+  "version": "0.1.0",
+  "description": "Turn the chat where you agreed a deal into a Settle Link deal link: buyer pays through PayPal checkout, never Friends and Family.",
+  "action": {
+    "default_title": "Make a Settle Link deal from this chat",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" }
+  },
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://settle-ulya.onrender.com/*"],
+  "optional_host_permissions": ["http://localhost/*"],
+  "minimum_chrome_version": "116",
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" }
+}

@@ -13,7 +13,8 @@
     "eval": "node --env-file-if-exists=.env.local --import tsx scripts/jev-eval.ts",
     "model:fetch": "tsx scripts/fetch-model.ts",
     "proof": "tsx scripts/proof.mts",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "ext:pack": "tsx scripts/pack-extension.mts"
   },
   "dependencies": {
     "@bryntum/scheduler": "npm:@bryntum/scheduler-trial@7.3.8",

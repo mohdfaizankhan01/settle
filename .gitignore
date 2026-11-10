@@ -55,3 +55,6 @@ docs/competitor-scan.md
 # Playwright
 /test-results/
 /playwright-report/
+
+# Chrome extension zips (npm run ext:pack)
+/dist

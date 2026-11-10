@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Settle Link</title>
+    <link rel="stylesheet" href="popup.css" />
+    <script type="module" src="popup.js"></script>
+  </head>
+  <body>
+    <header class="bar">
+      <img src="icons/32.png" alt="" width="20" height="20" />
+      <strong>Settle Link</strong>
+      <button id="settings-toggle" class="link" type="button" aria-expanded="false">Settings</button>
+    </header>
+    <p class="real">Real deals on Settle Link. Payments run in PayPal's sandbox, so no real money moves.</p>
+
+    <section id="settings" hidden>
+      <label>Your name on deal cards <input id="seller-name" maxlength="40" autocomplete="name" /></label>
+      <label>
+        Your PayPal country
+        <select id="country">
+          <option value="UK">United Kingdom (GBP)</option>
+          <option value="US">United States (USD)</option>
+        </select>
+      </label>
+      <label class="check"><input id="use-local" type="checkbox" /> Use a local server (localhost:3000), for developers</label>
+    </section>
+
+    <main id="read">
+      <p id="status" role="status">Reading this chat…</p>
+      <div id="found" hidden>
+        <p id="summary"></p>
+        <fieldset id="pick-seller" hidden>
+          <legend>Who is selling?</legend>
+          <div id="speakers"></div>
+        </fieldset>
+        <ol id="preview" aria-label="Newest messages, as Settle Link will read them"></ol>
+        <p class="hint" id="layout-hint" hidden>Your messages should show as <b>You</b>. If they're the wrong way round, <button id="swap" class="link" type="button">swap sides</button>.</p>
+        <label id="buyer-row">Buyer's name <input id="buyer-name" maxlength="40" placeholder="Buyer" /></label>
+        <p class="hint">Only messages already loaded in the chat are read. Scroll up first to include earlier ones.</p>
+        <p id="error" class="error" role="alert" hidden></p>
+        <button id="make" class="primary" type="button">Make the deal link</button>
+      </div>
+    </main>
+
+    <section id="made" hidden>
+      <h2>Deal link ready</h2>
+      <p>Check the deal card, then send the buyer their link. Settle Link never sends messages for you.</p>
+      <button id="put-buyer" class="primary" type="button">Put the buyer's link in the reply box</button>
+      <p id="put-result" class="hint" role="status"></p>
+      <button id="open-seller" type="button">Open my seller link</button>
+      <p class="hint">Your link locks to this browser the first time it opens. Never open the buyer's link yourself: it would stop working for them.</p>
+    </section>
+
+    <section id="deals-section">
+      <h2>Your deals in this browser</h2>
+      <ul id="deals"></ul>
+      <p id="no-deals" class="hint">None yet.</p>
+    </section>
+
+    <footer><a id="privacy" target="_blank" rel="noreferrer">Privacy</a></footer>
+  </body>
+</html>

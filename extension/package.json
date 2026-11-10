@@ -1,0 +1,6 @@
+{
+  "name": "settle-link-chrome",
+  "private": true,
+  "type": "module",
+  "description": "Settle Link for Chrome. No dependencies: the files here are loaded by Chrome as they are."
+}
