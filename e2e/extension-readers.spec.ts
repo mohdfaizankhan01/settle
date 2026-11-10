@@ -99,3 +99,10 @@ test('no reply box: the popup is told to copy instead', async ({ page }) => {
   await open(page, 'https://example.com/', '<p>hello</p>');
   expect(await page.evaluate(insertReply, 'x')).toEqual({ ok: false });
 });
+
+test('audit: the reply never goes into a text box on a site that is not a supported chat', async ({ page }) => {
+  await open(page, 'https://example.com/', '<textarea id="c" autofocus></textarea>');
+  await page.focus('#c');
+  expect(await page.evaluate(insertReply, 'https://settle.test/d/1#k=B')).toEqual({ ok: false });
+  expect(await page.inputValue('#c')).toBe('');
+});

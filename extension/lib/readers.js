@@ -101,6 +101,10 @@ export function readChat() {
  * { ok: true } or { ok: false } when there's no reply box (the popup copies the text instead).
  */
 export function insertReply(text) {
+  // Only the reply box of a supported chat site: never a comment box or form on some other page,
+  // where the page's own scripts could read the buyer's link (security audit).
+  const CHAT_HOSTS = ['web.whatsapp.com', 'www.messenger.com', 'www.facebook.com', 'www.instagram.com'];
+  if (!CHAT_HOSTS.includes(location.hostname)) return { ok: false };
   const visible = (el) => !!el && el.getClientRects().length > 0;
   const editable = (el) => !!el && (el.isContentEditable || el.tagName === 'TEXTAREA');
   let box = null;

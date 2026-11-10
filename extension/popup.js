@@ -191,10 +191,14 @@ function hostOf(url) {
 async function putBuyerLink(deal, out) {
   const text = replyText(deal.buyer);
   let ok = false;
-  try {
-    [{ result: { ok } }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: insertReply, args: [text] });
-  } catch {
-    ok = false;
+  // The buyer's link goes only into the chat site the deal was made on, never whatever tab is open.
+  const sameSite = !!deal.site && hostOf(tab?.url) === deal.site;
+  if (sameSite) {
+    try {
+      [{ result: { ok } }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: insertReply, args: [text] });
+    } catch {
+      ok = false;
+    }
   }
   if (ok) {
     out.textContent = 'Added to the reply box. Check it, then press Send in the chat.';
@@ -202,7 +206,9 @@ async function putBuyerLink(deal, out) {
   }
   try {
     await navigator.clipboard.writeText(text);
-    out.textContent = "Couldn't find the reply box, so it's copied. Paste it in the chat and press Send.";
+    out.textContent = sameSite
+      ? "Couldn't find the reply box, so it's copied. Paste it in the chat and press Send."
+      : `This tab isn't ${deal.site || 'the chat this deal came from'}, so it's copied instead. Paste it in that chat and press Send.`;
   } catch {
     out.textContent = "Couldn't find the reply box or copy the link. Open your seller link to copy the buyer's link from there.";
   }

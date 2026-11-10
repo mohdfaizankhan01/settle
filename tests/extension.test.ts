@@ -141,3 +141,10 @@ test('popup code never sends a chat message and never calls the deal API with a 
   assert.doesNotMatch(readers, /KeyboardEvent|key:\s*'Enter'|\.click\(\)|submit\(/);
   assert.doesNotMatch(popup, /tabs\.create\(\{\s*url:\s*deal\.buyer/);
 });
+
+test('audit: the buyer link is inserted only on the site the deal came from, and only on supported chat hosts', () => {
+  const popup = readFileSync(new URL('../extension/popup.js', import.meta.url), 'utf8');
+  const readers = readFileSync(new URL('../extension/lib/readers.js', import.meta.url), 'utf8');
+  assert.match(popup, /hostOf\(tab\?\.url\) === deal\.site/);
+  assert.match(readers, /CHAT_HOSTS\.includes\(location\.hostname\)\) return \{ ok: false \}/);
+});
