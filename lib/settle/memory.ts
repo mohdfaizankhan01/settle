@@ -13,6 +13,7 @@
 
 import { createHmac } from 'node:crypto';
 import type { Role } from './chat';
+import { cardHash } from './card';
 import { redactChat } from './redact';
 import type { DealStore, MemoryEntry } from './store';
 import type { Deal, MemoryHit } from './types';
@@ -100,7 +101,13 @@ export async function reportOtherSide(deal: Deal, reporter: Role, reason: Report
   // The chat is pasted by whoever made the deal, so "their message" may be the reporter's own words.
   // A person (PayPal account, payer, postcode) is put on file only if that side confirmed the card,
   // i.e. accepted the chat as the record; otherwise only the script is remembered (security review).
-  const accepted = (await deps.store.listReceipts(deal.id)).some((r) => r.kind === 'card.confirmed' && (r.data as { by?: string }).by === about);
+  // Only a confirmation of the card as it is now counts: the payee is in the hash, so accepting an
+  // earlier card (before the payee or a term changed) doesn't count (security review).
+  const current = cardHash(deal);
+  const accepted = (await deps.store.listReceipts(deal.id)).some((r) => {
+    const d = r.data as { by?: string; cardHash?: string };
+    return r.kind === 'card.confirmed' && d.by === about && d.cardHash === current;
+  });
   const kept = accepted ? ids : ids.filter((i) => i.kind === 'message');
   const at = nowOf(deps).toISOString();
   const reporterHash = deps.origin ? hmac(secret, 'reporter' as Kind, deps.origin) : undefined;

@@ -208,3 +208,15 @@ test('judge mode: the fake-email deal matches two seeded reports in its own sess
   const real = await deal(store);
   assert.deepEqual(await memoryHits(await real.get(), { store, now }), []);
 });
+
+test('audit: a confirmation of an earlier card does not count once the payee changed', async () => {
+  const store = new MemoryDealStore();
+  for (const [buyer, net] of [['Sam', '203.0.113.0/24'], ['Lee', '198.51.100.0/24']]) {
+    const d = await ffDeal(store, buyer, 'FIRST-PAYEE', net);
+    // The seller confirmed with FIRST-PAYEE; the payee is then swapped to the target.
+    await updateWithRetry(store, d.id, (x) => ({ ...x, payeeMerchantId: 'SWAPPED-PAYEE', confirmations: [] }));
+    await declineDeal(d.id, d.keys.buyer, 'wants_ff', d.deps);
+  }
+  const next = await deal(store, 'Jo', 'Alex', 200, 'SWAPPED-PAYEE');
+  assert.equal((await memoryHits(await next.get(), { store, now })).some((h) => h.kind === 'payee'), false);
+});
