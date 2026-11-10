@@ -56,6 +56,9 @@ export interface DealStore {
   getDemoSession(id: string): Promise<DemoSession | undefined>;
   /** Deletes judge sessions created before `before`, with their demo deals and receipts. Never touches a deal without a demo tag. */
   purgeDemo(before: string): Promise<number>;
+  /** AI reader answers by (prompt version, model, chat hash), for judge-mode chats (PLAN M8). No chat text. */
+  getReading(key: string): Promise<unknown | undefined>;
+  putReading(key: string, reading: unknown): Promise<void>;
 }
 
 const clone = <T>(v: T): T => structuredClone(v);
@@ -85,6 +88,15 @@ export class MemoryDealStore implements DealStore {
   private events = new Map<string, WebhookEventRecord>();
   private demo = new Map<string, DemoSession>();
   private memory = new Map<string, MemoryEntry>();
+  private readings = new Map<string, unknown>();
+
+  async getReading(key: string) {
+    return this.readings.has(key) ? clone(this.readings.get(key)) : undefined;
+  }
+
+  async putReading(key: string, reading: unknown) {
+    this.readings.set(key, clone(reading));
+  }
 
   async addMemory(entries: MemoryEntry[]) {
     for (const e of entries) {

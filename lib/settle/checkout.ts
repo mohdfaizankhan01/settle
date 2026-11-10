@@ -4,6 +4,7 @@
 // custom_id. A card that changed after confirmation can't be paid. Capturing is not the same
 // as confirming payment: that still needs a verified webhook plus a fresh GET (M3).
 
+import { claimText } from './quote';
 import * as paypal from '../paypal';
 import { cardHash, isHandoverDeal, isLocked, moneyOf, paysByHold } from './card';
 import { actingRole, DealError } from './deals';
@@ -34,6 +35,36 @@ async function buyerDeal(store: DealStore, dealId: string, key: string | null) {
 }
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
+/**
+ * Orders v2 keeps 2,048 characters of an item's description (it accepts 4,000 and truncates;
+ * orders-create reference, checked 2026-11-10).
+ */
+export const ITEM_DESCRIPTION_MAX = 2048;
+
+/**
+ * The PayPal item description: the deal, its delivery, and (PLAN M8) what the seller said about
+ * the item, as confirmed on the card. Whole quotes only, in card order; any that don't fit end
+ * with "+N more on the deal card". A card without claims gets the same text as before.
+ */
+export function itemDescription(deal: Deal): string {
+  const base = `Settle Link deal ${deal.id}. Delivery: ${deal.card.delivery!.display}.${deal.card.shipBy ? ` Ship by ${deal.card.shipBy.display}.` : ''}`;
+  const claims = (deal.card.claims ?? []).map((c) => claimText(deal, c));
+  if (claims.length === 0) return clip(base, 127);
+  const lead = `${base} The seller said: `;
+  const more = (n: number) => ` +${n} more on the deal card.`;
+  let out = lead;
+  let used = 0;
+  for (const [i, c] of claims.entries()) {
+    const piece = `${used ? '; ' : ''}${c}`;
+    const left = claims.length - i - 1;
+    if ((out + piece + (left ? `.${more(left)}` : '.')).length > ITEM_DESCRIPTION_MAX) break;
+    out += piece;
+    used++;
+  }
+  if (used === 0) return clip(`${base}${more(claims.length)}`, ITEM_DESCRIPTION_MAX);
+  return out + (used < claims.length ? `.${more(claims.length - used)}` : '.');
+}
 
 export async function startCheckout(dealId: string, key: string | null, deps: CheckoutDeps, payer?: string | null) {
   const pp = deps.paypal ?? paypal;
@@ -74,7 +105,7 @@ export async function startCheckout(dealId: string, key: string | null, deps: Ch
       items: [
         {
           name: clip(item!.value, 127),
-          description: clip(`Settle Link deal ${deal.id}. Delivery: ${delivery!.display}.${deal.card.shipBy ? ` Ship by ${deal.card.shipBy.display}.` : ''}`, 127),
+          description: itemDescription(deal),
           amount: { currency_code, value: price!.value.amount },
         },
         ...feeLine,

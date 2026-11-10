@@ -158,6 +158,12 @@ function replaceNames(text: string, names: { name: string; label: string }[]): s
   return parts.reduce((out, { p, label }) => out.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExp(p)}(?![\\p{L}\\p{N}_])`, 'giu'), label), text);
 }
 
+/**
+ * Square brackets a person typed become round ones, so a typed "[PRICE_1]" or "[SELLER]" can't
+ * pass for one of Settle's placeholders in what a model reads.
+ */
+const defang = (text: string) => text.replace(/\[/g, '(').replace(/\]/g, ')');
+
 export function redactChat(messages: readonly ChatMessage[], extraNames: string[] = []): Redacted {
   const names = [
     ...new Map(messages.map((m) => [m.speaker, { name: m.speaker, label: `[${m.role.toUpperCase()}]` }])).values(),
@@ -170,7 +176,7 @@ export function redactChat(messages: readonly ChatMessage[], extraNames: string[
     let out = '';
     let at = 0;
     for (const span of findSpans(message.text)) {
-      out += replaceNames(message.text.slice(at, span.start), names);
+      out += replaceNames(defang(message.text.slice(at, span.start)), names);
       at = span.end;
       if (!TOKEN_KINDS.has(span.kind)) {
         out += `[${span.kind}]`;
@@ -188,7 +194,7 @@ export function redactChat(messages: readonly ChatMessage[], extraNames: string[
       tokens.push(token);
       out += kind === 'LINK' ? `[${token.id} (${token.isPayPal ? 'PayPal' : 'not PayPal'})]` : `[${token.id}]`;
     }
-    out += replaceNames(message.text.slice(at), names);
+    out += replaceNames(defang(message.text.slice(at)), names);
     return { id: message.id, role: message.role, text: out };
   });
 

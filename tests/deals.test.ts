@@ -46,6 +46,8 @@ test('a pasted chat gives a card whose terms point at their source messages', as
     display: '£350.00',
     source: { kind: 'message', messageId: 'm2' },
     confidence: 0.95,
+    // No AI reader key in tests: read by code only, and labelled so.
+    readBy: 'code',
   });
   assert.equal(deal.card.delivery?.value, 'post');
   assert.deepEqual(deal.card.delivery?.source, { kind: 'message', messageId: 'm2' });
@@ -116,7 +118,7 @@ test('both confirmations lock the card; any later change unlocks it and old conf
   const receipts = await d.store.listReceipts(deal.id);
   assert.deepEqual(
     receipts.map((r) => r.kind),
-    ['deal.checked', 'link.claimed', 'link.claimed', 'question.answered', 'question.answered', 'payee.connected', 'card.confirmed', 'card.confirmed', 'payee.connected'],
+    ['deal.checked', 'reader.skipped', 'link.claimed', 'link.claimed', 'question.answered', 'question.answered', 'payee.connected', 'card.confirmed', 'card.confirmed', 'payee.connected'],
   );
   assert.equal(verifyChain(receipts).ok, true);
 });
@@ -157,7 +159,7 @@ test('a failed check can be run again, rebuilding the card; a check that ran can
   assert.equal(stored.value.check.status, 'ran');
   assert.equal(stored.value.card.price?.display, '£350.00');
   await assert.rejects(recheckDeal(deal.id, keys.buyer, d), /already ran/);
-  assert.equal((await d.store.listReceipts(deal.id)).at(-1)?.kind, 'deal.rechecked');
+  assert.deepEqual((await d.store.listReceipts(deal.id)).slice(-2).map((r) => r.kind), ['deal.rechecked', 'reader.skipped']);
 });
 
 test('itemText: the seller describing the item in reply names it, citing that reply', () => {

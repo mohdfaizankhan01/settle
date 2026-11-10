@@ -10,7 +10,7 @@ import { TERM_MIN_CONFIDENCE } from './policy';
 import type { Token } from './redact';
 import { moneyFor, type Money } from './fees';
 import { TERM_SIGNALS } from './signals';
-import { CURRENCY_OF, type Country, type Currency, type Deal, type DealCard, type Delivery, type Question, type Warning } from './types';
+import { CURRENCY_OF, type CardClaim, type Country, type Currency, type Deal, type DealCard, type Delivery, type Question, type ReaderRecord, type Warning } from './types';
 
 const NONE = 'none';
 const SYMBOL: Record<Currency, string> = { USD: '$', GBP: '£' };
@@ -35,10 +35,21 @@ function rankedOptions(pick: Pick | undefined, ids: string[]) {
 
 type Built = { card: DealCard; questions: Question[] };
 
-export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermPicks, country: Country): Built {
+/**
+ * What the AI reader adds (PLAN M8), after mergePicks: the case per term, the item's exact words
+ * and the seller's claims, all already checked against the chat. Missing: the card is code's alone.
+ */
+export type CardReading = { cases: NonNullable<ReaderRecord['cases']>; itemWords?: { messageId: string; quote: string }; claims?: CardClaim[] };
+
+export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermPicks, country: Country, read?: CardReading): Built {
   const currency = CURRENCY_OF[country];
   const card: DealCard = {};
   const questions: Question[] = [];
+  const readBy = (term: 'price' | 'shipBy' | 'delivery') => (read ? { readBy: read.cases[term] === 'agree' ? ('both' as const) : ('code' as const) } : {});
+  const why = (term: 'price' | 'shipBy' | 'delivery') => {
+    const c = read?.cases[term];
+    return c === 'disagree' || c === 'both_unsure' ? { why: c } : {};
+  };
 
   // Price: a PRICE token in the deal's currency, or no currency written (the deal's country sets it).
   // Same bounds as a price the seller types: above zero, at most six digits (fees.ts limits).
@@ -53,6 +64,7 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
       display: formatMoney(priceToken.amount!, currency),
       source: { kind: 'message', messageId: priceToken.messageId },
       confidence: pricePick!.confidence,
+      ...readBy('price'),
     };
   } else if (priceTokens.length > 0) {
     questions.push({
@@ -66,6 +78,7 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
           return { id, label: `${formatMoney(t.amount!, currency)} (message ${t.messageId.slice(1)})` };
         }),
       answers: {},
+      ...why('price'),
     });
   }
 
@@ -84,6 +97,7 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
       display: DELIVERY_LABELS[value],
       source: { kind: 'message', messageId: deliveryMessage.id },
       confidence: deliveryPick.confidence,
+      ...readBy('delivery'),
     };
   } else {
     questions.push({
@@ -92,6 +106,7 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
       prompt: 'How will the item reach the buyer?',
       options: rankedOptions(deliveryPick, Object.keys(DELIVERY_LABELS)).map((id) => ({ id, label: DELIVERY_LABELS[id as Delivery] })),
       answers: {},
+      ...why('delivery'),
     });
   }
 
@@ -105,6 +120,7 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
       display: dateToken.raw,
       source: { kind: 'message', messageId: dateToken.messageId },
       confidence: datePick!.confidence,
+      ...readBy('shipBy'),
     };
   } else if (dateTokens.length > 0 && !(datePick?.id === NONE && datePick.confidence >= TERM_MIN_CONFIDENCE)) {
     questions.push({
@@ -121,6 +137,7 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
         { id: NONE, label: 'No date agreed' },
       ],
       answers: {},
+      ...why('shipBy'),
     });
   }
 
@@ -140,10 +157,17 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
   const itemPick = picks.itemMessage;
   const itemMessage = sure(itemPick) ? messages.find((m) => m.id === itemPick.id) : undefined;
   if (itemMessage) {
-    const { text: raw, messageId } = itemText(messages, itemMessage);
+    // The AI reader's exact words for the item, when code also found an item and the words are
+    // really in that message as written (they were checked against the redacted text already).
+    const words = read?.itemWords;
+    const wordsMessage = words && messages.find((m) => m.id === words.messageId);
+    const fromReader = wordsMessage && wordsMessage.text.includes(words.quote) ? { text: words.quote, messageId: wordsMessage.id } : undefined;
+    const { text: raw, messageId } = fromReader ?? itemText(messages, itemMessage);
     const text = raw.length > ITEM_MAX ? `${raw.slice(0, ITEM_MAX - 1)}…` : raw;
-    card.item = { value: text, display: text, source: { kind: 'message', messageId }, confidence: itemPick!.confidence };
+    card.item = { value: text, display: text, source: { kind: 'message', messageId }, confidence: itemPick!.confidence, ...(read ? { readBy: fromReader ? ('both' as const) : ('code' as const) } : {}) };
   }
+
+  if (read?.claims?.length) card.claims = read.claims.map((c) => ({ ...c }));
 
   return { card, questions };
 }
@@ -250,6 +274,11 @@ export function lockedCard(deal: Deal) {
     feePayer: feePayer ? { value: feePayer.value, source: feePayer.source } : null,
     // The total the buyer will pay is part of what both confirm.
     total: moneyOf(deal)?.total ?? null,
+    // What the seller said about the item (PLAN M8). Left out entirely when there are none, so a
+    // card without claims hashes exactly as cards did before.
+    ...(deal.card.claims?.length
+      ? { claims: deal.card.claims.map((c) => ({ messageId: c.messageId, quote: c.quote, kind: c.kind, context: c.context ? { messageId: c.context.messageId, quote: c.context.quote } : null })) }
+      : {}),
   };
 }
 

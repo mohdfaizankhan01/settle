@@ -7,7 +7,7 @@
     "build": "npm run model:fetch && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "GROQ_API_KEY= tsx --test tests/*.test.ts",
     "jev:eval": "node --env-file-if-exists=.env.local --import tsx scripts/jev-eval.ts --engine=typesafe",
     "model:train": "tsx scripts/train-model.mts",
     "eval": "node --env-file-if-exists=.env.local --import tsx scripts/jev-eval.ts",

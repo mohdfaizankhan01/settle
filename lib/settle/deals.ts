@@ -4,21 +4,26 @@
 // change to the card bumps its version and clears confirmations.
 
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import type { AskJev } from '../jev/deal-check';
+import type { AskJev, TermPicks } from '../jev/deal-check';
 import { engineFor, type CheckEngine } from '../model/engine';
+import { localTermPicks } from '../model/terms';
+import { liveReader, type DealReader, type Outcome } from '../reader/deal-reader';
+import { mergePicks } from '../reader/merge';
+import type { ChatMessage } from './chat';
 import { applyAnswer, blockers, buildCard, cardHash, formatMoney, isLocked, termWarnings } from './card';
 import { sha256Hex } from './canonical';
 import { ChatError, parseChat, parseMore, type Role } from './chat';
 import { namespaceOf, reportOtherSide } from './memory';
 import { MAX_CHAT_CHARS } from './policy';
-import { redactChat } from './redact';
+import { redactChat, type Redacted } from './redact';
 import { ruleWarnings } from './rules';
 import { syncGate } from './ship-gate';
 import { StaleWriteError, type DealStore, type Stored } from './store';
-import { CURRENCY_OF, type CheckRun, type Country, type Deal, type DealCard, type DeclineReason } from './types';
+import { CURRENCY_OF, type CheckRun, type Country, type Deal, type DealCard, type DeclineReason, type ReaderRecord } from './types';
 
 /** `origin`: the caller's network (runtime.clientNetwork), so scam memory can count reporters, not deals. */
-export type Deps = { store: DealStore; ask?: AskJev; engine?: CheckEngine; now?: () => Date; origin?: string };
+/** `reader`: the AI deal reader (PLAN M8); routes pass a skipped one when a cap is reached. */
+export type Deps = { store: DealStore; ask?: AskJev; engine?: CheckEngine; reader?: DealReader; now?: () => Date; origin?: string };
 
 export class DealError extends Error {
   constructor(
@@ -133,13 +138,63 @@ function changeCard(deal: Deal, card: DealCard): Deal {
   return { ...deal, card, cardVersion: deal.cardVersion + 1, confirmations: [], warnings: [...deal.warnings.filter((w) => !w.by.startsWith('term:')), ...termWarnings(card)] };
 }
 
+const readerFor = (deps: Deps) => deps.reader ?? liveReader({ now: deps.now });
+
+/** Code's picks merged with the reader's (lib/reader/merge.ts), then the card. */
+function readCard(messages: ChatMessage[], redacted: Redacted, codePicks: TermPicks, country: Country, outcome: Outcome, at: string) {
+  const { run, source } = outcome;
+  const reading = run.status === 'ran' ? run.reading : undefined;
+  const merged = mergePicks(codePicks, reading);
+  const { card, questions } = buildCard(messages, redacted.tokens, merged.picks, country, { cases: merged.cases, itemWords: reading?.itemWords, claims: reading?.claims });
+  const reader: ReaderRecord = {
+    status: run.status,
+    at,
+    ...(run.model ? { model: run.model } : {}),
+    ...(run.status !== 'ran' ? { reason: run.reason } : {}),
+    source,
+    readAt: run.at,
+    cases: merged.cases,
+    readerIds: merged.readerIds,
+    itemFrom: card.item?.readBy === 'both' ? 'reader' : 'code',
+  };
+  return { card, questions, reader };
+}
+
+/** reader.ran / reader.skipped / reader.failed: model, tokens, latency and the case per term. Never chat text. */
+async function readerReceipt(deps: Deps, deal: Deal, outcome: Outcome) {
+  const { run, source } = outcome;
+  const r = deal.reader!;
+  await deps.store.addReceipt({
+    dealId: deal.id,
+    kind: `reader.${run.status}`,
+    at: r.at,
+    data:
+      run.status === 'ran'
+        ? {
+            model: run.model,
+            promptVersion: run.promptVersion,
+            ms: run.ms,
+            inputTokens: run.usage.input,
+            outputTokens: run.usage.output,
+            source,
+            readAt: run.at,
+            cases: r.cases ?? {},
+            item: r.itemFrom ?? 'code',
+            claims: run.reading.claims.length,
+            dropped: run.reading.dropped,
+          }
+        : { reason: run.reason, model: run.model ?? null, source },
+  });
+}
+
 export type NewDeal = { chat: string; sellerName: string; country: Country };
 
 export async function createDeal(input: NewDeal, deps: Deps) {
   const messages = parseChat(input.chat, input.sellerName);
   const redacted = redactChat(messages);
-  const check = await engineFor(deps)(redacted, deps.now);
-  const { card, questions } = buildCard(messages, redacted.tokens, check.picks, input.country);
+  // The warning check and the AI reader read the chat independently, at the same time.
+  const [check, outcome] = await Promise.all([engineFor(deps)(redacted, deps.now), readerFor(deps)(redacted)]);
+  const { card, questions, reader } = readCard(messages, redacted, check.picks, input.country, outcome, now(deps));
   const keys = { seller: newKey(), buyer: newKey() };
   const deal: Deal = {
     id: randomUUID(),
@@ -151,6 +206,8 @@ export async function createDeal(input: NewDeal, deps: Deps) {
     warnings: [...check.warnings, ...ruleWarnings(redacted.messages), ...termWarnings(card)],
     card,
     questions,
+    reader,
+    codePicks: check.picks,
     cardVersion: 1,
     confirmations: [],
     keyHashes: { seller: sha256Hex(keys.seller), buyer: sha256Hex(keys.buyer) },
@@ -168,6 +225,7 @@ export async function createDeal(input: NewDeal, deps: Deps) {
       cardHash: cardHash(deal),
     },
   });
+  await readerReceipt(deps, deal, outcome);
   return { deal, keys };
 }
 
@@ -270,8 +328,8 @@ export async function recheckDeal(dealId: string, key: string | null, deps: Deps
   if (first.stored.value.check.status === 'ran') throw new DealError('the check already ran for this deal', 409);
   const deal = first.stored.value;
   const redacted = redactChat(deal.messages);
-  const check = await engineFor(deps)(redacted, deps.now);
-  const { card, questions } = buildCard(deal.messages, redacted.tokens, check.picks, deal.country);
+  const [check, outcome] = await Promise.all([engineFor(deps)(redacted, deps.now), readerFor(deps)(redacted)]);
+  const { card, questions, reader } = readCard(deal.messages, redacted, check.picks, deal.country, outcome, now(deps));
   const { stored, role } = await mutate(deps, dealId, key, (current) => {
     if (current.check.status === 'ran') throw new DealError('the check already ran for this deal', 409);
     return {
@@ -281,6 +339,9 @@ export async function recheckDeal(dealId: string, key: string | null, deps: Deps
       warnings: [...check.warnings, ...ruleWarnings(redacted.messages), ...termWarnings(card)],
       card,
       questions,
+      reader,
+      codePicks: check.picks,
+      removedClaims: [],
       cardVersion: current.cardVersion + 1,
       confirmations: [],
     };
@@ -296,6 +357,65 @@ export async function recheckDeal(dealId: string, key: string | null, deps: Deps
       cardHash: cardHash(stored.value),
     },
   });
+  await readerReceipt(deps, stored.value, outcome);
+  return stored;
+}
+
+/** Why the card can't be read again: it has moved on from what was read. Undefined means it can. */
+export function readAgainBlocker(deal: Deal): string | undefined {
+  if (paymentStarted(deal)) return 'payment already started; the card can no longer change';
+  if (deal.check.status !== 'ran') return 'run the warning check again instead; it reads the card too';
+  if (deal.reader?.status === 'ran') return 'the AI reader already read this deal';
+  if (deal.confirmations.length > 0) return 'someone already confirmed this card';
+  if (deal.questions.some((q) => Object.keys(q.answers).length > 0)) return 'a question was already answered';
+  const { item, price } = deal.card;
+  if (item?.source.kind === 'entered' || price?.source.kind === 'entered') return 'a term was typed in by the seller';
+  return undefined;
+}
+
+/**
+ * Reads the card again with the AI reader, after it didn't run (no key, a cap, a timeout). Only
+ * before anyone answered, typed in or confirmed anything, so nothing anyone did is lost. Code's
+ * picks are the ones kept at creation; the warnings don't change.
+ */
+export async function readAgain(dealId: string, key: string | null, deps: Deps) {
+  const first = await load(deps, dealId, key);
+  const blocked = readAgainBlocker(first.stored.value);
+  if (blocked) throw new DealError(blocked, 409);
+  const deal = first.stored.value;
+  const redacted = redactChat(deal.messages);
+  const outcome = await readerFor(deps)(redacted);
+  const codePicks = deal.codePicks ?? localTermPicks(redacted);
+  const { card, questions, reader } = readCard(deal.messages, redacted, codePicks, deal.country, outcome, now(deps));
+  const { stored, role } = await mutate(deps, dealId, key, (current) => {
+    const again = readAgainBlocker(current);
+    if (again) throw new DealError(again, 409);
+    // Keep the fee answer slot and any other question as built; the payee stays connected.
+    return { ...changeCard(current, card), questions, reader, codePicks, removedClaims: [] };
+  });
+  await deps.store.addReceipt({ dealId, kind: 'reader.read_again', at: now(deps), data: { by: role, cardHash: cardHash(stored.value) } });
+  await readerReceipt(deps, stored.value, outcome);
+  return stored;
+}
+
+/**
+ * Either side marks one of the seller's claims "not part of the deal" (PLAN M8). The card changes,
+ * so both confirmations clear, and the other side sees who removed it.
+ */
+export async function removeClaim(dealId: string, key: string | null, index: number, deps: Deps) {
+  const at = now(deps);
+  let removed: NonNullable<DealCard['claims']>[number] | undefined;
+  const { stored, role } = await mutate(deps, dealId, key, (deal, role) => {
+    if (paymentStarted(deal)) throw new DealError('payment already started; the card can no longer change', 409);
+    const claims = deal.card.claims ?? [];
+    if (!Number.isInteger(index) || index < 0 || index >= claims.length) throw new DealError('no such line on the card', 409);
+    removed = claims[index];
+    const rest = claims.filter((_, i) => i !== index);
+    const card = { ...deal.card };
+    delete card.claims;
+    return { ...changeCard(deal, rest.length ? { ...card, claims: rest } : card), removedClaims: [...(deal.removedClaims ?? []), { ...removed, by: role, at }] };
+  });
+  await deps.store.addReceipt({ dealId, kind: 'claim.removed', at, data: { by: role, message: removed!.messageId, kind: removed!.kind, cardHash: cardHash(stored.value) } });
   return stored;
 }
 

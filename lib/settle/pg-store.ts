@@ -46,7 +46,12 @@ CREATE TABLE IF NOT EXISTS scam_memory (
 CREATE INDEX IF NOT EXISTS scam_memory_lookup ON scam_memory (namespace, hash, at);
 ALTER TABLE scam_memory ADD COLUMN IF NOT EXISTS reporter text;
 ALTER TABLE scam_memory ADD COLUMN IF NOT EXISTS by_role text;
-ALTER TABLE scam_memory ADD COLUMN IF NOT EXISTS reason text;`;
+ALTER TABLE scam_memory ADD COLUMN IF NOT EXISTS reason text;
+CREATE TABLE IF NOT EXISTS reader_cache (
+  key text PRIMARY KEY,
+  doc jsonb NOT NULL,
+  at timestamptz NOT NULL DEFAULT now()
+);`;
 
 const json = (sql: Sql, value: unknown) => sql.json(value as JSONValue);
 
@@ -67,6 +72,17 @@ export class PgDealStore implements DealStore {
       throw error;
     });
     return this.ready;
+  }
+
+  async getReading(key: string) {
+    await this.schema();
+    const [row] = await this.sql<{ doc: unknown }[]>`SELECT doc FROM reader_cache WHERE key = ${key}`;
+    return row?.doc;
+  }
+
+  async putReading(key: string, reading: unknown) {
+    await this.schema();
+    await this.sql`INSERT INTO reader_cache (key, doc) VALUES (${key}, ${json(this.sql, reading)}) ON CONFLICT (key) DO UPDATE SET doc = EXCLUDED.doc, at = now()`;
   }
 
   async createDeal(deal: Deal) {

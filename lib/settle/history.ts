@@ -12,6 +12,12 @@ export type HistoryItem = { seq: number; at: string; text: string; debugId: stri
 const BUYER_SEES = new Set([
   'deal.checked',
   'deal.rechecked',
+  // The AI reader (PLAN M8): both sides see how the card was read.
+  'reader.ran',
+  'reader.skipped',
+  'reader.failed',
+  'reader.read_again',
+  'claim.removed',
   'question.answered',
   'term.entered',
   'payee.connected',
@@ -54,6 +60,20 @@ export function describe(r: Receipt, role: Role = 'seller'): string {
         : 'Warning check did not run; the card cannot be confirmed until it does.';
     case 'deal.rechecked':
       return `Warning check run again: ${s(d.check)}.`;
+    case 'reader.ran': {
+      const cases = Object.values((d.cases ?? {}) as Record<string, string>);
+      const agree = cases.filter((c) => c === 'agree').length;
+      const asked = cases.filter((c) => c === 'disagree' || c === 'both_unsure').length;
+      const how = d.source === 'recorded' ? 'Recorded reading' : d.source === 'cache' ? 'Earlier reading' : 'AI reader';
+      return `${how} (${s(d.model)}) read the card: code and the AI agreed on ${agree} term${agree === 1 ? '' : 's'}, ${asked} became ${asked === 1 ? 'a question' : 'questions'}, ${s(d.claims)} line${d.claims === 1 ? '' : 's'} from the seller about the item.`;
+    }
+    case 'reader.skipped':
+    case 'reader.failed':
+      return `The AI reader didn't run (${s(d.reason)}); the card was read by code only.`;
+    case 'reader.read_again':
+      return `The ${s(d.by)} asked the AI reader to read the card again.`;
+    case 'claim.removed':
+      return `The ${s(d.by)} marked one thing the seller said as not part of the deal.`;
     case 'question.answered':
       return `The ${s(d.by)} answered a question about the terms.`;
     case 'term.entered':

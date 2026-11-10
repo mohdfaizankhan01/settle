@@ -9,6 +9,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf
 import { cardHash, formatMoney, moneyOf } from './card';
 import { caseFile, gateAtShipping, type CaseFile } from './case-file';
 import { carrierLabel } from './carriers';
+import { claimText } from './quote';
 import { redactChat } from './redact';
 import { verifyChain, type Receipt } from './receipts';
 import type { Deal, DisputeRecord } from './types';
@@ -121,12 +122,21 @@ export async function evidencePdf(deal: Deal, dispute: DisputeRecord, receipts: 
   for (const [label, term] of [['Item', deal.card.item], ['Price', deal.card.price], ['Delivery', deal.card.delivery], ['Ship by', deal.card.shipBy], ["PayPal's fee paid by", deal.card.feePayer]] as const) {
     w.text(`${label}: ${term?.display ?? 'not agreed'}`, { indent: 8, gap: 0 });
   }
+  if (deal.card.claims?.length) {
+    w.text('What the seller said about the item (exact words from the chat, part of the confirmed card):', { indent: 8, gap: 0 });
+    for (const c of deal.card.claims) w.text(`- ${c.kind}: ${claimText(deal, c)}, the seller's message ${c.messageId.slice(1)}`, { indent: 16, gap: 0 });
+  }
+  for (const c of deal.removedClaims ?? []) w.text(`Marked "not part of the deal" by the ${c.by} at ${c.at}: ${claimText(deal, c)}`, { indent: 8, size: 9, gap: 0, color: MUTED });
   if (money && currency) w.text(`Buyer paid: ${formatMoney(money.total, currency)}`, { indent: 8 });
   for (const c of deal.confirmations) w.text(`Confirmed by the ${c.role} at ${c.at}, card fingerprint ${c.cardHash}`, { indent: 8, size: 9, gap: 0 });
   w.text(`Card fingerprint now: ${cardHash(deal)}. The PayPal order carries ${deal.id}:<fingerprint> in its custom_id, so the payment is tied to this exact card.`, { indent: 8, size: 9 });
 
   w.heading('2. The chat the card came from (redacted)', 'Settle record; names, contact details and account numbers removed');
-  const sources = new Set(Object.values(deal.card).flatMap((term) => (term?.source.kind === 'message' ? [term.source.messageId] : [])));
+  const { item, price, delivery, shipBy, feePayer } = deal.card;
+  const sources = new Set([
+    ...[item, price, delivery, shipBy, feePayer].flatMap((term) => (term?.source.kind === 'message' ? [term.source.messageId] : [])),
+    ...(deal.card.claims ?? []).map((c) => c.messageId),
+  ]);
   const redacted = redactChat(deal.messages);
   for (const m of redacted.messages) {
     const orig = deal.messages.find((x) => x.id === m.id);

@@ -2,6 +2,7 @@
 
 import type { ChatMessage, Role } from './chat';
 import type { FeePayer } from './fees';
+import type { TermPicks } from '../jev/deal-check';
 import type { Token } from './redact';
 
 export type Country = 'US' | 'UK';
@@ -26,6 +27,38 @@ export type Term<V> = {
   source: TermSource;
   /** Model confidence for the pick, if a model picked it. Below policy → question. */
   confidence?: number;
+  /**
+   * Who read it from the chat (PLAN M8): 'both' when code and the AI reader agreed, 'code' when
+   * the reader didn't run. Display only: not part of the locked card.
+   */
+  readBy?: 'both' | 'code';
+};
+
+/** What the seller said about the item, quoted exactly from the redacted chat (PLAN M8). */
+export type CardClaim = {
+  messageId: string;
+  /** The seller's exact words in the redacted chat (prices and dates as placeholders). */
+  quote: string;
+  kind: 'condition' | 'included' | 'authenticity' | 'works';
+  /** The buyer's earlier question it answers, when the words only make sense with it. */
+  context?: { messageId: string; quote: string };
+};
+
+/** The AI reader's run on this deal, as shown on the card and in receipts. */
+export type ReaderRecord = {
+  status: 'ran' | 'skipped' | 'failed';
+  at: string;
+  model?: string;
+  reason?: string;
+  /** live: read now; cache: an earlier reading of the same chat; recorded: data/demo/reader-recorded.json. */
+  source?: 'live' | 'cache' | 'recorded';
+  /** When the reading itself was made (differs from `at` for cached and recorded readings). */
+  readAt?: string;
+  cases?: Partial<Record<'price' | 'shipBy' | 'delivery', 'agree' | 'both_unsure' | 'disagree' | 'code_only'>>;
+  /** The reader's pick per term, shown beside code's when they differ. */
+  readerIds?: Partial<Record<'price' | 'shipBy' | 'delivery', string>>;
+  /** Whether the item name is the reader's quote (checked by code) or code's own. */
+  itemFrom?: 'reader' | 'code';
 };
 
 export type DealCard = {
@@ -35,6 +68,8 @@ export type DealCard = {
   shipBy?: Term<string>;
   /** Who pays PayPal's fee (docs/fees.md). Always settled by both sides answering. */
   feePayer?: Term<FeePayer>;
+  /** What the seller said about the item. Part of the locked card only when there are some. */
+  claims?: CardClaim[];
 };
 
 /** A term Settle couldn't settle on: both sides pick an option before confirming. */
@@ -46,6 +81,8 @@ export type Question = {
   answers: Partial<Record<Role, string>>;
   /** The option both sides picked. Resolved questions stay on the record. */
   resolved?: string;
+  /** Why it was asked (PLAN M8): code and the AI reader disagreed, or both were unsure. */
+  why?: 'disagree' | 'both_unsure';
 };
 
 export type Warning = {
@@ -211,6 +248,12 @@ export type Deal = {
   warnings: Warning[];
   card: DealCard;
   questions: Question[];
+  /** The AI reader's run (PLAN M8). Missing on deals made before it. */
+  reader?: ReaderRecord;
+  /** Code's own term picks, kept so "read again" can merge a new reading without re-running the check. */
+  codePicks?: TermPicks;
+  /** Claims either side marked "not part of the deal", with who did it. */
+  removedClaims?: (CardClaim & { by: Role; at: string })[];
   /** Bumped on every card change; confirmations for an older card no longer count. */
   cardVersion: number;
   confirmations: Confirmation[];

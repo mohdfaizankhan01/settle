@@ -7,7 +7,7 @@ import { cardHash } from './card';
 import { carrierLabel } from './carriers';
 import { NOT_AS_DESCRIBED, NOT_RECEIVED } from './disputes';
 import type { Receipt } from './receipts';
-import { redactedQuote, said } from './quote';
+import { claimText, redactedQuote, said } from './quote';
 import { normalPostcode, trackerShown } from './ship-gate';
 import type { Deal, DisputeRecord } from './types';
 
@@ -159,6 +159,22 @@ function notAsDescribedProofs(deal: Deal): Proof[] {
     status: quote || src?.kind === 'entered' ? 'on_file' : 'missing',
     detail: quote ? `The ${quote.role}'s message ${quote.id.slice(1)} (redacted): "${redactedQuote(deal, quote.id)}"` : src?.kind === 'entered' ? 'Typed in by the seller and confirmed by the buyer.' : 'No source for the item description.',
   });
+  // What the seller said about the item (PLAN M8): exact quotes both sides confirmed on the card.
+  const claims = deal.card.claims ?? [];
+  if (claims.length > 0) {
+    const who = (['seller', 'buyer'] as const).map((r) => deal.confirmations.find((c) => c.role === r && c.cardHash === cardHash(deal))).filter(Boolean);
+    proofs.push({
+      id: 'claims',
+      label: 'What the seller said about the item, on the confirmed card',
+      cites: ['SP-SNAD', 'PP-SNAD-DEF'],
+      weight: 1,
+      source: 'Settle record',
+      status: both ? 'on_file' : 'missing',
+      detail: both
+        ? `${claims.map((c) => `${c.kind}: ${claimText(deal, c)} (the seller's message ${c.messageId.slice(1)})`).join('; ')}. Confirmed by ${who.map((c) => `the ${c!.role} on ${day(c!.at)}`).join(' and ')}.`
+        : 'The seller\'s statements are on the card, but both sides did not confirm the card as it is now.',
+    });
+  }
   const read = deal.payment?.read;
   const names = read?.ok ? (read.items ?? []) : [];
   const want = item?.value ?? '';
@@ -182,6 +198,7 @@ export function caseFile(deal: Deal, dispute: DisputeRecord, receipts: readonly 
   else if (dispute.reason === NOT_AS_DESCRIBED) {
     proofs = notAsDescribedProofs(deal);
     notes.push('Seller Protection does not cover not-as-described claims (SP-SNAD). The record shows what both of you agreed; PayPal decides.');
+    if (deal.card.claims?.length) notes.push("PayPal's definition of not as described excludes a defect the seller correctly described (PP-SNAD-DEF). The seller's own words on the confirmed card show what was described; PayPal decides whether the item matches them.");
   } else {
     proofs = [];
     notes.push('Settle has no checklist for this reason. The evidence pack still holds the card, the payment and the receipts.');

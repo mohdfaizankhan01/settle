@@ -13,6 +13,22 @@ export function redactedQuote(deal: Deal, messageId: string): string | undefined
   return text;
 }
 
+/**
+ * A quote kept in redacted form (a seller claim, PLAN M8), with this deal's prices and dates put
+ * back. Names, contact details and links stay removed.
+ */
+export function restoreTerms(deal: Deal, messageId: string, quote: string): string {
+  let text = quote;
+  for (const t of deal.tokens.filter((x) => x.messageId === messageId && (x.kind === 'PRICE' || x.kind === 'DATE'))) text = text.replace(`[${t.id}]`, t.raw);
+  return text;
+}
+
+/** One claim as people read it: “words” (in answer to “question”). */
+export function claimText(deal: Deal, c: { messageId: string; quote: string; context?: { messageId: string; quote: string } }): string {
+  const words = `“${restoreTerms(deal, c.messageId, c.quote)}”`;
+  return c.context ? `${words} (in answer to “${restoreTerms(deal, c.context.messageId, c.context.quote)}”)` : words;
+}
+
 /** "The buyer's message “send it to my cousin…”": who said it and what, redacted, never a bare ID. */
 export function said(deal: Deal, id: string) {
   const m = deal.messages.find((x) => x.id === id);
