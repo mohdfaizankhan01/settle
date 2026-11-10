@@ -18,6 +18,11 @@
 - Every screen says what's real and what's simulated.
 - Judge mode data is per session and never touches real deals.
 - Running late: drop COULD, then SHOULD items, and ask me before cutting a MUST.
+- AI can only point: candidate IDs code built, message IDs, or exact quotes code verifies. It never writes a value onto the card.
+- A term is filled automatically only when code and the AI reader agree. Any disagreement is a question for both people.
+- The AI never approves a payment, a shipment, a handover or a dispute response, and never judges a dispute.
+- Screenshots are read and discarded. Only the answer and its counts are recorded.
+- Approved Nov 10: Groq's API (GROQ_API_KEY), called with plain fetch, for the AI reader (M8) and screenshot check (M9). Ask me before any other dependency or service.
 - Plan: docs/PLAN.md (v2, M1 to M6). Decisions: docs/DECISIONS.md.
 
 # Tools
