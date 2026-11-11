@@ -159,10 +159,14 @@ export function buildCard(messages: ChatMessage[], tokens: Token[], picks: TermP
   if (itemMessage) {
     // The AI reader's exact words for the item, when code also found an item and the words are
     // really in that message as written (they were checked against the redacted text already).
+    // The AI reader's words replace code's name only when they come from the very message code took
+    // the item from: then both point at the same message, and the reader adds the exact words. Words
+    // from any other message never change the term (code review, Nov 11).
+    const fromCode = itemText(messages, itemMessage);
     const words = read?.itemWords;
-    const wordsMessage = words && messages.find((m) => m.id === words.messageId);
-    const fromReader = wordsMessage && wordsMessage.text.includes(words.quote) ? { text: words.quote, messageId: wordsMessage.id } : undefined;
-    const { text: raw, messageId } = fromReader ?? itemText(messages, itemMessage);
+    const wordsMessage = words && words.messageId === fromCode.messageId ? messages.find((m) => m.id === words.messageId) : undefined;
+    const fromReader = words && wordsMessage?.text.includes(words.quote) ? { text: words.quote, messageId: wordsMessage.id } : undefined;
+    const { text: raw, messageId } = fromReader ?? fromCode;
     const text = raw.length > ITEM_MAX ? `${raw.slice(0, ITEM_MAX - 1)}…` : raw;
     card.item = { value: text, display: text, source: { kind: 'message', messageId }, confidence: itemPick!.confidence, ...(read ? { readBy: fromReader ? ('both' as const) : ('code' as const) } : {}) };
   }

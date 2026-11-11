@@ -54,8 +54,8 @@
         "missed": 0
       },
       "item": {
-        "right": 27,
-        "wrong": 2,
+        "right": 24,
+        "wrong": 5,
         "asked": 0,
         "missed": 0
       }
@@ -80,8 +80,8 @@
         "missed": 0
       },
       "item": {
-        "right": 26,
-        "wrong": 2,
+        "right": 20,
+        "wrong": 8,
         "asked": 0,
         "missed": 1
       }
@@ -141,6 +141,24 @@
       "outcome": "asked"
     },
     {
+      "id": "dev-3",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-4",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-4",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
       "id": "dev-5",
       "term": "item",
       "mode": "readerOnly",
@@ -169,6 +187,12 @@
       "term": "shipBy",
       "mode": "both",
       "outcome": "asked"
+    },
+    {
+      "id": "dev-8",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
     },
     {
       "id": "dev-11",
@@ -219,6 +243,12 @@
       "outcome": "asked"
     },
     {
+      "id": "dev-21",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
       "id": "dev-22",
       "term": "item",
       "mode": "readerOnly",
@@ -241,6 +271,18 @@
       "term": "shipBy",
       "mode": "both",
       "outcome": "missed"
+    },
+    {
+      "id": "dev-25",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-25",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
     },
     {
       "id": "dev-27",
@@ -268,9 +310,21 @@
     },
     {
       "id": "dev-29",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dev-29",
       "term": "shipBy",
       "mode": "both",
       "outcome": "asked"
+    },
+    {
+      "id": "dev-29",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
     },
     {
       "id": "dev-30",

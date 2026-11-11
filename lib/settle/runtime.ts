@@ -47,14 +47,25 @@ export function rateLimited(request: Request, bucket: string, limit: number, glo
   const all = recent(`${bucket}:*`);
   if (mine.length >= limit) return true;
   if (globalLimit !== undefined && all.length >= globalLimit) return true;
-  // Drop keys with no recent hits now and then, so one-off addresses don't stay in memory.
-  if (Date.now() - (g.settleSwept ?? 0) > 60_000) {
-    g.settleSwept = Date.now();
-    for (const [k, v] of hits) if (!v.some((t) => t > cutoff)) hits.delete(k);
-  }
+  sweep(hits);
   hits.set(`${bucket}:${ip}`, [...mine, Date.now()]);
   hits.set(`${bucket}:*`, [...all, Date.now()]);
   return false;
+}
+
+/** The longest window any bucket uses. The sweep keeps everything younger than this. */
+const LONGEST_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Drops keys with no hit inside the longest window, now and then, so one-off addresses don't stay
+ * in memory. Never by the caller's own window: a 60-second bucket must not clear hourly or daily
+ * caps (code review, Nov 11).
+ */
+function sweep(hits: Map<string, number[]>) {
+  if (Date.now() - (g.settleSwept ?? 0) <= 60_000) return;
+  g.settleSwept = Date.now();
+  const cutoff = Date.now() - LONGEST_WINDOW_MS;
+  for (const [k, v] of hits) if (!v.some((t) => t > cutoff)) hits.delete(k);
 }
 
 /**
@@ -149,9 +160,32 @@ export const READER_LIMITS = { perAddressHour: 10, totalMinute: 3, totalDay: 80 
  */
 export function readerForRequest(request: Request): DealReader | undefined {
   if (!process.env.GROQ_API_KEY || process.env.SETTLE_READER === 'off') return undefined;
-  const L = READER_LIMITS;
-  if (rateLimited(request, 'reader', L.perAddressHour)) return skippedReader(`the AI reader's limit for this address was reached (${L.perAddressHour} an hour)`);
-  if (rateLimited(request, 'reader-minute', Infinity, L.totalMinute, 60_000)) return skippedReader(`the AI reader is busy (${L.totalMinute} reads a minute in total)`);
-  if (rateLimited(request, 'reader-day', Infinity, L.totalDay, 24 * 60 * 60 * 1000)) return skippedReader(`the AI reader's daily limit was reached (${L.totalDay} a day in total)`);
+  const ip = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'local';
+  const over = readerCapReached(ip);
+  if (over) return skippedReader(over);
+  recordReaderUse(ip);
   return undefined;
+}
+
+const READER_BUCKETS = (ip?: string) => {
+  const L = READER_LIMITS;
+  return [
+    ...(ip ? [{ key: `reader:${ip}`, limit: L.perAddressHour, windowMs: 60 * 60 * 1000, reason: `the AI reader's limit for this address was reached (${L.perAddressHour} an hour)` }] : []),
+    { key: 'reader-minute:*', limit: L.totalMinute, windowMs: 60 * 1000, reason: `the AI reader is busy (${L.totalMinute} reads a minute in total)` },
+    { key: 'reader-day:*', limit: L.totalDay, windowMs: LONGEST_WINDOW_MS, reason: `the AI reader's daily limit was reached (${L.totalDay} a day in total)` },
+  ];
+};
+
+/** The first reader cap that is full, checked without counting anything (a skipped read costs nothing). */
+export function readerCapReached(ip?: string): string | undefined {
+  const hits = (g.settleHits ??= new Map<string, number[]>());
+  for (const b of READER_BUCKETS(ip)) if ((hits.get(b.key) ?? []).filter((t) => t > Date.now() - b.windowMs).length >= b.limit) return b.reason;
+  return undefined;
+}
+
+/** Counts one read against the caps. The server-start warm-up counts too (no address). */
+export function recordReaderUse(ip?: string) {
+  const hits = (g.settleHits ??= new Map<string, number[]>());
+  sweep(hits);
+  for (const b of READER_BUCKETS(ip)) hits.set(b.key, [...(hits.get(b.key) ?? []).filter((t) => t > Date.now() - b.windowMs), Date.now()]);
 }

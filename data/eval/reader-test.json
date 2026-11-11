@@ -54,8 +54,8 @@
         "missed": 0
       },
       "item": {
-        "right": 28,
-        "wrong": 2,
+        "right": 27,
+        "wrong": 3,
         "asked": 0,
         "missed": 1
       }
@@ -80,8 +80,8 @@
         "missed": 0
       },
       "item": {
-        "right": 28,
-        "wrong": 2,
+        "right": 27,
+        "wrong": 3,
         "asked": 0,
         "missed": 1
       }
@@ -616,6 +616,12 @@
     },
     {
       "id": "read-2",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "read-2",
       "term": "shipBy",
       "mode": "both",
       "outcome": "missed"
@@ -705,6 +711,12 @@
       "outcome": "asked"
     },
     {
+      "id": "read-16",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
       "id": "read-22",
       "term": "item",
       "mode": "readerOnly",
@@ -717,16 +729,16 @@
       "outcome": "asked"
     },
     {
-      "id": "read-22",
-      "term": "item",
-      "mode": "both",
-      "outcome": "wrong"
-    },
-    {
       "id": "read-23",
       "term": "shipBy",
       "mode": "both",
       "outcome": "asked"
+    },
+    {
+      "id": "read-23",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
     },
     {
       "id": "read-24",

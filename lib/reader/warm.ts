@@ -6,7 +6,8 @@ import { SCENARIOS } from '../settle/demo';
 import { parseChat } from '../settle/chat';
 import { redactChat } from '../settle/redact';
 import type { DealStore } from '../settle/store';
-import { cachedReader } from './deal-reader';
+import { readerCapReached, recordReaderUse } from '../settle/runtime';
+import { cachedReader, cacheKey } from './deal-reader';
 
 export async function warmReaderCache(store: DealStore, pauseMs = 20_000): Promise<number> {
   if (!process.env.GROQ_API_KEY || process.env.SETTLE_READER === 'off') return 0;
@@ -16,7 +17,12 @@ export async function warmReaderCache(store: DealStore, pauseMs = 20_000): Promi
     if (seen.has(s.chat)) continue;
     seen.add(s.chat);
     try {
-      const out = await cachedReader(store, { live: true })(redactChat(parseChat(s.chat, s.seller)));
+      const r = redactChat(parseChat(s.chat, s.seller));
+      // Warm-up reads count against the same caps as live deals, and stop when one is full.
+      const cached = await store.getReading(cacheKey(r)).catch(() => undefined);
+      if (!cached && readerCapReached()) break;
+      const out = await cachedReader(store, { live: true })(r);
+      if (out.source === 'live') recordReaderUse();
       if (out.source === 'live') {
         live++;
         await new Promise((f) => setTimeout(f, pauseMs));

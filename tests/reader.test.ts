@@ -85,14 +85,25 @@ test('a typed "[PRICE_1]" in the chat cannot pass for one of Settle\'s placehold
   assert.equal((r.messages[1].text.match(/\[PRICE_1\]/g) ?? []).length, 1);
 });
 
-test('validation: IDs must be candidates (any case, a leading ID counts); anything else fails the run', () => {
+test('validation: IDs must be candidates (any case, a leading ID counts); a non-candidate never fills anything', () => {
   const r = redacted();
-  const ok = validateReading(answer({ price: 'price_2', delivery: 'post', itemMessage: 'M2 (from the seller)' }), r);
+  const ok = validateReading(answer({ price: 'price_2', delivery: 'post (tracked)', itemMessage: 'M2 (from the seller)' }), r);
   assert.equal(ok.picks.price?.id, 'PRICE_2');
+  assert.equal(ok.picks.delivery.id, 'post');
   assert.equal(ok.picks.itemMessage.id, 'm2');
-  assert.throws(() => validateReading(answer({ price: 'PRICE_9' }), r), /not a candidate/);
-  assert.throws(() => validateReading(answer({ price: '320.00' }), r), /not a candidate/);
-  assert.throws(() => validateReading(answer({ itemMessage: 'm99' }), r), /not a candidate/);
+  // A pointer that isn't a candidate becomes "none", unsure: it can only turn code's reading into a
+  // question. The rest of the reading still counts.
+  for (const bad of [{ price: 'PRICE_9' }, { price: '320.00' }]) {
+    const out = validateReading(answer(bad), r);
+    assert.deepEqual(out.picks.price, { id: 'none', sure: false });
+    assert.equal(out.claims.length, 3);
+    assert.equal(out.dropped, 1);
+  }
+  assert.deepEqual(validateReading(answer({ delivery: 'shipped (tracked)' }), r).picks.delivery, { id: 'unclear', sure: false });
+  assert.deepEqual(validateReading(answer({ itemMessage: 'm99' }), r).picks.itemMessage, { id: 'none', sure: false });
+  const merged = mergePicks(code(), validateReading(answer({ price: 'PRICE_9' }), r));
+  assert.equal(merged.cases.price, 'disagree');
+  // A wrongly typed answer still fails the whole run.
   assert.throws(() => validateReading(answer({ priceSure: 'yes' }), r), /bad answer/);
   assert.throws(() => validateReading({ ...answer(), claims: 'none' }, r), /not a list/);
 });
@@ -140,7 +151,7 @@ test('readDeal: no key means skipped, SETTLE_READER=off means skipped, a bad ans
     delete process.env.SETTLE_READER;
   }
   assert.equal((await readDeal(r, { ask: async () => ({ model: 'm', content: 'not json', usage: { input: 0, output: 0 } }) })).status, 'failed');
-  assert.equal((await readDeal(r, { ask: mockAsk(answer({ delivery: 'teleport' })) })).status, 'failed');
+  assert.equal((await readDeal(r, { ask: mockAsk(answer({ deliverySure: 'very' })) })).status, 'failed');
   assert.equal((await readDeal(r, { ask: async () => { throw new ReaderSkip('cap'); } })).status, 'skipped');
   const ran = await readDeal(r, { ask: mockAsk(answer()) });
   assert.equal(ran.status, 'ran');
@@ -295,7 +306,8 @@ test('either side can mark a claim "not part of the deal": confirmations clear, 
   for (const k of [keys.seller, keys.buyer]) await answerQuestion(deal.id, k, 'q_fee', 'seller', d);
   const connected = await setPayee(deal.id, 'MERCHANT1', d);
   await confirmCard(deal.id, keys.seller, cardHash(connected.value), d);
-  const after = await removeClaim(deal.id, keys.buyer, 0, d);
+  const first = deal.card.claims![0];
+  const after = await removeClaim(deal.id, keys.buyer, { messageId: first.messageId, quote: first.quote }, d);
   assert.deepEqual(after.value.confirmations, []);
   assert.equal(after.value.card.claims?.length, 2);
   assert.equal(after.value.removedClaims?.[0].by, 'buyer');
@@ -303,7 +315,9 @@ test('either side can mark a claim "not part of the deal": confirmations clear, 
   const r = (await d.store.listReceipts(deal.id)).at(-1)!;
   assert.equal(r.kind, 'claim.removed');
   assert.equal(r.data.by, 'buyer');
-  await assert.rejects(removeClaim(deal.id, keys.buyer, 7, d), /no such line/);
+  // A second removal of the same line (from an older view) never removes a different one.
+  await assert.rejects(removeClaim(deal.id, keys.seller, { messageId: first.messageId, quote: first.quote }, d), /no longer on the card/);
+  assert.equal((await d.store.getDeal(deal.id))!.value.card.claims?.length, 2);
 });
 
 test('read again: only after the reader didn\'t run and before anyone acted', async () => {
@@ -397,4 +411,73 @@ test('judge mode with no key: recorded readings; the disagreement deal asks both
   // The other demo deals agree with code and are filled as before.
   const awaiting = (await store.getDeal(s.deals.find((d) => d.scenario === 'awaiting')!.dealId))!.value;
   assert.equal(awaiting.card.price?.readBy, 'both');
+});
+
+test('code review: a 60-second bucket never clears hourly or daily caps', async () => {
+  const { rateLimited } = await import('../lib/settle/runtime');
+  const req = new Request('http://x/', { headers: { 'x-forwarded-for': '10.77.0.1' } });
+  for (let i = 0; i < 3; i++) assert.equal(rateLimited(req, 'review-hour', 3), false);
+  assert.equal(rateLimited(req, 'review-hour', 3), true);
+  // Force the sweep to run from a 60-second bucket, 2 minutes "later" for that bucket's window.
+  const g = globalThis as unknown as { settleSwept?: number };
+  g.settleSwept = 0;
+  rateLimited(req, 'review-minute', 100, undefined, 1);
+  assert.equal(rateLimited(req, 'review-hour', 3), true, 'the hourly cap still holds');
+});
+
+test('code review: the reader\'s item words from another message never replace code\'s item', () => {
+  const r = redacted();
+  const messages = parseChat(CHAT, 'Alex');
+  const reading = validateReading(answer({ itemWordsMessage: 'm4', itemWords: 'comes with pedals' }), r);
+  const merged = mergePicks(code(), reading);
+  const { card } = buildCard(messages, r.tokens, merged.picks, 'US', { cases: merged.cases, itemWords: reading.itemWords, claims: reading.claims });
+  assert.equal(card.item?.source.kind === 'message' && card.item.source.messageId, 'm2');
+  assert.notEqual(card.item?.value, 'comes with pedals');
+  assert.equal(card.item?.readBy, 'code');
+});
+
+test('code review: a line marked "not part of the deal" stays off after the check runs again', async () => {
+  let up = false;
+  const d: Deps = {
+    store: new MemoryDealStore(),
+    reader: fixedReader(await runOf(answer())),
+    engine: async (r, now) => {
+      if (!up) return { run: { status: 'failed', at: 'x', reason: 'down' }, warnings: [], picks: {}, scores: {} };
+      const { localTermPicks } = await import('../lib/model/terms');
+      return { run: { status: 'ran', at: (now ?? (() => new Date()))().toISOString(), model: 'stub' }, warnings: [], picks: localTermPicks(r), scores: {} };
+    },
+    now: () => new Date('2026-11-11T12:00:00Z'),
+  };
+  const { deal, keys: raw } = await createDeal({ chat: CHAT, sellerName: 'Alex', country: 'US' }, d);
+  const keys = await openLinks(deal.id, raw, d);
+  const line = deal.card.claims![0];
+  await removeClaim(deal.id, keys.buyer, { messageId: line.messageId, quote: line.quote }, d);
+  up = true;
+  const { recheckDeal } = await import('../lib/settle/deals');
+  const after = await recheckDeal(deal.id, keys.seller, d);
+  assert.ok(!(after.value.card.claims ?? []).some((c) => c.quote === line.quote));
+  assert.equal(after.value.removedClaims?.[0].by, 'buyer');
+});
+
+test('code review: read again is refused for a deal made before the reader (no code picks kept)', async () => {
+  const store = new MemoryDealStore();
+  const d: Deps = { store, reader: async () => ({ run: { status: 'skipped', at: 'x', reason: 'cap' }, source: 'live' }) };
+  const { deal, keys: raw } = await createDeal({ chat: CHAT, sellerName: 'Alex', country: 'US' }, d);
+  const keys = await openLinks(deal.id, raw, d);
+  const stored = (await store.getDeal(deal.id))!;
+  const old = { ...stored.value };
+  delete old.codePicks;
+  await store.updateDeal(deal.id, stored.version, old);
+  await assert.rejects(readAgain(deal.id, keys.seller, d), /made before the AI reader/);
+});
+
+test('code review: a recorded reading from another model is never shown as the configured model\'s', async () => {
+  process.env.PAYPAL_CLIENT_ID ??= 'test-client';
+  const { SCENARIOS } = await import('../lib/settle/demo');
+  const s = SCENARIOS.find((x) => x.id === 'awaiting')!;
+  const r = redactChat(parseChat(s.chat, s.seller));
+  const store = new MemoryDealStore();
+  assert.equal((await cachedReader(store)(r)).source, 'recorded');
+  const other = await cachedReader(store, { deps: { model: 'openai/gpt-oss-20b' } })(r);
+  assert.equal(other.run.status, 'skipped');
 });

@@ -148,7 +148,8 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
   });
   // What the seller said about the item (PLAN M8): exact quotes, prices and dates put back.
   const canChange = !paymentStarted(deal);
-  const claims = (deal.card.claims ?? []).map((c, index) => ({ index, kind: c.kind, text: claimText(deal, c), messageId: c.messageId, canRemove: canChange }));
+  // `quote` is the line's identity for "not part of the deal" (the redacted words, as on the card).
+  const claims = (deal.card.claims ?? []).map((c) => ({ kind: c.kind, text: claimText(deal, c), messageId: c.messageId, quote: c.quote, canRemove: canChange }));
   const removedClaims = (deal.removedClaims ?? []).map((c) => ({ text: claimText(deal, c), by: c.by, byYou: c.by === role }));
   /** Why a question was asked, in words, with both readings when code and the reader differed. */
   const whyAsked = (q: Deal['questions'][number]) => {
@@ -178,6 +179,7 @@ export function dealView(deal: Deal, role: Role, receipts: readonly Receipt[] = 
           ? `Warning check: ran on ${deal.check.at.slice(0, 10)} with ${deal.check.model?.startsWith('jev') ? 'Jev (TypeSafe)' : `Settle Link's own model (${deal.check.model ?? 'local'})`} plus keyword rules, over a redacted copy of the chat.`
           : 'Warning check: did not run, so nothing on this card can be confirmed yet.',
       reader: readerLine(deal),
+      readerRan: deal.reader ? deal.reader.status === 'ran' : null,
     },
     check:
       deal.check.status === 'ran'

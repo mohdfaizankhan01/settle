@@ -6,7 +6,6 @@
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { AskJev, TermPicks } from '../jev/deal-check';
 import { engineFor, type CheckEngine } from '../model/engine';
-import { localTermPicks } from '../model/terms';
 import { liveReader, type DealReader, type Outcome } from '../reader/deal-reader';
 import { mergePicks } from '../reader/merge';
 import type { ChatMessage } from './chat';
@@ -337,11 +336,10 @@ export async function recheckDeal(dealId: string, key: string | null, deps: Deps
       tokens: redacted.tokens,
       check: check.run,
       warnings: [...check.warnings, ...ruleWarnings(redacted.messages), ...termWarnings(card)],
-      card,
+      card: withoutRemoved(card, current.removedClaims),
       questions,
       reader,
       codePicks: check.picks,
-      removedClaims: [],
       cardVersion: current.cardVersion + 1,
       confirmations: [],
     };
@@ -366,6 +364,9 @@ export function readAgainBlocker(deal: Deal): string | undefined {
   if (paymentStarted(deal)) return 'payment already started; the card can no longer change';
   if (deal.check.status !== 'ran') return 'run the warning check again instead; it reads the card too';
   if (deal.reader?.status === 'ran') return 'the AI reader already read this deal';
+  // Code's own picks are kept from when the deal was made; without them (older deals) a re-read
+  // could quietly switch which engine read the card.
+  if (!deal.codePicks) return 'this deal was made before the AI reader';
   if (deal.confirmations.length > 0) return 'someone already confirmed this card';
   if (deal.questions.some((q) => Object.keys(q.answers).length > 0)) return 'a question was already answered';
   const { item, price } = deal.card;
@@ -385,13 +386,13 @@ export async function readAgain(dealId: string, key: string | null, deps: Deps) 
   const deal = first.stored.value;
   const redacted = redactChat(deal.messages);
   const outcome = await readerFor(deps)(redacted);
-  const codePicks = deal.codePicks ?? localTermPicks(redacted);
+  const codePicks = deal.codePicks!;
   const { card, questions, reader } = readCard(deal.messages, redacted, codePicks, deal.country, outcome, now(deps));
   const { stored, role } = await mutate(deps, dealId, key, (current) => {
     const again = readAgainBlocker(current);
     if (again) throw new DealError(again, 409);
     // Keep the fee answer slot and any other question as built; the payee stays connected.
-    return { ...changeCard(current, card), questions, reader, codePicks, removedClaims: [] };
+    return { ...changeCard(current, withoutRemoved(card, current.removedClaims)), questions, reader, codePicks };
   });
   await deps.store.addReceipt({ dealId, kind: 'reader.read_again', at: now(deps), data: { by: role, cardHash: cardHash(stored.value) } });
   await readerReceipt(deps, stored.value, outcome);
@@ -402,21 +403,31 @@ export async function readAgain(dealId: string, key: string | null, deps: Deps) 
  * Either side marks one of the seller's claims "not part of the deal" (PLAN M8). The card changes,
  * so both confirmations clear, and the other side sees who removed it.
  */
-export async function removeClaim(dealId: string, key: string | null, index: number, deps: Deps) {
+export async function removeClaim(dealId: string, key: string | null, line: { messageId: string; quote: string }, deps: Deps) {
   const at = now(deps);
   let removed: NonNullable<DealCard['claims']>[number] | undefined;
   const { stored, role } = await mutate(deps, dealId, key, (deal, role) => {
     if (paymentStarted(deal)) throw new DealError('payment already started; the card can no longer change', 409);
+    // By the line itself, never by position: two people removing at once can't remove the wrong one.
     const claims = deal.card.claims ?? [];
-    if (!Number.isInteger(index) || index < 0 || index >= claims.length) throw new DealError('no such line on the card', 409);
-    removed = claims[index];
-    const rest = claims.filter((_, i) => i !== index);
+    removed = claims.find((c) => c.messageId === line.messageId && c.quote === line.quote);
+    if (!removed) throw new DealError('that line is no longer on the card; reload to see the card as it is now', 409);
+    const rest = claims.filter((c) => c !== removed);
     const card = { ...deal.card };
     delete card.claims;
     return { ...changeCard(deal, rest.length ? { ...card, claims: rest } : card), removedClaims: [...(deal.removedClaims ?? []), { ...removed, by: role, at }] };
   });
   await deps.store.addReceipt({ dealId, kind: 'claim.removed', at, data: { by: role, message: removed!.messageId, kind: removed!.kind, cardHash: cardHash(stored.value) } });
   return stored;
+}
+
+/** A fresh reading never brings back a line either side marked "not part of the deal". */
+function withoutRemoved(card: DealCard, removed: Deal['removedClaims']): DealCard {
+  if (!removed?.length || !card.claims) return card;
+  const claims = card.claims.filter((c) => !removed.some((r) => r.messageId === c.messageId && r.quote === c.quote));
+  const next = { ...card };
+  delete next.claims;
+  return claims.length ? { ...next, claims } : next;
 }
 
 export const DECLINE_REASONS: Record<DeclineReason, string> = {

@@ -137,7 +137,10 @@ function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonl
 
 function notAsDescribedProofs(deal: Deal): Proof[] {
   const proofs: Proof[] = [];
-  const both = (['seller', 'buyer'] as const).every((r) => deal.confirmations.some((c) => c.role === r && c.cardHash === cardHash(deal)));
+  // Who confirmed the card as it is now: worked out once, for the card and the claims alike.
+  const hash = cardHash(deal);
+  const confirmed = (['seller', 'buyer'] as const).flatMap((r) => deal.confirmations.filter((c) => c.role === r && c.cardHash === hash).slice(0, 1));
+  const both = confirmed.length === 2;
   proofs.push({
     id: 'card',
     label: 'The card both of you confirmed',
@@ -145,7 +148,7 @@ function notAsDescribedProofs(deal: Deal): Proof[] {
     weight: 2,
     source: 'Settle record',
     status: both ? 'on_file' : 'missing',
-    detail: both ? `Both confirmed "${deal.card.item?.display}" with fingerprint ${cardHash(deal).slice(0, 16)}….` : 'The card was not confirmed by both sides as it is now.',
+    detail: both ? `Both confirmed "${deal.card.item?.display}" with fingerprint ${hash.slice(0, 16)}….` : 'The card was not confirmed by both sides as it is now.',
   });
   const item = deal.card.item;
   const src = item?.source;
@@ -162,7 +165,6 @@ function notAsDescribedProofs(deal: Deal): Proof[] {
   // What the seller said about the item (PLAN M8): exact quotes both sides confirmed on the card.
   const claims = deal.card.claims ?? [];
   if (claims.length > 0) {
-    const who = (['seller', 'buyer'] as const).map((r) => deal.confirmations.find((c) => c.role === r && c.cardHash === cardHash(deal))).filter(Boolean);
     proofs.push({
       id: 'claims',
       label: 'What the seller said about the item, on the confirmed card',
@@ -171,7 +173,7 @@ function notAsDescribedProofs(deal: Deal): Proof[] {
       source: 'Settle record',
       status: both ? 'on_file' : 'missing',
       detail: both
-        ? `${claims.map((c) => `${c.kind}: ${claimText(deal, c)} (the seller's message ${c.messageId.slice(1)})`).join('; ')}. Confirmed by ${who.map((c) => `the ${c!.role} on ${day(c!.at)}`).join(' and ')}.`
+        ? `${claims.map((c) => `${c.kind}: ${claimText(deal, c)} (the seller's message ${c.messageId.slice(1)})`).join('; ')}. Confirmed by ${confirmed.map((c) => `the ${c.role} on ${day(c.at)}`).join(' and ')}.`
         : 'The seller\'s statements are on the card, but both sides did not confirm the card as it is now.',
     });
   }

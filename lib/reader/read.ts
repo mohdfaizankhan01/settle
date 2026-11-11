@@ -44,7 +44,7 @@ export type Reading = {
   /** The exact words that name the item, checked against their message. */
   itemWords?: Quote;
   claims: Claim[];
-  /** Quotes code dropped: not in the message, too long, repeated, or from the wrong side. */
+  /** Pointers code didn't use: picks that weren't candidates, and quotes not in their message, too long, repeated or from the wrong side. */
   dropped: number;
 };
 
@@ -158,15 +158,22 @@ class InvalidAnswer extends Error {
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Matches an answered ID to a candidate, ignoring case; throws if it isn't one. */
-function pickFrom(answer: Record<string, unknown>, ids: string[], key: string): ReaderPick {
+/**
+ * One term's pick. The leading ID counts ("PRICE_2 (in m5)" is PRICE_2, "post (tracked)" is post).
+ * A pointer that isn't a candidate here is not used: that term becomes the reader saying "none",
+ * unsure, which can only turn code's reading into a question, never fill anything (fail safe). The
+ * rest of the reading still counts. A wrongly typed answer still fails the whole run.
+ */
+function pickFrom(answer: Record<string, unknown>, ids: string[], key: string, rejected: string[]): ReaderPick {
   const pick = answer[key];
   const sure = answer[`${key}Sure`];
   if (typeof pick !== 'string' || typeof sure !== 'boolean') throw new InvalidAnswer(`bad answer for ${key}`);
-  // Only the leading ID counts ("PRICE_2 (in m5)" is PRICE_2); anything else must match exactly.
-  const want = (/^\[?\s*([a-z]+_\d+|m\d+|none)\b/i.exec(pick.trim())?.[1] ?? pick.trim()).toLowerCase() || NONE;
-  const id = ids.find((x) => x.toLowerCase() === want);
-  if (!id) throw new InvalidAnswer(`${key} is not a candidate`);
-  return { id, sure };
+  const raw = pick.trim();
+  const lead = /^\[?\s*([a-z]+_\d+|m\d+|[a-z]+)\b/i.exec(raw)?.[1] ?? raw;
+  const id = ids.find((x) => x.toLowerCase() === raw.toLowerCase()) ?? ids.find((x) => x.toLowerCase() === (lead.toLowerCase() || NONE));
+  if (id) return { id, sure };
+  rejected.push(key);
+  return { id: ids.includes('unclear') ? 'unclear' : NONE, sure: false };
 }
 
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -184,16 +191,18 @@ export function validateReading(answer: unknown, r: Redacted): Reading {
   if (!isObj(answer)) throw new InvalidAnswer('answer is not an object');
   const c = candidates(r);
   const messageIds = [...c.messages.map((m) => m.id), NONE];
+  const rejected: string[] = [];
   const picks: ReaderPicks = {
-    delivery: pickFrom(answer, DELIVERY_IDS, 'delivery'),
-    itemMessage: pickFrom(answer, messageIds, 'itemMessage'),
-    deliveryMessage: pickFrom(answer, messageIds, 'deliveryMessage'),
+    delivery: pickFrom(answer, DELIVERY_IDS, 'delivery', rejected),
+    itemMessage: pickFrom(answer, messageIds, 'itemMessage', rejected),
+    deliveryMessage: pickFrom(answer, messageIds, 'deliveryMessage', rejected),
   };
   // Price and date are asked only when the chat has a token of that kind.
-  if (c.prices.length > 0) picks.price = pickFrom(answer, [...c.prices.map((t) => t.id), NONE], 'price');
-  if (c.dates.length > 0) picks.shipBy = pickFrom(answer, [...c.dates.map((t) => t.id), NONE], 'shipBy');
+  if (c.prices.length > 0) picks.price = pickFrom(answer, [...c.prices.map((t) => t.id), NONE], 'price', rejected);
+  if (c.dates.length > 0) picks.shipBy = pickFrom(answer, [...c.dates.map((t) => t.id), NONE], 'shipBy', rejected);
 
-  let dropped = 0;
+  // Pointers code didn't use: term picks that weren't candidates, and quotes that failed a check.
+  let dropped = rejected.length;
   let itemWords: Quote | undefined;
   if (typeof answer.itemWords === 'string' && answer.itemWords.trim()) {
     const q = quoteIn(answer.itemWordsMessage, answer.itemWords, r.messages, 160);

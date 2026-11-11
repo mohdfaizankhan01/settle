@@ -242,7 +242,7 @@ function Realness({ view }: { view: DealView }) {
           {view.realness.check}
         </li>
         <li className="flex gap-2">
-          <span className={`mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full ${view.realness.reader.includes("didn't run") || view.realness.reader.includes('not used') ? 'bg-pp-border' : 'bg-pp-blue'}`} aria-hidden="true" />
+          <span className={`mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full ${view.realness.readerRan ? 'bg-pp-blue' : 'bg-pp-border'}`} aria-hidden="true" />
           {view.realness.reader}
         </li>
       </ul>
@@ -340,14 +340,14 @@ function Claims({ view, busy, act }: { view: DealView; busy: boolean; act: (p: s
       </h3>
       <ul className="mt-2 space-y-2">
         {view.claims.map((c) => (
-          <li key={`${c.messageId}-${c.index}`} className="appear flex flex-wrap items-start justify-between gap-2 rounded-xl border border-pp-border/70 bg-pp-canvas/50 px-3 py-2.5 text-sm">
+          <li key={`${c.messageId}-${c.quote}`} className="appear flex flex-wrap items-start justify-between gap-2 rounded-xl border border-pp-border/70 bg-pp-canvas/50 px-3 py-2.5 text-sm">
             <span className="min-w-0">
               <span className="mr-2 rounded bg-pp-canvas px-1.5 py-0.5 text-xs text-pp-muted">{CLAIM_KIND[c.kind] ?? c.kind}</span>
               {c.text}
               <span className="mt-0.5 block text-xs text-pp-muted">From the seller, message {c.messageId.slice(1)}.</span>
             </span>
             {c.canRemove && (
-              <button disabled={busy} onClick={() => act('/claims', { index: c.index })} className="shrink-0 rounded-full border border-pp-border bg-pp-surface px-3 py-1 text-xs font-medium hover:border-pp-danger hover:text-pp-danger disabled:opacity-40">
+              <button disabled={busy} onClick={() => act('/claims', { messageId: c.messageId, quote: c.quote })} className="shrink-0 rounded-full border border-pp-border bg-pp-surface px-3 py-1 text-xs font-medium hover:border-pp-danger hover:text-pp-danger disabled:opacity-40">
                 Not part of the deal
               </button>
             )}

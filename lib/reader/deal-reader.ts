@@ -39,7 +39,9 @@ export function cachedReader(store: DealStore, opts: { live?: boolean; deps?: Re
     const hit = (await store.getReading(key).catch(() => undefined)) as ReaderRun | undefined;
     if (hit?.status === 'ran') return { run: hit, source: 'cache' };
     const hash = chatHash(r);
-    const rec = RECORDED.find((x) => x.promptVersion === PROMPT_VERSION && x.chatHash === hash && x.run.status === 'ran');
+    // Same prompt, same chat and the configured model: a reading from another model is never shown as this one's.
+    const model = opts.deps?.model ?? readerModel();
+    const rec = RECORDED.find((x) => x.promptVersion === PROMPT_VERSION && x.chatHash === hash && x.model === model && x.run.status === 'ran');
     if (rec) return { run: rec.run, source: 'recorded' };
     if (!opts.live) return { run: { status: 'skipped', at: now().toISOString(), reason: 'no recorded reading for this chat' }, source: 'recorded' };
     const run = await readDeal(r, opts.deps);
