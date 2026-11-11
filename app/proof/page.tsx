@@ -2,6 +2,7 @@ import Link from 'next/link';
 import evalB from '@/data/eval/results-settle-link-b.json';
 import proof from '@/data/proof/proof.json';
 import readerEval from '@/data/eval/reader-test.json';
+import baseline from '@/data/eval/baseline.json';
 import { signalById } from '@/lib/settle/signals';
 import { TopBar } from '@/app/components/brand';
 
@@ -96,7 +97,7 @@ export default function Page() {
             </table>
           </div>
           <p className="mt-3 max-w-2xl text-sm">
-            Keyword rules alone miss most of what matters: they can&apos;t tell &ldquo;send it to my cousin&rdquo; or &ldquo;the money is held until you ship&rdquo; from ordinary talk. The model catches those; the rules add certainty where a phrase is unambiguous. A third option, one broad &ldquo;is this a scam?&rdquo; question to Jev (TypeSafe), was <strong>not run</strong>: we had no TypeSafe credits, and we won&apos;t show a number we didn&apos;t measure.
+            Keyword rules alone miss most of what matters: they can&apos;t tell &ldquo;send it to my cousin&rdquo; or &ldquo;the money is held until you ship&rdquo; from ordinary talk. The model catches those; the rules add certainty where a phrase is unambiguous. A third option, one broad &ldquo;is this a scam?&rdquo; question to Jev (TypeSafe), was <strong>not run</strong>: we had no TypeSafe credits, and we won&apos;t show a number we didn&apos;t measure. The same broad question to a general LLM on Groq <em>was</em> run; it is below.
           </p>
         </section>
 
@@ -121,6 +122,8 @@ export default function Page() {
             When the buyer suggests Friends and Family and the seller refuses, the suggestion is still shown: someone did ask, and the warning says who.
           </p>
         </section>
+
+        <AgainstAnLlm />
 
         <section className="mt-10 grid gap-6 sm:grid-cols-2">
           <div>
@@ -240,6 +243,82 @@ function ReadingTheCard() {
       </div>
       <p className="mt-3 max-w-2xl text-sm">
         A wrong term is the costly mistake; a question costs both people one tap. Filling only what both readers agree on trades some questions for fewer wrong terms. What the seller said about the item: {r.claims.kept} lines kept across {r.claims.chats} labelled chats, precision {pct(r.claims.precision)}, recall {pct(r.claims.recall)}; code dropped {r.quotesDropped} quotes that weren&apos;t exactly in their message. Small numbers on chats we wrote: a sanity check, not a benchmark.
+      </p>
+    </section>
+  );
+}
+
+type Count = { of: number; count: number; failed?: number; ids: string[] };
+type Side = { scamCaught: Count; cleanFlagged: Count; refusalsFlagged: Count; injectionHandled: Count; latencyMs: { p50: number | null; p95: number | null }; costPerChatUsd: number | null };
+
+/** A general LLM asked one broad question per chat, beside our check (npm run baseline). */
+function AgainstAnLlm() {
+  const b = baseline as unknown as { model: string; provider: string; question: string; ranAt: string; chats: number; failed: string[]; baseline: Side & { tokensPerChat: { input: number; output: number } }; ours: Side & { model: string } };
+  const rows: { label: string; key: 'scamCaught' | 'cleanFlagged' | 'refusalsFlagged' | 'injectionHandled'; higherIsBetter: boolean; listLabel: string }[] = [
+    { label: 'Scam chats caught', key: 'scamCaught', higherIsBetter: true, listLabel: 'missed' },
+    { label: 'Clean chats wrongly flagged', key: 'cleanFlagged', higherIsBetter: false, listLabel: 'flagged' },
+    { label: 'Honest refusals wrongly flagged', key: 'refusalsFlagged', higherIsBetter: false, listLabel: 'flagged' },
+    { label: 'Injection chats handled', key: 'injectionHandled', higherIsBetter: true, listLabel: 'not handled' },
+  ];
+  const better = (r: (typeof rows)[number], mine: number, theirs: number) => (r.higherIsBetter ? mine > theirs : mine < theirs);
+  const ms = (v: number | null) => (v === null ? '—' : v >= 1000 ? `${(v / 1000).toFixed(1)} s` : `${v} ms`);
+  const cell = (r: (typeof rows)[number], side: Side, other: Side) => {
+    const c = side[r.key];
+    return (
+      <td className="px-4 py-2 align-top">
+        <span className={better(r, c.count, other[r.key].count) ? 'font-semibold text-pp-success' : ''}>
+          {c.count} of {c.of}
+        </span>
+        {c.failed ? <span className="text-pp-muted"> ({c.failed} no answer)</span> : null}
+        {c.ids.length > 0 && (
+          <span className="block text-xs text-pp-muted">
+            {r.listLabel}: {c.ids.join(', ')}
+          </span>
+        )}
+      </td>
+    );
+  };
+  return (
+    <section className="mt-10">
+      <h2 className="text-xl font-semibold">Against a general LLM</h2>
+      <p className="mt-2 max-w-2xl text-sm text-pp-muted">
+        The same {b.chats} redacted chats, each sent once to {b.model} on {b.provider} with one question: &ldquo;{b.question}&rdquo; Run {b.ranAt.slice(0, 10)}; {b.failed.length === 0 ? 'every chat got an answer' : `${b.failed.length} got no usable answer (${b.failed.join(', ')})`}. For our check, &ldquo;flagged&rdquo; means any warning on the chat. The better number in each row is in green, whichever side it is.
+      </p>
+      <div className="mt-4 overflow-x-auto surface rounded-2xl">
+        <table className="w-full min-w-[40rem] text-left text-sm">
+          <caption className="sr-only">Our warning check beside a general LLM asked one question</caption>
+          <thead className="border-b border-pp-border text-pp-muted">
+            <tr>
+              <th scope="col" className="px-4 py-2 font-semibold"></th>
+              <th scope="col" className="px-4 py-2 font-semibold">Settle Link&apos;s check ({b.ours.model} plus rules)</th>
+              <th scope="col" className="px-4 py-2 font-semibold">General LLM ({b.model})</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-pp-gridline tabular-nums">
+            {rows.map((r) => (
+              <tr key={r.key}>
+                <th scope="row" className="px-4 py-2 align-top font-normal">{r.label}</th>
+                {cell(r, b.ours, b.baseline)}
+                {cell(r, b.baseline, b.ours)}
+              </tr>
+            ))}
+            <tr>
+              <th scope="row" className="px-4 py-2 align-top font-normal">Latency per chat (median / 95th)</th>
+              <td className="px-4 py-2">{ms(b.ours.latencyMs.p50)} / {ms(b.ours.latencyMs.p95)}, on our server</td>
+              <td className="px-4 py-2">{ms(b.baseline.latencyMs.p50)} / {ms(b.baseline.latencyMs.p95)}, over the network</td>
+            </tr>
+            <tr>
+              <th scope="row" className="px-4 py-2 align-top font-normal">Cost per chat</th>
+              <td className="px-4 py-2">$0: no AI API</td>
+              <td className="px-4 py-2">
+                {b.baseline.costPerChatUsd === null ? '—' : `$${b.baseline.costPerChatUsd.toFixed(5)}`} at Groq&apos;s paid rates ({b.baseline.tokensPerChat.input} tokens in, {b.baseline.tokensPerChat.output} out); $0 on the free tier we used
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 max-w-2xl text-sm">
+        A yes/no answer also can&apos;t say what to do: our warnings quote the message, name the PayPal term it breaks and tell each side what to do next. And whichever check is used, it only adds caution: payment and shipping are still decided by PayPal&apos;s records and both people.
       </p>
     </section>
   );

@@ -108,4 +108,5 @@ test('the seller timeline, the attack lab and the proof page', async ({ page }) 
   await page.goto('/proof');
   await expect(page.getByRole('heading', { name: 'How often the warning check is right' })).toBeVisible();
   await expect(page.getByText(/was not run/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Against a general LLM' })).toBeVisible();
 });

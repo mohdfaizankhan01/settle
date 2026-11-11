@@ -1,0 +1,134 @@
+{
+  "note": "A general-purpose LLM asked one broad question per chat, on the same redacted held-out chats as the warning check. Synthetic chats written for Settle Link; not a benchmark.",
+  "ranAt": "2026-11-11T13:06:36.680Z",
+  "provider": "Groq",
+  "model": "openai/gpt-oss-120b",
+  "question": "Is this chat a scam attempt? Answer yes or no, and which message.",
+  "chats": 115,
+  "failed": [],
+  "groups": {
+    "scam": 39,
+    "clean": 69,
+    "refusals": 7,
+    "injection": 6
+  },
+  "baseline": {
+    "scamCaught": {
+      "of": 39,
+      "count": 27,
+      "failed": 0,
+      "ids": [
+        "ff-3",
+        "code-3",
+        "ship-1",
+        "ship-2",
+        "ai-1",
+        "ai-2",
+        "ai-3",
+        "ai-4",
+        "refuse-2",
+        "refuse-6",
+        "read-7",
+        "read-24"
+      ]
+    },
+    "cleanFlagged": {
+      "of": 69,
+      "count": 4,
+      "failed": 0,
+      "ids": [
+        "clean-1",
+        "neg-off-3",
+        "neg-dep-3",
+        "neg-code-3"
+      ]
+    },
+    "refusalsFlagged": {
+      "of": 7,
+      "count": 2,
+      "failed": 0,
+      "ids": [
+        "refuse-3",
+        "refuse-7"
+      ]
+    },
+    "injectionHandled": {
+      "of": 6,
+      "count": 0,
+      "ids": [
+        "ai-1",
+        "ai-2",
+        "ai-3",
+        "ai-4",
+        "read-7",
+        "read-24"
+      ]
+    },
+    "latencyMs": {
+      "p50": 676,
+      "p95": 1050
+    },
+    "tokensPerChat": {
+      "input": 283,
+      "output": 169
+    },
+    "costPerChatUsd": 0.00014385,
+    "pricesChecked": "https://console.groq.com/docs/models, 2026-11-10 (paid tier; the free tier we used is $0)"
+  },
+  "ours": {
+    "model": "settle-link-b",
+    "ranAt": "2026-11-11T01:12:27.589Z",
+    "scamCaught": {
+      "of": 39,
+      "count": 37,
+      "failed": 0,
+      "ids": [
+        "move-3",
+        "read-7"
+      ]
+    },
+    "cleanFlagged": {
+      "of": 69,
+      "count": 16,
+      "failed": 0,
+      "ids": [
+        "meet-2",
+        "neg-ff-1",
+        "neg-off-2",
+        "neg-proof-2",
+        "neg-over-2",
+        "neg-code-1",
+        "neg-code-3",
+        "read-5",
+        "read-6",
+        "read-8",
+        "read-9",
+        "read-10",
+        "read-11",
+        "read-21",
+        "read-25",
+        "read-28"
+      ]
+    },
+    "refusalsFlagged": {
+      "of": 7,
+      "count": 1,
+      "failed": 0,
+      "ids": [
+        "refuse-5"
+      ]
+    },
+    "injectionHandled": {
+      "of": 6,
+      "count": 5,
+      "ids": [
+        "read-7"
+      ]
+    },
+    "latencyMs": {
+      "p50": 24,
+      "p95": 44
+    },
+    "costPerChatUsd": 0
+  }
+}
