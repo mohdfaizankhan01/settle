@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import evalB from '@/data/eval/results-settle-link-b.json';
 import proof from '@/data/proof/proof.json';
+import readerEval from '@/data/eval/reader-test.json';
 import { signalById } from '@/lib/settle/signals';
+import { TopBar } from '@/app/components/brand';
 
 // /proof (PLAN M5 SHOULD): what Settle's warning check gets right and wrong, from committed JSON
 // only (npm run eval, npm run proof). Our own synthetic chats, not a benchmark; numbers are shown
@@ -31,9 +33,7 @@ export default function Page() {
   const weakest = [...signals].sort((a, b) => (a[1].combined.recall ?? 0) - (b[1].combined.recall ?? 0)).slice(0, 2);
   return (
     <div className="min-h-full">
-      <div className="bg-pp-navy px-4 py-2 text-center text-sm text-white">
-        Proof: numbers from files committed with the code. Nothing on this page is live.
-      </div>
+      <TopBar note={"Proof: numbers from files committed with the code. Nothing on this page is live."} />
       <main className="mx-auto w-full max-w-4xl px-4 py-10 font-paypal text-pp-ink sm:py-12">
         <p className="text-sm">
           <Link href="/demo" className="text-pp-blue underline underline-offset-2">
@@ -42,7 +42,7 @@ export default function Page() {
         </p>
         <h1 className="mt-4 text-[28px] font-semibold text-pp-navy">Proof</h1>
         <p className="mt-2 max-w-2xl">
-          Settle&apos;s warning check reads a redacted copy of the chat and explains what looks risky. It never approves a payment or a shipment: those come from PayPal&apos;s records and from both people. This page shows how often the check is right, how the rules that stop attacks are tested, and what we don&apos;t know.
+          Settle&apos;s warning check reads a redacted copy of the chat and explains what looks risky, and an AI reader points at the deal terms in it. It never approves a payment or a shipment: those come from PayPal&apos;s records and from both people. This page shows how often the check is right, how the rules that stop attacks are tested, and what we don&apos;t know.
         </p>
 
         <section className="mt-10">
@@ -50,7 +50,7 @@ export default function Page() {
           <p className="mt-2 max-w-2xl text-sm text-pp-muted">
             {evalB.chats} chats we wrote for Settle, with {positives} risky moments across ten signals; every chat is a negative for each signal it doesn&apos;t list. The model ({evalB.model}) never trained on them. Run {evalB.ranAt.slice(0, 10)}. Precision: of the warnings shown, how many were right. Recall: of the risky moments, how many were caught.
           </p>
-          <div className="mt-4 overflow-x-auto rounded-md border border-pp-border bg-pp-surface">
+          <div className="mt-4 overflow-x-auto surface rounded-2xl">
             <table className="w-full min-w-[40rem] text-left text-sm">
               <caption className="sr-only">Precision and recall per warning signal</caption>
               <thead className="border-b border-pp-border text-pp-muted">
@@ -103,7 +103,7 @@ export default function Page() {
         <section className="mt-10 max-w-2xl">
           <h2 className="text-xl font-semibold">False alarms</h2>
           <p className="mt-2 text-sm text-pp-muted">A warning on a chat with nothing risky in it. Counted per chat, any signal.</p>
-          <ul className="mt-3 divide-y divide-pp-gridline rounded-md border border-pp-border bg-pp-surface text-sm tabular-nums">
+          <ul className="mt-3 divide-y divide-pp-gridline surface rounded-2xl text-sm tabular-nums">
             <li className="px-4 py-2">
               <strong>
                 {evalB.falseAlarms.noRiskChats.withoutWarning} of {evalB.falseAlarms.noRiskChats.chats}
@@ -132,10 +132,13 @@ export default function Page() {
           <div>
             <h2 className="text-xl font-semibold">Speed and cost</h2>
             <p className="mt-2 text-sm">
-              {evalB.latencyMs.p50} ms per chat at the median, {evalB.latencyMs.p95} ms at the 95th percentile, on our own server. No AI API is called, so each check costs nothing beyond hosting, and no chat leaves Settle.
+              The warning check: {evalB.latencyMs.p50} ms per chat at the median, {evalB.latencyMs.p95} ms at the 95th percentile, on our own server, with no AI API. The AI reader: {readerEval.latencyMs.p50} ms median and {readerEval.latencyMs.p95} ms at the 95th percentile on Groq, about {readerEval.tokensPerChat?.input} tokens in and {readerEval.tokensPerChat?.output} out per chat, which is ${readerEval.costPerChatUsd?.toFixed(5)} at Groq&apos;s paid rates ($0 on the free tier we use).
             </p>
           </div>
         </section>
+
+
+        <ReadingTheCard />
 
         <section className="mt-10">
           <h2 className="text-xl font-semibold">Tests and attacks</h2>
@@ -146,7 +149,7 @@ export default function Page() {
             </Link>
             .
           </p>
-          <ul className="mt-3 divide-y divide-pp-gridline rounded-md border border-pp-border bg-pp-surface text-sm">
+          <ul className="mt-3 divide-y divide-pp-gridline surface rounded-2xl text-sm">
             {proof.attacks.map((a) => (
               <li key={a.id} className="px-4 py-2">
                 <span className={a.stopped ? 'text-pp-success' : 'text-pp-danger'}>{a.stopped ? '✓ Stopped' : '✕ Not stopped'}</span> {a.title}
@@ -169,5 +172,75 @@ export default function Page() {
         </section>
       </main>
     </div>
+  );
+}
+
+type Counts = { right: number; wrong: number; asked: number; missed: number };
+const READ_TERMS = [
+  ['price', 'Price'],
+  ['shipBy', 'Ship-by date'],
+  ['delivery', 'Delivery'],
+  ['item', 'Item name'],
+] as const;
+const READ_MODES = [
+  ['codeOnly', 'Code only'],
+  ['readerOnly', 'AI reader only'],
+  ['both', 'Both (what runs)'],
+] as const;
+
+/** PLAN M8: code and the AI reader read each term; the card fills only what they agree on. */
+function ReadingTheCard() {
+  const r = readerEval as unknown as {
+    chats: number;
+    readerRan: number;
+    model: string;
+    at: string;
+    terms: Record<string, Record<string, Counts>>;
+    claims: { chats: number; labelled: number; kept: number; precision: number | null; recall: number | null };
+    quotesDropped: number;
+    incomplete?: string;
+  };
+  return (
+    <section className="mt-10">
+      <h2 className="text-xl font-semibold">Reading the card</h2>
+      <p className="mt-2 max-w-2xl text-sm text-pp-muted">
+        Code and an AI reader ({r.model} on Groq) each read the deal terms from the same redacted chat. The AI can only point: at a price or date placeholder, a message, a delivery option, or exact words that code checks are in the message. A term is filled only when both agree; otherwise both people answer a question. {r.chats} of our own synthetic chats, never used to write the prompt; the reader ran on {r.readerRan}. Run {r.at}.{r.incomplete ? ` Incomplete: ${r.incomplete}` : ''}
+      </p>
+      <div className="mt-4 overflow-x-auto surface rounded-2xl">
+        <table className="w-full min-w-[40rem] text-left text-sm">
+          <caption className="sr-only">Deal terms filled right, filled wrong, or asked, by who read them</caption>
+          <thead className="border-b border-pp-border text-pp-muted">
+            <tr>
+              <th scope="col" className="px-4 py-2 font-semibold">Term</th>
+              {READ_MODES.map(([k, label]) => (
+                <th key={k} scope="col" className="px-4 py-2 font-semibold">
+                  {label}
+                  <span className="block font-normal">right / wrong / asked</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-pp-gridline tabular-nums">
+            {READ_TERMS.map(([k, label]) => (
+              <tr key={k}>
+                <th scope="row" className="px-4 py-2 font-normal">{label}</th>
+                {READ_MODES.map(([m]) => {
+                  const c = r.terms[m][k];
+                  return (
+                    <td key={m} className="px-4 py-2">
+                      {c.right} / <span className={c.wrong ? 'font-semibold text-pp-danger' : ''}>{c.wrong}</span> / {c.asked}
+                      {c.missed ? <span className="text-pp-muted"> ({c.missed} left blank)</span> : null}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 max-w-2xl text-sm">
+        A wrong term is the costly mistake; a question costs both people one tap. Filling only what both readers agree on trades some questions for fewer wrong terms. What the seller said about the item: {r.claims.kept} lines kept across {r.claims.chats} labelled chats, precision {pct(r.claims.precision)}, recall {pct(r.claims.recall)}; code dropped {r.quotesDropped} quotes that weren&apos;t exactly in their message. Small numbers on chats we wrote: a sanity check, not a benchmark.
+      </p>
+    </section>
   );
 }

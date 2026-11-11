@@ -1,0 +1,792 @@
+{
+  "set": "test",
+  "file": "data/test-chats.jsonl",
+  "model": "openai/gpt-oss-120b",
+  "promptVersion": "reader-1",
+  "provider": "Groq",
+  "at": "2026-11-11",
+  "chats": 115,
+  "readerRan": 115,
+  "terms": {
+    "codeOnly": {
+      "price": {
+        "right": 104,
+        "wrong": 4,
+        "asked": 7,
+        "missed": 0
+      },
+      "shipBy": {
+        "right": 19,
+        "wrong": 0,
+        "asked": 0,
+        "missed": 13
+      },
+      "delivery": {
+        "right": 104,
+        "wrong": 3,
+        "asked": 8,
+        "missed": 0
+      },
+      "item": {
+        "right": 16,
+        "wrong": 14,
+        "asked": 0,
+        "missed": 1
+      }
+    },
+    "readerOnly": {
+      "price": {
+        "right": 93,
+        "wrong": 2,
+        "asked": 20,
+        "missed": 0
+      },
+      "shipBy": {
+        "right": 30,
+        "wrong": 0,
+        "asked": 2,
+        "missed": 0
+      },
+      "delivery": {
+        "right": 93,
+        "wrong": 1,
+        "asked": 21,
+        "missed": 0
+      },
+      "item": {
+        "right": 28,
+        "wrong": 2,
+        "asked": 0,
+        "missed": 1
+      }
+    },
+    "both": {
+      "price": {
+        "right": 94,
+        "wrong": 1,
+        "asked": 20,
+        "missed": 0
+      },
+      "shipBy": {
+        "right": 19,
+        "wrong": 0,
+        "asked": 11,
+        "missed": 2
+      },
+      "delivery": {
+        "right": 91,
+        "wrong": 0,
+        "asked": 24,
+        "missed": 0
+      },
+      "item": {
+        "right": 28,
+        "wrong": 2,
+        "asked": 0,
+        "missed": 1
+      }
+    }
+  },
+  "mergeCases": {
+    "price": {
+      "agree": 83,
+      "disagree": 24
+    },
+    "shipBy": {
+      "agree": 11,
+      "disagree": 14
+    },
+    "delivery": {
+      "disagree": 22,
+      "agree": 55,
+      "both_unsure": 38
+    }
+  },
+  "claims": {
+    "chats": 32,
+    "labelled": 38,
+    "kept": 50,
+    "precision": 0.98,
+    "recall": 0.9736842105263158
+  },
+  "quotesDropped": 0,
+  "latencyMs": {
+    "p50": 918,
+    "p95": 1717
+  },
+  "tokensPerChat": {
+    "input": 1159,
+    "output": 311
+  },
+  "costPerChatUsd": 0.00036045,
+  "pricing": {
+    "input": 0.15,
+    "output": 0.6,
+    "unit": "USD per million tokens, Groq paid tier (the free tier used here costs $0)",
+    "url": "https://console.groq.com/docs/models",
+    "on": "2026-11-10"
+  },
+  "notRun": [],
+  "misses": [
+    {
+      "id": "ff-3",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "ff-3",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "off-4",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "off-4",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dep-1",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dep-1",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dep-2",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "dep-2",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "dep-3",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "dep-3",
+      "term": "price",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "proof-2",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "proof-2",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "proof-2",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "fee-1",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "fee-1",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "fee-3",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "fee-3",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "over-1",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "over-1",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "over-2",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "over-2",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "over-2",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "over-2",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "ship-2",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "ship-2",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "ship-3",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "ship-3",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "ship-4",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "ship-4",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "ship-4",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "ship-4",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "ai-1",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "ai-1",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "ai-3",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "ai-3",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "ai-4",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "ai-4",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "meet-1",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "meet-1",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "meet-2",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "meet-2",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-ff-2",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-ff-2",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-off-1",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-off-1",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-dep-1",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-dep-1",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-dep-2",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-dep-2",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-proof-1",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-proof-1",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-proof-3",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-proof-3",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-proof-3",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-proof-3",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-fee-2",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-over-1",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-over-1",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-over-2",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-over-2",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-code-3",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-code-3",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-code-3",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-code-3",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-ship-2",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-ship-2",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-ship-3",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-ship-3",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-move-1",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-move-1",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-move-2",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-move-2",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-move-2",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-move-2",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-ai-2",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "neg-ai-2",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "refuse-6",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "refuse-6",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "refuse-7",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "refuse-7",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-2",
+      "term": "shipBy",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-2",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "missed"
+    },
+    {
+      "id": "read-3",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-4",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-5",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-9",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-9",
+      "term": "item",
+      "mode": "both",
+      "outcome": "missed"
+    },
+    {
+      "id": "read-10",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-11",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-12",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-13",
+      "term": "price",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-13",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "read-13",
+      "term": "price",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-13",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "read-14",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-16",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-22",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "wrong"
+    },
+    {
+      "id": "read-22",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-22",
+      "term": "item",
+      "mode": "both",
+      "outcome": "wrong"
+    },
+    {
+      "id": "read-23",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-24",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-24",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-25",
+      "term": "delivery",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-25",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-27",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-28",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-28",
+      "term": "delivery",
+      "mode": "both",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-31",
+      "term": "item",
+      "mode": "readerOnly",
+      "outcome": "missed"
+    },
+    {
+      "id": "read-32",
+      "term": "shipBy",
+      "mode": "readerOnly",
+      "outcome": "asked"
+    },
+    {
+      "id": "read-32",
+      "term": "shipBy",
+      "mode": "both",
+      "outcome": "missed"
+    }
+  ]
+}

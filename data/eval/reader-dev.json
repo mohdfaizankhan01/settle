@@ -4,15 +4,15 @@
   "model": "openai/gpt-oss-120b",
   "promptVersion": "reader-1",
   "provider": "Groq",
-  "at": "2026-11-10",
+  "at": "2026-11-11",
   "chats": 30,
   "readerRan": 30,
   "terms": {
     "codeOnly": {
       "price": {
-        "right": 27,
+        "right": 28,
         "wrong": 1,
-        "asked": 2,
+        "asked": 1,
         "missed": 0
       },
       "shipBy": {
@@ -22,23 +22,23 @@
         "missed": 10
       },
       "delivery": {
-        "right": 25,
+        "right": 29,
         "wrong": 0,
-        "asked": 5,
+        "asked": 1,
         "missed": 0
       },
       "item": {
-        "right": 9,
-        "wrong": 19,
+        "right": 10,
+        "wrong": 18,
         "asked": 0,
         "missed": 1
       }
     },
     "readerOnly": {
       "price": {
-        "right": 27,
+        "right": 29,
         "wrong": 0,
-        "asked": 3,
+        "asked": 1,
         "missed": 0
       },
       "shipBy": {
@@ -48,23 +48,23 @@
         "missed": 0
       },
       "delivery": {
-        "right": 23,
+        "right": 26,
         "wrong": 1,
-        "asked": 6,
+        "asked": 3,
         "missed": 0
       },
       "item": {
-        "right": 20,
-        "wrong": 9,
+        "right": 27,
+        "wrong": 2,
         "asked": 0,
         "missed": 0
       }
     },
     "both": {
       "price": {
-        "right": 27,
+        "right": 29,
         "wrong": 0,
-        "asked": 3,
+        "asked": 1,
         "missed": 0
       },
       "shipBy": {
@@ -74,14 +74,14 @@
         "missed": 2
       },
       "delivery": {
-        "right": 23,
+        "right": 27,
         "wrong": 0,
-        "asked": 7,
+        "asked": 3,
         "missed": 0
       },
       "item": {
-        "right": 19,
-        "wrong": 9,
+        "right": 26,
+        "wrong": 2,
         "asked": 0,
         "missed": 1
       }
@@ -141,18 +141,6 @@
       "outcome": "asked"
     },
     {
-      "id": "dev-3",
-      "term": "item",
-      "mode": "readerOnly",
-      "outcome": "wrong"
-    },
-    {
-      "id": "dev-3",
-      "term": "item",
-      "mode": "both",
-      "outcome": "wrong"
-    },
-    {
       "id": "dev-5",
       "term": "item",
       "mode": "readerOnly",
@@ -196,23 +184,11 @@
     },
     {
       "id": "dev-13",
-      "term": "item",
-      "mode": "readerOnly",
-      "outcome": "wrong"
-    },
-    {
-      "id": "dev-13",
       "term": "shipBy",
       "mode": "both",
       "outcome": "asked"
     },
     {
-      "id": "dev-13",
-      "term": "item",
-      "mode": "both",
-      "outcome": "wrong"
-    },
-    {
       "id": "dev-14",
       "term": "price",
       "mode": "readerOnly",
@@ -220,19 +196,7 @@
     },
     {
       "id": "dev-14",
-      "term": "delivery",
-      "mode": "readerOnly",
-      "outcome": "asked"
-    },
-    {
-      "id": "dev-14",
       "term": "price",
-      "mode": "both",
-      "outcome": "asked"
-    },
-    {
-      "id": "dev-14",
-      "term": "delivery",
       "mode": "both",
       "outcome": "asked"
     },
@@ -249,70 +213,10 @@
       "outcome": "missed"
     },
     {
-      "id": "dev-18",
-      "term": "delivery",
-      "mode": "readerOnly",
-      "outcome": "asked"
-    },
-    {
-      "id": "dev-18",
-      "term": "delivery",
-      "mode": "both",
-      "outcome": "asked"
-    },
-    {
-      "id": "dev-20",
-      "term": "price",
-      "mode": "readerOnly",
-      "outcome": "asked"
-    },
-    {
-      "id": "dev-20",
-      "term": "delivery",
-      "mode": "readerOnly",
-      "outcome": "asked"
-    },
-    {
-      "id": "dev-20",
-      "term": "item",
-      "mode": "readerOnly",
-      "outcome": "wrong"
-    },
-    {
-      "id": "dev-20",
-      "term": "price",
-      "mode": "both",
-      "outcome": "asked"
-    },
-    {
-      "id": "dev-20",
-      "term": "delivery",
-      "mode": "both",
-      "outcome": "asked"
-    },
-    {
-      "id": "dev-20",
-      "term": "item",
-      "mode": "both",
-      "outcome": "wrong"
-    },
-    {
-      "id": "dev-21",
-      "term": "item",
-      "mode": "readerOnly",
-      "outcome": "wrong"
-    },
-    {
       "id": "dev-21",
       "term": "shipBy",
       "mode": "both",
       "outcome": "asked"
-    },
-    {
-      "id": "dev-21",
-      "term": "item",
-      "mode": "both",
-      "outcome": "wrong"
     },
     {
       "id": "dev-22",
@@ -339,40 +243,10 @@
       "outcome": "missed"
     },
     {
-      "id": "dev-25",
-      "term": "item",
-      "mode": "readerOnly",
-      "outcome": "wrong"
-    },
-    {
-      "id": "dev-25",
-      "term": "item",
-      "mode": "both",
-      "outcome": "wrong"
-    },
-    {
-      "id": "dev-26",
-      "term": "item",
-      "mode": "readerOnly",
-      "outcome": "wrong"
-    },
-    {
-      "id": "dev-26",
-      "term": "item",
-      "mode": "both",
-      "outcome": "wrong"
-    },
-    {
       "id": "dev-27",
       "term": "delivery",
       "mode": "readerOnly",
       "outcome": "wrong"
-    },
-    {
-      "id": "dev-27",
-      "term": "delivery",
-      "mode": "both",
-      "outcome": "asked"
     },
     {
       "id": "dev-27",
@@ -382,20 +256,8 @@
     },
     {
       "id": "dev-28",
-      "term": "price",
-      "mode": "readerOnly",
-      "outcome": "asked"
-    },
-    {
-      "id": "dev-28",
       "term": "delivery",
       "mode": "readerOnly",
-      "outcome": "asked"
-    },
-    {
-      "id": "dev-28",
-      "term": "price",
-      "mode": "both",
       "outcome": "asked"
     },
     {
@@ -403,24 +265,12 @@
       "term": "delivery",
       "mode": "both",
       "outcome": "asked"
-    },
-    {
-      "id": "dev-29",
-      "term": "item",
-      "mode": "readerOnly",
-      "outcome": "wrong"
     },
     {
       "id": "dev-29",
       "term": "shipBy",
       "mode": "both",
       "outcome": "asked"
-    },
-    {
-      "id": "dev-29",
-      "term": "item",
-      "mode": "both",
-      "outcome": "wrong"
     },
     {
       "id": "dev-30",

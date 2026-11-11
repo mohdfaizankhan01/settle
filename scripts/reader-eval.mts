@@ -72,8 +72,10 @@ function grade(term: Term, c: EvalChat, card: DealCard, questions: Question[]): 
   const want = term === 'price' ? c.price : term === 'delivery' ? c.delivery : c.shipBy;
   const got = term === 'price' ? card.price?.value.amount : term === 'delivery' ? card.delivery?.value : card.shipBy?.value;
   if (got !== undefined) return want !== null && want !== undefined && String(got).toLowerCase() === String(want).toLowerCase() ? 'right' : 'wrong';
+  // The chat settled nothing: leaving it open (or asking both people) is the right outcome.
+  if (want === null) return 'right';
   if (asked) return 'asked';
-  // Nothing filled and nothing asked: right only when the chat settled nothing.
+  // Nothing filled and nothing asked: missed.
   return want === null ? 'right' : 'missed';
 }
 
