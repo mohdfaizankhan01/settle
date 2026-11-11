@@ -7,7 +7,7 @@ import { PayPalApiError } from '../paypal';
 import { ChatError, type Role } from './chat';
 import { actingRole, DealError, withDevice } from './deals';
 import { PgDealStore } from './pg-store';
-import { skippedReader, type DealReader } from '../reader/deal-reader';
+import { liveReader, skippedReader, type DealReader } from '../reader/deal-reader';
 import { MemoryDealStore, type DealStore } from './store';
 import { readBodyLimited } from './webhook';
 
@@ -158,13 +158,19 @@ export const READER_LIMITS = { perAddressHour: 10, totalMinute: 3, totalDay: 80 
  * every cap, else one that skips with the reason, so the deal is still made and labelled. Without a
  * key nothing is counted: the reader skips on its own.
  */
-export function readerForRequest(request: Request): DealReader | undefined {
+/**
+ * The reader for one request. Lazy: the caps are checked and counted only when a read actually
+ * starts, so a request that a blocker turns away (already read, payment started) costs nothing.
+ */
+export function readerForRequest(request: Request, live: DealReader = liveReader()): DealReader | undefined {
   if (!process.env.GROQ_API_KEY || process.env.SETTLE_READER === 'off') return undefined;
   const ip = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'local';
-  const over = readerCapReached(ip);
-  if (over) return skippedReader(over);
-  recordReaderUse(ip);
-  return undefined;
+  return async (r) => {
+    const over = readerCapReached(ip);
+    if (over) return skippedReader(over)(r);
+    recordReaderUse(ip);
+    return live(r);
+  };
 }
 
 const READER_BUCKETS = (ip?: string) => {

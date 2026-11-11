@@ -383,9 +383,18 @@ test('reader caps: over 3 reads a minute in total the reader is skipped with the
   assert.equal(readerForRequest(req('10.0.0.1')), undefined, 'no key: the live reader skips on its own');
   process.env.GROQ_API_KEY = 'test-key';
   try {
-    const got = [1, 2, 3, 4].map((n) => readerForRequest(req(`10.9.0.${n}`)));
-    assert.deepEqual(got.slice(0, 3), [undefined, undefined, undefined]);
-    const skipped = await got[3]!(redacted());
+    let calls = 0;
+    const counted = async () => {
+      calls++;
+      return { run: { status: 'skipped' as const, at: 'x', reason: 'fake provider' }, source: 'live' as const };
+    };
+    // Making a reader counts nothing: a request turned away before reading costs no quota.
+    for (let n = 0; n < 10; n++) readerForRequest(req(`10.8.0.${n}`), counted);
+    const got = [1, 2, 3, 4].map((n) => readerForRequest(req(`10.9.0.${n}`), counted)!);
+    for (const g of got.slice(0, 3)) assert.match(((await g(redacted())).run as { reason: string }).reason, /fake provider/);
+    assert.equal(calls, 3);
+    const skipped = await got[3](redacted());
+    assert.equal(calls, 3, 'over the cap the provider is not called');
     assert.equal(skipped.run.status, 'skipped');
     assert.match((skipped.run as { reason: string }).reason, /3 reads a minute/);
   } finally {
