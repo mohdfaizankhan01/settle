@@ -83,6 +83,9 @@ export function JudgeMode() {
             <Link href="/proof" className="lift rounded-full border border-pp-border bg-pp-surface px-4 py-2 font-semibold text-pp-navy shadow-[var(--pp-shadow-sm)]">
               Proof
             </Link>
+            <Link href="/verify" className="lift rounded-full border border-pp-border bg-pp-surface px-4 py-2 font-semibold text-pp-navy shadow-[var(--pp-shadow-sm)]">
+              Verify a record
+            </Link>
             <button onClick={start} disabled={busy} aria-busy={busy} className="btn-primary inline-flex items-center gap-2 rounded-full px-5 py-2 font-semibold disabled:opacity-40">
               {busy && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />}
               {busy ? 'Setting up eight deals…' : session ? 'Start over with fresh deals' : 'Start judge mode'}
