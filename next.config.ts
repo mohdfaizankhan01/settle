@@ -10,6 +10,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // The public signing keys, at the conventional well-known path (/verify checks records against them).
+  async rewrites() {
+    return [{ source: '/.well-known/settle-link-key.json', destination: '/api/verify/keys' }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -27,7 +27,7 @@ export type Deps = { store: DealStore; ask?: AskJev; engine?: CheckEngine; reade
 export class DealError extends Error {
   constructor(
     message: string,
-    readonly status: 400 | 403 | 404 | 409 = 400,
+    readonly status: 400 | 403 | 404 | 409 | 503 = 400,
   ) {
     super(message);
   }

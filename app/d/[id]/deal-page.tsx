@@ -206,7 +206,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
           {view.afterPayment && <AfterPayment view={view} busy={busy} act={act} />}
           {/* Before payment is when a fake "you've been paid" email usually arrives. */}
           {me === 'seller' && !view.afterPayment && <PaidCheckBox busy={busy} act={act} />}
-          <History view={view} />
+          <History view={view} dealId={dealId} />
         </div>
 
         <aside className={`order-1 space-y-8 ${embedded ? '' : 'lg:order-2'}`}>
@@ -909,6 +909,7 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
   const [preview, setPreview] = useState<Preview | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const getKey = useContext(KeyContext);
+  const downloadSigned = async () => setDownloadError(await downloadRecord(dealId, getKey(), d.id));
   const choice = { disputeId: d.id, advice, ...(advice === 'offer' ? { offerAmount: offer } : {}), ...(withFiles ? {} : { withFiles: false }) };
 
   const download = async () => {
@@ -1034,6 +1035,9 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
             <button type="button" onClick={download} className="rounded-full border border-pp-border px-5 py-2 font-semibold">
               Download evidence pack
             </button>
+            <button type="button" onClick={downloadSigned} className="rounded-full border border-pp-border px-5 py-2 font-semibold">
+              Download signed record
+            </button>
           </div>
           {downloadError && <p role="alert" className="mt-2 text-pp-danger">{downloadError}</p>}
 
@@ -1066,6 +1070,9 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
         <div className="text-sm">
           <button type="button" onClick={download} className="rounded-full border border-pp-border px-5 py-2 font-semibold">
             Download evidence pack
+          </button>{' '}
+          <button type="button" onClick={downloadSigned} className="rounded-full border border-pp-border px-5 py-2 font-semibold">
+            Download signed record
           </button>
           {downloadError && <p role="alert" className="mt-2 text-pp-danger">{downloadError}</p>}
         </div>
@@ -1085,9 +1092,27 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
   );
 }
 
+/** Saves the seller's signed record (add a dispute ID to cover its evidence pack). Returns an error to show, or null. */
+async function downloadRecord(dealId: string, key: string, disputeId?: string): Promise<string | null> {
+  const res = await fetch(`/api/deals/${dealId}/record${disputeId ? `?d=${encodeURIComponent(disputeId)}` : ''}`, { headers: keyHeaders(key), cache: 'no-store' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    return body.error ?? 'The signed record could not be downloaded. Reload the page and try again.';
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `settle-link-record-${dealId}${disputeId ? `-${disputeId}` : ''}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  return null;
+}
+
 /** The deal's history from its receipts, and whether the chain of receipts verifies. */
-function History({ view }: { view: DealView }) {
+function History({ view, dealId }: { view: DealView; dealId: string }) {
   const h = view.history;
+  const getKey = useContext(KeyContext);
+  const [recordError, setRecordError] = useState<string | null>(null);
   if (h.items.length === 0) return null;
   return (
     <details className="surface rounded-2xl text-sm">
@@ -1103,6 +1128,19 @@ function History({ view }: { view: DealView }) {
             ? `Each step is a receipt holding the hash of the one before, so a step changed, reordered or removed from the middle would show here${h.chain.count !== null ? `; all ${h.chain.count} check out` : ''}. Steps removed from the very end would not.`
             : `${h.chain.brokenAt !== null ? `Receipt ${h.chain.brokenAt}` : 'A step'} does not check out (${h.chain.reason}). The record from there on can't be trusted.`}
         </p>
+        {view.role === 'seller' && (
+          <div className="mt-3 text-xs">
+            <button type="button" onClick={async () => setRecordError(await downloadRecord(dealId, getKey()))} className="rounded-full border border-pp-border px-4 py-1.5 font-semibold">
+              Download signed record
+            </button>
+            <span className="ml-2 text-pp-muted">
+              A copy of these receipts signed by Settle Link, which anyone can check at{' '}
+              <a href="/verify" className="text-pp-blue underline underline-offset-2">/verify</a> without trusting us.
+              {view.realness.mode === 'judge' ? ' Judge mode: signed with the public demo key, so it shows the format only.' : ''}
+            </span>
+            {recordError && <p role="alert" className="mt-2 text-pp-danger">{recordError}</p>}
+          </div>
+        )}
         <ol className="mt-3 space-y-2">
           {h.items.map((i) => (
             <li key={i.seq} className="grid gap-x-3 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
