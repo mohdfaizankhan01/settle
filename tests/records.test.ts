@@ -23,7 +23,7 @@ const rejects = async (p: Promise<unknown>, status: number) => {
 test('the seller exports a signed record of a judge-mode deal; it verifies and says it is demo data', async () => {
   const { store, dispute, seller } = await demo();
   const record = await exportRecord(dispute.dealId, seller, { store });
-  const out = verifyRecord(JSON.parse(JSON.stringify(record)), publishedKeys({}));
+  const out = (await verifyRecord(JSON.parse(JSON.stringify(record)), publishedKeys({})));
   assert.equal(out.ok, true);
   assert.equal(out.kind, 'demo');
   assert.equal(record.body.demo, true);
@@ -42,7 +42,7 @@ test('a record that covers a dispute carries the hash of the evidence pack the s
   const pack = await evidencePack(dispute.dealId, seller, id, { store });
   assert.equal(record.body.pdf!.disputeId, id);
   assert.equal(record.body.pdf!.sha256, pdfSha256(pack));
-  assert.equal(verifyRecord(record, publishedKeys({})).ok, true);
+  assert.equal((await verifyRecord(record, publishedKeys({}))).ok, true);
   await rejects(exportRecord(dispute.dealId, seller, { store }, 'PP-D-NOPE'), 404);
 });
 
@@ -78,8 +78,8 @@ test('a live deal is signed with the live key; without one in production there i
   assert.equal(record.body.demo, false);
   assert.equal(record.signature.kind, 'live');
   const live = liveSigningKey(env)!;
-  assert.equal(verifyRecord(record, [live.info]).ok, true);
-  assert.equal(verifyRecord(record, publishedKeys({})).ok, false, 'not valid against the demo key alone');
+  assert.equal((await verifyRecord(record, [live.info])).ok, true);
+  assert.equal((await verifyRecord(record, publishedKeys({}))).ok, false, 'not valid against the demo key alone');
 });
 
 test('a judge-mode deal is never signed with the live key', async () => {

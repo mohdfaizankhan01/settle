@@ -25,12 +25,12 @@ const seed = () => encodeSeed(randomBytes(32));
 const liveKey = (s = seed()) => liveSigningKey({ SETTLE_SIGNING_KEY: s })!;
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 const signed = (key = liveKey(), extra: Partial<Parameters<typeof signRecord>[0]> = {}) => signRecord({ dealId: 'd1', demo: false, cardHash: 'abc', receipts: chain(), now, ...extra }, key);
-const status = (r: ReturnType<typeof verifyRecord>, id: string) => r.checks.find((c) => c.id === id)?.status;
+const status = (r: Awaited<ReturnType<typeof verifyRecord>>, id: string) => r.checks.find((c) => c.id === id)?.status;
 
-test('a signed record verifies against the published key', () => {
+test('a signed record verifies against the published key', async () => {
   const key = liveKey();
   const rec = signed(key);
-  const out = verifyRecord(rec, [key.info]);
+  const out = (await verifyRecord(rec, [key.info]));
   assert.equal(out.ok, true);
   assert.equal(out.kind, 'live');
   for (const id of ['format', 'key', 'signature', 'chain', 'head', 'deal']) assert.equal(status(out, id), 'pass', id);
@@ -39,13 +39,13 @@ test('a signed record verifies against the published key', () => {
   assert.equal(rec.body.signedAt, '2026-11-11T12:00:00.000Z');
 });
 
-test('the same record survives being written out and read back', () => {
+test('the same record survives being written out and read back', async () => {
   const key = liveKey();
-  assert.equal(verifyRecord(JSON.parse(JSON.stringify(signed(key))), [key.info]).ok, true);
-  assert.equal(verifyRecord(JSON.parse(JSON.stringify(signed(key), null, 2)), [key.info]).ok, true);
+  assert.equal((await verifyRecord(JSON.parse(JSON.stringify(signed(key))), [key.info])).ok, true);
+  assert.equal((await verifyRecord(JSON.parse(JSON.stringify(signed(key), null, 2)), [key.info])).ok, true);
 });
 
-test('changing anything in the signed body fails the signature', () => {
+test('changing anything in the signed body fails the signature', async () => {
   const key = liveKey();
   const changes: ((r: SignedRecord) => void)[] = [
     (r) => { r.body.cardHash = 'def'; },
@@ -58,73 +58,73 @@ test('changing anything in the signed body fails the signature', () => {
   for (const [i, change] of changes.entries()) {
     const rec = clone(signed(key));
     change(rec);
-    const out = verifyRecord(rec, [key.info]);
+    const out = (await verifyRecord(rec, [key.info]));
     assert.equal(out.ok, false, `change ${i} must fail`);
     assert.equal(status(out, 'signature'), 'fail', `change ${i} must fail the signature`);
   }
 });
 
-test('a dropped, reordered or edited receipt is caught by the chain even when re-signed', () => {
+test('a dropped, reordered or edited receipt is caught by the chain even when re-signed', async () => {
   const key = liveKey();
   const dropped = chain();
   dropped.splice(1, 1);
-  const out = verifyRecord(signRecord({ dealId: 'd1', demo: false, cardHash: 'abc', receipts: dropped, now }, key), [key.info]);
+  const out = (await verifyRecord(signRecord({ dealId: 'd1', demo: false, cardHash: 'abc', receipts: dropped, now }, key), [key.info]));
   assert.equal(status(out, 'signature'), 'pass', 'signed by the real key');
   assert.equal(status(out, 'chain'), 'fail');
   assert.equal(out.ok, false);
 
   const [a, b, c] = chain();
-  assert.equal(status(verifyRecord(signRecord({ dealId: 'd1', demo: false, cardHash: 'abc', receipts: [a, c, b], now }, key), [key.info]), 'chain'), 'fail');
+  assert.equal(status((await verifyRecord(signRecord({ dealId: 'd1', demo: false, cardHash: 'abc', receipts: [a, c, b], now }, key), [key.info])), 'chain'), 'fail');
 
   const edited = chain();
   edited[1] = { ...edited[1], data: { by: 'seller' } };
-  assert.equal(status(verifyRecord(signRecord({ dealId: 'd1', demo: false, cardHash: 'abc', receipts: edited, now }, key), [key.info]), 'chain'), 'fail');
+  assert.equal(status((await verifyRecord(signRecord({ dealId: 'd1', demo: false, cardHash: 'abc', receipts: edited, now }, key), [key.info])), 'chain'), 'fail');
 });
 
-test('a chain head or count that does not match the receipts fails, and so does a receipt from another deal', () => {
+test('a chain head or count that does not match the receipts fails, and so does a receipt from another deal', async () => {
   const key = liveKey();
   const rec = clone(signed(key));
   rec.body.chainHead = 'f'.repeat(64);
-  assert.equal(status(verifyRecord(rec, [key.info]), 'head'), 'fail');
+  assert.equal(status((await verifyRecord(rec, [key.info])), 'head'), 'fail');
   const mixed = [...chain('d1').slice(0, 1), ...chain('d2').slice(1)];
-  assert.equal(verifyRecord(signRecord({ dealId: 'd1', demo: false, cardHash: 'abc', receipts: mixed, now }, key), [key.info]).ok, false);
+  assert.equal((await verifyRecord(signRecord({ dealId: 'd1', demo: false, cardHash: 'abc', receipts: mixed, now }, key), [key.info])).ok, false);
 });
 
-test('a record signed by another key, or a changed signature, does not verify', () => {
+test('a record signed by another key, or a changed signature, does not verify', async () => {
   const key = liveKey();
   const other = liveKey();
   const byOther = signed(other);
-  const out = verifyRecord(byOther, [key.info]);
+  const out = (await verifyRecord(byOther, [key.info]));
   assert.equal(status(out, 'key'), 'fail', 'the other key is not on the list');
   assert.equal(out.ok, false);
 
   // Claiming our key id on a signature made by someone else's key.
   const forged = clone(byOther);
   forged.signature.keyId = key.info.keyId;
-  assert.equal(status(verifyRecord(forged, [key.info]), 'signature'), 'fail');
+  assert.equal(status((await verifyRecord(forged, [key.info])), 'signature'), 'fail');
 
   const flipped = clone(signed(key));
   flipped.signature.value = `${flipped.signature.value.slice(0, -2)}AA`;
-  assert.equal(verifyRecord(flipped, [key.info]).ok, false);
+  assert.equal((await verifyRecord(flipped, [key.info])).ok, false);
 });
 
-test('malformed input is a failed check, never a throw', () => {
+test('malformed input is a failed check, never a throw', async () => {
   const key = liveKey();
   for (const input of [null, undefined, 42, 'text', [], {}, { format: 'settle-link-record/1' }, { format: 'settle-link-record/1', body: {}, signature: {} }, { format: 'other/9', body: {}, signature: {} }]) {
-    const out = verifyRecord(input, [key.info]);
+    const out = (await verifyRecord(input, [key.info]));
     assert.equal(out.ok, false);
   }
   const badSig = clone(signed(key));
   (badSig.signature as { value: unknown }).value = 12;
-  assert.doesNotThrow(() => verifyRecord(badSig, [key.info]));
-  assert.equal(verifyRecord(badSig, [key.info]).ok, false);
+  await assert.doesNotReject(verifyRecord(badSig, [key.info]));
+  assert.equal((await verifyRecord(badSig, [key.info])).ok, false);
   const badReceipts = clone(signed(key));
   badReceipts.body.receipts = [{ nope: 1 } as unknown as Receipt];
-  assert.doesNotThrow(() => verifyRecord(badReceipts, [key.info]));
-  assert.equal(verifyRecord(badReceipts, [key.info]).ok, false);
+  await assert.doesNotReject(verifyRecord(badReceipts, [key.info]));
+  assert.equal((await verifyRecord(badReceipts, [key.info])).ok, false);
 });
 
-test('key rules: production without a valid key signs nothing; judge mode and development use the public demo key', () => {
+test('key rules: production without a valid key signs nothing; judge mode and development use the public demo key', async () => {
   const s = seed();
   assert.equal(signingKeyFor(false, { NODE_ENV: 'production' }), undefined, 'production, no key: off');
   assert.equal(signingKeyFor(false, { NODE_ENV: 'production', SETTLE_SIGNING_KEY: 'not base64 of 32 bytes' }), undefined, 'production, bad key: off');
@@ -135,7 +135,7 @@ test('key rules: production without a valid key signs nothing; judge mode and de
   assert.equal(signingKeyFor(true, { NODE_ENV: 'production' })!.info.keyId, demoSigningKey().info.keyId);
 });
 
-test('the same seed gives the same key id; different seeds do not', () => {
+test('the same seed gives the same key id; different seeds do not', async () => {
   const s = seed();
   assert.equal(liveKey(s).info.keyId, liveKey(s).info.keyId);
   assert.notEqual(liveKey().info.keyId, liveKey().info.keyId);
@@ -143,7 +143,7 @@ test('the same seed gives the same key id; different seeds do not', () => {
   assert.equal(Buffer.from(liveKey().info.publicKey, 'base64url').length, 32);
 });
 
-test('published keys: the live key when set, always the demo key; never a private part', () => {
+test('published keys: the live key when set, always the demo key; never a private part', async () => {
   const s = seed();
   const withLive = publishedKeys({ SETTLE_SIGNING_KEY: s });
   assert.deepEqual(withLive.map((k) => k.kind), ['live', 'demo']);
@@ -151,31 +151,31 @@ test('published keys: the live key when set, always the demo key; never a privat
   assert.ok(!JSON.stringify(withLive).includes(Buffer.from(s, 'base64').toString('base64url')), 'the seed is not published');
 });
 
-test('a judge-mode record verifies and says it is demo data', () => {
+test('a judge-mode record verifies and says it is demo data', async () => {
   const rec = signRecord({ dealId: 'd1', demo: true, cardHash: 'abc', receipts: chain(), now }, demoSigningKey());
-  const out = verifyRecord(rec, publishedKeys({}));
+  const out = (await verifyRecord(rec, publishedKeys({})));
   assert.equal(out.ok, true);
   assert.equal(out.kind, 'demo');
   assert.equal(status(out, 'demo'), 'info');
   assert.match(out.checks.find((c) => c.id === 'demo')!.detail, /anyone can use/);
 });
 
-test('a record that covers an evidence PDF names it, and the PDF hash is the SHA-256 of the bytes', () => {
+test('a record that covers an evidence PDF names it, and the PDF hash is the SHA-256 of the bytes', async () => {
   const key = liveKey();
   const pdf = new TextEncoder().encode('%PDF-1.4 test');
   const rec = signed(key, { pdf: { disputeId: 'PP-D-1', sha256: pdfSha256(pdf) } });
   assert.equal(rec.body.pdf!.sha256, pdfSha256(pdf));
   assert.equal(pdfSha256(pdf).length, 64);
   assert.notEqual(pdfSha256(pdf), pdfSha256(new TextEncoder().encode('%PDF-1.4 other')));
-  const out = verifyRecord(rec, [key.info]);
+  const out = (await verifyRecord(rec, [key.info]));
   assert.equal(out.ok, true);
   assert.match(out.checks.find((c) => c.id === 'pdf')!.detail, /PP-D-1/);
-  assert.equal(verifyRecord(signed(key), [key.info]).checks.some((c) => c.id === 'pdf'), false);
+  assert.equal((await verifyRecord(signed(key), [key.info])).checks.some((c) => c.id === 'pdf'), false);
 });
 
-test('an empty chain signs and verifies with the genesis head', () => {
+test('an empty chain signs and verifies with the genesis head', async () => {
   const key = liveKey();
   const rec = signRecord({ dealId: 'd1', demo: false, cardHash: 'abc', receipts: [], now }, key);
   assert.equal(rec.body.chainHead, '0'.repeat(64));
-  assert.equal(verifyRecord(rec, [key.info]).ok, true);
+  assert.equal((await verifyRecord(rec, [key.info])).ok, true);
 });
