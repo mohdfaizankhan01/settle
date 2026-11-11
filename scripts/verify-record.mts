@@ -3,7 +3,9 @@
 // a browser (lib/settle/verify-core.ts). Keys: --keys takes a key list file (the JSON from
 // /.well-known/settle-link-key.json, or one key). Without it, the check uses the public key
 // committed in this repository (docs/signing-public-key.json) and the public demo key.
-// Exit code: 0 the record checks out, 1 it does not, 2 usage or an unreadable file.
+// Exit code: 0 the record checks out (signed with a real key), 3 it is a judge-mode demo record whose
+// format and chain check out (signed with the public demo key, so it shows nothing about a real
+// deal), 1 it does not check out, 2 usage or an unreadable file.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { demoSigningKey, nodeCrypto } from '../lib/settle/signing';
@@ -51,6 +53,9 @@ if (opt('pdf') && out.checks.find((c) => c.id === 'format')?.status === 'pass') 
 }
 const mark = { pass: '✓', fail: '✕', info: 'ℹ' } as const;
 for (const c of rows) console.log(`${mark[c.status]} ${c.detail}`);
-const ok = out.ok && pdfOk;
-console.log(`\n${ok ? 'This record checks out: unchanged since it was signed.' : 'This record does NOT check out.'} Checked against ${keysFrom}. It does not show the events happened; PayPal decides that.`);
-process.exit(ok ? 0 : 1);
+const verdict = out.ok && pdfOk ? out.verdict : 'failed';
+const tail = `Checked against ${keysFrom}. It does not show the events happened; PayPal decides that.`;
+if (verdict === 'verified') console.log(`\nThis record checks out: unchanged since it was signed. ${tail}`);
+else if (verdict === 'demo') console.log(`\nDemo record: its format and chain check out, but it is signed with the public demo key that anyone can use, so this shows nothing about a real deal. ${tail}`);
+else console.log(`\nThis record does NOT check out. ${tail}`);
+process.exit(verdict === 'verified' ? 0 : verdict === 'demo' ? 3 : 1);

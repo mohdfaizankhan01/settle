@@ -36,7 +36,12 @@ export type SignedRecord = {
 };
 
 export type Check = { id: string; status: 'pass' | 'fail' | 'info'; detail: string };
-export type RecordCheck = { ok: boolean; kind: KeyKind | null; checks: Check[] };
+/**
+ * `ok`: no check failed. `verdict`: what a page may headline. A record signed with the public demo
+ * key is never "verified": anyone can sign with that key, so it only shows the file format.
+ */
+export type Verdict = 'verified' | 'demo' | 'failed';
+export type RecordCheck = { ok: boolean; verdict: Verdict; /** The kind of the published key that matched (not the label in the file). */ kind: KeyKind | null; checks: Check[] };
 
 /** The crypto the check needs. Each environment supplies its own. */
 export type VerifyCrypto = {
@@ -86,7 +91,10 @@ export async function chainProblem(c: VerifyCrypto, receipts: readonly Receipt[]
 export async function verifyRecordWith(input: unknown, keys: readonly PublicKeyInfo[], c: VerifyCrypto): Promise<RecordCheck> {
   const checks: Check[] = [];
   const add = (id: string, ok: boolean, pass: string, fail: string) => checks.push({ id, status: ok ? 'pass' : 'fail', detail: ok ? pass : fail });
-  const done = (kind: KeyKind | null): RecordCheck => ({ ok: checks.every((x) => x.status !== 'fail'), kind, checks });
+  const done = (kind: KeyKind | null): RecordCheck => {
+    const ok = checks.every((x) => x.status !== 'fail');
+    return { ok, verdict: !ok ? 'failed' : kind === 'demo' ? 'demo' : 'verified', kind, checks };
+  };
 
   const record = input as { format?: unknown; body?: unknown; signature?: unknown };
   const shaped = isObject(input) && record.format === RECORD_FORMAT && isObject(record.body) && isObject(record.signature) && Array.isArray((record.body as { receipts?: unknown }).receipts);
@@ -96,6 +104,21 @@ export async function verifyRecordWith(input: unknown, keys: readonly PublicKeyI
 
   const key = keys.find((k) => k.keyId === signature.keyId);
   add('key', !!key, `Signed with key ${signature.keyId}, which is on the list of keys used for this check${key?.kind === 'demo' ? ' (the public demo key)' : ''}.`, `Key ${String(signature.keyId)} is not on the list of keys used for this check.`);
+
+  // The demo key is public, so a record signed with it must say it is demo data; a record that
+  // claims to be a real deal under that key is refused. (The kind label inside the file is not
+  // signed, so only the published key's own kind counts.)
+  if (key) {
+    const honest = key.kind === 'demo' ? body.demo === true : body.demo !== true;
+    add(
+      'kind',
+      honest,
+      key.kind === 'demo' ? 'The record says it is judge-mode demo data, which matches the public demo key it is signed with.' : 'The record is a real deal, signed with the live key.',
+      key.kind === 'demo'
+        ? 'Signed with the public demo key, but the record does not say it is demo data. Anyone can sign with that key, so this proves nothing.'
+        : 'The record says it is demo data but is signed with the live key.',
+    );
+  }
 
   let signed = false;
   let unsupported = false;

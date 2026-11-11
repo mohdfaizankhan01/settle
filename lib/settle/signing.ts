@@ -74,7 +74,8 @@ export function signRecord(input: RecordInput, key: SigningKey): SignedRecord {
   const receipts = [...input.receipts];
   const body: RecordBody = {
     dealId: input.dealId,
-    demo: input.demo,
+    // Signed with the public demo key, a record always says it is demo data.
+    demo: input.demo || key.info.kind === 'demo',
     signedAt: (input.now ?? (() => new Date()))().toISOString(),
     cardHash: input.cardHash,
     chainHead: receipts.at(-1)?.hash ?? GENESIS_HASH,

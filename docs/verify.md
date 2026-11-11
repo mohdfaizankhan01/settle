@@ -27,7 +27,9 @@ steps. Exporting writes no receipt, so the record and the evidence pack describe
 - **In a browser:** open [/verify](https://settle-ulya.onrender.com/verify), drop the record (and the
   evidence PDF if it covers one). Nothing is uploaded; WebCrypto does the check.
 - **Offline:** `npm run verify:record -- record.json [--pdf evidence.pdf] [--keys keys.json]`. It
-  needs no network. Exit code 0: checks out; 1: does not; 2: unreadable file or usage.
+  needs no network. Exit code 0: checks out; 3: a judge-mode demo record whose format and chain check
+  out (signed with the public demo key, so it shows nothing about a real deal); 1: does not check
+  out; 2: unreadable file or usage.
 
 Both run the same code, `lib/settle/verify-core.ts`, with different crypto underneath (WebCrypto
 in the browser, `node:crypto` in Node). `tests/verify-core.test.ts` checks that they give the same
@@ -48,7 +50,11 @@ the record names.
   `docs/signing-public-key.json`, or pass your own list (`--keys`, or the box on /verify).
 - **Judge mode** deals, and local development without a key, are signed with a fixed **public demo
   key** (its seed is derived from a published string). Anyone can sign with it, so a demo record
-  only shows the file format; the record, the page and the script all say so.
+  only shows the file format: the page never gives it the green "checks out" headline (it says
+  "Demo record"), and the script exits 3 for it, not 0. A record signed with the demo key must say
+  `demo: true`; one that claims to be a real deal under that key fails the check, so a forged
+  "real" record can't pass as verified. The key kind shown comes from the published key, not from
+  the unsigned label inside the file.
 - Production without a valid `SETTLE_SIGNING_KEY` signs nothing: the download answers "signing is
   off on this server". It never falls back to the demo key for a real deal.
 

@@ -48,7 +48,9 @@ test('a signed record and its evidence pack verify on /verify, and a changed rec
   await page.getByLabel('Signed record (.json)').setInputFiles(coversPath);
   await page.getByLabel(/Evidence PDF/).setInputFiles(pdfPath);
   await page.getByRole('button', { name: 'Check the record' }).click();
-  await expect(page.getByRole('heading', { name: 'This record checks out: unchanged since it was signed' })).toBeVisible();
+  // A judge-mode record is signed with the public demo key: never the green "checks out" headline.
+  await expect(page.getByRole('heading', { name: /Demo record: its format and chain check out/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /This record checks out/ })).toHaveCount(0);
   await expect(page.getByText('The signature matches this exact record.')).toBeVisible();
   await expect(page.getByText(/This PDF is the one the record covers/)).toBeVisible();
   await expect(page.getByText(/Judge-mode demo record/)).toBeVisible();

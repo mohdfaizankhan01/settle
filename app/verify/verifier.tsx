@@ -54,8 +54,13 @@ export function Verifier() {
     }
   };
 
-  const ok = result && result.check.ok && (result.pdf ? result.pdf.status === 'pass' : true);
+  const verdict = result ? (result.check.ok && result.pdf?.status === 'fail' ? 'failed' : result.check.verdict) : null;
   const rows = result ? [...result.check.checks.filter((c) => c.id !== 'pdf' || !result.pdf), ...(result.pdf ? [result.pdf] : [])] : [];
+  const HEADLINE = {
+    verified: { text: 'This record checks out: unchanged since it was signed', tone: 'text-pp-success' },
+    demo: { text: 'Demo record: its format and chain check out, but this shows nothing about a real deal', tone: 'text-pp-warning' },
+    failed: { text: 'This record does not check out', tone: 'text-pp-danger' },
+  } as const;
 
   return (
     <section className="mt-8 surface rounded-2xl p-5" aria-label="Check a record">
@@ -80,10 +85,10 @@ export function Verifier() {
 
       {result && (
         <div className="mt-6" role="status" aria-live="polite">
-          <h2 className={`text-xl font-semibold ${ok ? 'text-pp-success' : 'text-pp-danger'}`}>
-            {ok ? 'This record checks out: unchanged since it was signed' : 'This record does not check out'}
-          </h2>
-          <p className="mt-1 text-sm text-pp-muted">Checked against {result.keysFrom}. This doesn&apos;t show the events happened; PayPal decides that.</p>
+          <h2 className={`text-xl font-semibold ${HEADLINE[verdict!].tone}`}>{HEADLINE[verdict!].text}</h2>
+          <p className="mt-1 text-sm text-pp-muted">
+            Checked against {result.keysFrom}. {verdict === 'demo' ? 'It is signed with the public demo key, which anyone can use. ' : ''}This doesn&apos;t show the events happened; PayPal decides that.
+          </p>
           <ul className="mt-3 divide-y divide-pp-gridline rounded-xl border border-pp-border text-sm">
             {rows.map((c) => (
               <li key={c.id} className="flex gap-3 px-4 py-2">
@@ -93,13 +98,13 @@ export function Verifier() {
             ))}
           </ul>
           {result.record && (
-            <p className="mt-4 text-xs font-semibold text-pp-muted">{ok ? 'What the file says' : 'What the file says (not to be trusted: the check failed)'}</p>
+            <p className="mt-4 text-xs font-semibold text-pp-muted">{verdict === 'failed' ? 'What the file says (not to be trusted: the check failed)' : 'What the file says'}</p>
           )}
           {result.record && (
             <dl className="mt-1 grid gap-x-4 gap-y-1 text-xs text-pp-muted sm:grid-cols-[8rem_minmax(0,1fr)]">
               <dt>Deal</dt><dd className="font-mono">{result.record.body.dealId}</dd>
               <dt>Signed at</dt><dd>{result.record.body.signedAt}</dd>
-              <dt>Key ID</dt><dd className="font-mono">{result.record.signature.keyId} ({result.record.signature.kind})</dd>
+              <dt>Key ID</dt><dd className="font-mono">{result.record.signature.keyId}{result.check.kind ? ` (${result.check.kind})` : ''}</dd>
               <dt>Receipts</dt><dd>{result.record.body.receiptCount}</dd>
               <dt>Chain head</dt><dd className="break-all font-mono">{result.record.body.chainHead}</dd>
               <dt>Card hash</dt><dd className="break-all font-mono">{result.record.body.cardHash}</dd>
