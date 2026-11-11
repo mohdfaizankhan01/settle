@@ -16,7 +16,8 @@
     "e2e": "playwright test",
     "ext:pack": "tsx scripts/pack-extension.mts",
     "reader:eval": "node --env-file-if-exists=.env.local --import tsx scripts/reader-eval.mts",
-    "reader:record": "node --env-file-if-exists=.env.local --import tsx scripts/reader-record.mts"
+    "reader:record": "node --env-file-if-exists=.env.local --import tsx scripts/reader-record.mts",
+    "shots": "tsx scripts/shots.mts"
   },
   "dependencies": {
     "@bryntum/scheduler": "npm:@bryntum/scheduler-trial@7.3.8",
