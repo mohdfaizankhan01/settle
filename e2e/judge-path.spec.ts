@@ -17,9 +17,9 @@ test('a judge walks from the home page through every deal state', async ({ page 
   await page.getByRole('link', { name: 'Try it in judge mode' }).click();
   await expect(page).toHaveURL(/\/demo$/);
 
-  // A fresh private session with seven demo deals.
+  // A fresh private session with eight demo deals.
   await page.getByRole('button', { name: /Start judge mode|Start over with fresh deals/ }).click();
-  await expect(page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button')).toHaveCount(7, { timeout: 90_000 });
+  await expect(page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button')).toHaveCount(8, { timeout: 90_000 });
 
   // 1. The buyer is warned about Friends and Family, and every pane says what is real.
   await openDeal(page, 'Buyer warned about Friends and Family');
@@ -39,6 +39,12 @@ test('a judge walks from the home page through every deal state', async ({ page 
   // 3. Confirmed and waiting: judge mode never takes a payment.
   await openDeal(page, 'Confirmed, waiting for payment');
   await expect(pane(page, 'Buyer').getByText(/Judge mode never takes a payment/)).toBeVisible();
+
+  // 3b. Code and the AI reader disagree on the price (recorded reading): both people answer.
+  await openDeal(page, 'Code and the AI reader disagree on the price');
+  await expect(pane(page, 'Seller').getByText(/Code read \$15\.00 .*the AI reader read \$900\.00/)).toBeVisible();
+  await expect(pane(page, 'Seller').getByText(/Reading recorded on/)).toBeVisible();
+  await expect(pane(page, 'Seller').getByText('What the seller said about it')).toBeVisible();
 
   // 4. Paid and ready to ship.
   await openDeal(page, 'Paid and ready to ship');
@@ -85,14 +91,15 @@ test('a judge walks from the home page through every deal state', async ({ page 
 test('the seller timeline, the attack lab and the proof page', async ({ page }) => {
   await page.goto('/demo');
   await page.getByRole('button', { name: /Start judge mode|Start over with fresh deals/ }).click();
-  await expect(page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button')).toHaveCount(7, { timeout: 90_000 });
+  await expect(page.getByRole('navigation', { name: 'Demo deals' }).getByRole('button')).toHaveCount(8, { timeout: 90_000 });
 
   await page.getByRole('link', { name: 'Seller timeline' }).click();
   await expect(page.getByRole('heading', { name: 'Seller timeline' })).toBeVisible();
   // Bryntum draws the events; some sit outside the scrolled view, so count them rather than check one.
   await expect(page.locator('.b-sch-event-wrap')).not.toHaveCount(0);
-  await expect(page.getByText('Asked to pay as Friends and Family')).toBeVisible();
-  await expect(page.getByText('Sony A7 III camera')).toBeVisible();
+  await expect(page.getByText('Asked to pay as Friends and Family').first()).toBeVisible();
+  // The item's name is the AI reader's exact words when code and the reader agree (PLAN M8).
+  await expect(page.getByText('Sony A7 III', { exact: true })).toBeVisible();
 
   await page.goto('/demo/attacks');
   await page.getByRole('button', { name: 'Run the attacks' }).click();

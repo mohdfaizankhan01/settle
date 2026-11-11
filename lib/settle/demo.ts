@@ -1,4 +1,4 @@
-// Judge mode (PLAN M5 MUST). "Start judge mode" makes a private session with seven demo deals, one
+// Judge mode (PLAN M5 MUST). "Start judge mode" makes a private session with eight demo deals, one
 // per state, seeded through Settle's real code: the warning check runs on each chat, both sides
 // confirm, payment is confirmed by the real webhook-plus-fresh-GET path, the ship gate, tracking
 // and the dispute case file all run as they do live. Only PayPal is replaced, by a replay of the
@@ -56,6 +56,14 @@ export const SCENARIOS: Scenario[] = [
     seller: 'Alex',
     chat: "Sam: hi, is the iPad Air still for sale?\nAlex: yes, iPad Air 5th gen 64GB, like new\nSam: would you do $380?\nAlex: ok $380, we can meet at the Union Square station\nSam: deal, I'll pay through your Settle link",
   },
+  {
+    id: 'disagree',
+    title: 'Code and the AI reader disagree on the price',
+    side: 'seller',
+    shows: "Code alone reads the last price that was accepted, the $15 shipping the seller offered to cover, as the deal's price. The AI reader points at $900. They disagree, so nothing is filled: both people answer the question, with both readings shown first. The card also lists what the seller said about the camera.",
+    seller: 'Alex',
+    chat: "Sam: is the camera still for sale?\nAlex: yes, Fujifilm X100V, shutter count under 5k, no scratches\nSam: would you take $900?\nAlex: $950 and it's yours\nSam: $900 is my max\nAlex: fine, $900, I'll ship it USPS on Monday\nSam: deal. what does shipping cost?\nAlex: it's $15 but I'll cover it\nSam: ok thanks",
+  },
   { id: 'dispute', title: 'A dispute with its evidence pack', side: 'seller', shows: 'The buyer opened an item-not-received dispute. The case file, the advice and the evidence pack come from the record; you approve the exact request.', seller: 'Alex', chat: BIKE() },
 ];
 
@@ -67,6 +75,7 @@ const sessionId = () => randomBytes(24).toString('base64url');
  */
 const STEPS: Record<string, Partial<Record<'chat' | 'confirm' | 'paid' | 'label' | 'message' | 'tracking' | 'delivered' | 'dispute', number>>> = {
   ff: { chat: 2 },
+  disagree: { chat: 1 },
   'fake-email': { chat: 3 },
   awaiting: { chat: 30, confirm: 26 },
   ready: { chat: 50, confirm: 48, paid: 47, label: 2 },
@@ -93,7 +102,7 @@ async function seedOne(store: DealStore, session: string, s: Scenario, start: Da
     await seedDemoMemory((await store.getDeal(deal.id))!.value, { store, now });
     return { dealId: deal.id, keys };
   }
-  if (s.id === 'ff') return { dealId: deal.id, keys };
+  if (s.id === 'ff' || s.id === 'disagree') return { dealId: deal.id, keys };
 
   // Both answer the fee question, the seller is connected, both confirm the same card.
   step('confirm');

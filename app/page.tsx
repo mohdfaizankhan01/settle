@@ -51,7 +51,7 @@ export default async function Home() {
               Make a deal link from your chat
             </Link>
           </div>
-          <p className="mt-4 text-sm text-pp-muted">Judge mode sets up seven demo deals, one at each stage, with buyer and seller side by side. Nothing reaches PayPal.</p>
+          <p className="mt-4 text-sm text-pp-muted">Judge mode sets up eight demo deals, one at each stage plus one where the two readers disagree, with buyer and seller side by side. Nothing reaches PayPal.</p>
         </section>
         <HeroCard />
         </div>

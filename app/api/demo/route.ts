@@ -4,7 +4,7 @@ import { DEMO_COOKIE, DEMO_TTL_MS, demoView, startDemo } from '@/lib/settle/demo
 import { api, getStore, rateLimited } from '@/lib/settle/runtime';
 
 // Judge mode. The session lives in an httpOnly cookie; a session only ever reads its own deals.
-// Starting a session seeds seven demo deals (each runs the warning check), so it is rate-limited.
+// Starting a session seeds eight demo deals (each runs the warning check), so it is rate-limited.
 
 const COOKIE = DEMO_COOKIE;
 

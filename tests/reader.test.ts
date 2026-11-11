@@ -378,3 +378,23 @@ test('reader caps: over 3 reads a minute in total the reader is skipped with the
     delete process.env.GROQ_API_KEY;
   }
 });
+
+test('judge mode with no key: recorded readings; the disagreement deal asks both people, code\'s and the reader\'s price first', async () => {
+  process.env.PAYPAL_CLIENT_ID ??= 'test-client';
+  const { startDemo } = await import('../lib/settle/demo');
+  const store = new MemoryDealStore();
+  const s = await startDemo(store, () => new Date('2026-11-11T10:00:00Z'));
+  const id = s.deals.find((d) => d.scenario === 'disagree')!.dealId;
+  const deal = (await store.getDeal(id))!.value;
+  assert.equal(deal.reader?.status, 'ran');
+  assert.equal(deal.reader?.source, 'recorded');
+  assert.equal(deal.reader?.cases?.price, 'disagree');
+  assert.equal(deal.card.price, undefined, 'a disagreement never fills the price');
+  const q = deal.questions.find((x) => x.id === 'q_price')!;
+  assert.equal(q.why, 'disagree');
+  assert.deepEqual(q.options.slice(0, 2).map((o) => o.label.split(' ')[0]), ['$15.00', '$900.00']);
+  assert.ok((deal.card.claims ?? []).length > 0);
+  // The other demo deals agree with code and are filled as before.
+  const awaiting = (await store.getDeal(s.deals.find((d) => d.scenario === 'awaiting')!.dealId))!.value;
+  assert.equal(awaiting.card.price?.readBy, 'both');
+});

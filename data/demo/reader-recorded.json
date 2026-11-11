@@ -1,1 +1,249 @@
-{ "note": "AI reader answers for the judge-mode chats, recorded with npm run reader:record. Redacted readings only: IDs, sure flags and quotes from the redacted chat.", "readings": [] }
+{
+  "note": "AI reader answers for the judge-mode chats, recorded with npm run reader:record. Redacted readings only: IDs, sure flags and quotes from the redacted chat.",
+  "model": "openai/gpt-oss-120b",
+  "readings": [
+    {
+      "promptVersion": "reader-1",
+      "model": "openai/gpt-oss-120b",
+      "chatHash": "ef54051a748d02b071d8c294dbb130ab1b3800bb39e39d8ada971bc8a4785f99",
+      "run": {
+        "status": "ran",
+        "at": "2026-11-11T01:16:48.464Z",
+        "model": "openai/gpt-oss-120b",
+        "promptVersion": "reader-1",
+        "ms": 1381,
+        "usage": {
+          "input": 1157,
+          "output": 460
+        },
+        "reading": {
+          "picks": {
+            "delivery": {
+              "id": "post",
+              "sure": true
+            },
+            "itemMessage": {
+              "id": "m2",
+              "sure": true
+            },
+            "deliveryMessage": {
+              "id": "m2",
+              "sure": true
+            },
+            "price": {
+              "id": "PRICE_1",
+              "sure": true
+            }
+          },
+          "itemWords": {
+            "messageId": "m1",
+            "quote": "Nintendo Switch OLED"
+          },
+          "claims": [
+            {
+              "messageId": "m2",
+              "quote": "barely used",
+              "kind": "condition"
+            },
+            {
+              "messageId": "m2",
+              "quote": "comes with the dock and both Joy-Cons",
+              "kind": "included"
+            }
+          ],
+          "dropped": 0
+        }
+      }
+    },
+    {
+      "promptVersion": "reader-1",
+      "model": "openai/gpt-oss-120b",
+      "chatHash": "cb5e5f7ca0e7ea265081062cc9e4195763e16af25220735f1b667dc0682e7061",
+      "run": {
+        "status": "ran",
+        "at": "2026-11-11T01:17:05.590Z",
+        "model": "openai/gpt-oss-120b",
+        "promptVersion": "reader-1",
+        "ms": 1120,
+        "usage": {
+          "input": 1151,
+          "output": 339
+        },
+        "reading": {
+          "picks": {
+            "delivery": {
+              "id": "post",
+              "sure": true
+            },
+            "itemMessage": {
+              "id": "m1",
+              "sure": true
+            },
+            "deliveryMessage": {
+              "id": "m2",
+              "sure": true
+            },
+            "price": {
+              "id": "PRICE_1",
+              "sure": true
+            }
+          },
+          "itemWords": {
+            "messageId": "m1",
+            "quote": "Sony A7 III"
+          },
+          "claims": [],
+          "dropped": 0
+        }
+      }
+    },
+    {
+      "promptVersion": "reader-1",
+      "model": "openai/gpt-oss-120b",
+      "chatHash": "964dc387a3d84e702869e00d83b623b97f181966da6d7d24ebd53f28fbfa4ece",
+      "run": {
+        "status": "ran",
+        "at": "2026-11-11T01:17:22.545Z",
+        "model": "openai/gpt-oss-120b",
+        "promptVersion": "reader-1",
+        "ms": 952,
+        "usage": {
+          "input": 1198,
+          "output": 379
+        },
+        "reading": {
+          "picks": {
+            "delivery": {
+              "id": "post",
+              "sure": true
+            },
+            "itemMessage": {
+              "id": "m2",
+              "sure": true
+            },
+            "deliveryMessage": {
+              "id": "m4",
+              "sure": true
+            },
+            "price": {
+              "id": "PRICE_2",
+              "sure": true
+            }
+          },
+          "itemWords": {
+            "messageId": "m2",
+            "quote": "Trek Domane AL 2, 54cm"
+          },
+          "claims": [
+            {
+              "messageId": "m2",
+              "quote": "barely used",
+              "kind": "condition"
+            }
+          ],
+          "dropped": 0
+        }
+      }
+    },
+    {
+      "promptVersion": "reader-1",
+      "model": "openai/gpt-oss-120b",
+      "chatHash": "7a2e2cc48dd192ad5adceab033a11fb40d1dbf80909ecec99ebdf61b60330831",
+      "run": {
+        "status": "ran",
+        "at": "2026-11-11T01:17:39.790Z",
+        "model": "openai/gpt-oss-120b",
+        "promptVersion": "reader-1",
+        "ms": 1242,
+        "usage": {
+          "input": 1201,
+          "output": 361
+        },
+        "reading": {
+          "picks": {
+            "delivery": {
+              "id": "meetup",
+              "sure": true
+            },
+            "itemMessage": {
+              "id": "m2",
+              "sure": true
+            },
+            "deliveryMessage": {
+              "id": "m4",
+              "sure": true
+            },
+            "price": {
+              "id": "PRICE_2",
+              "sure": true
+            }
+          },
+          "itemWords": {
+            "messageId": "m2",
+            "quote": "iPad Air 5th gen 64GB"
+          },
+          "claims": [
+            {
+              "messageId": "m2",
+              "quote": "iPad Air 5th gen 64GB, like new",
+              "kind": "condition"
+            }
+          ],
+          "dropped": 0
+        }
+      }
+    },
+    {
+      "promptVersion": "reader-1",
+      "model": "openai/gpt-oss-120b",
+      "chatHash": "0832635b1ac6b3c87217e5277316562f9c068129c694908f729eed0400a6c989",
+      "run": {
+        "status": "ran",
+        "at": "2026-11-11T01:17:57.097Z",
+        "model": "openai/gpt-oss-120b",
+        "promptVersion": "reader-1",
+        "ms": 1304,
+        "usage": {
+          "input": 1381,
+          "output": 448
+        },
+        "reading": {
+          "picks": {
+            "delivery": {
+              "id": "post",
+              "sure": true
+            },
+            "itemMessage": {
+              "id": "m2",
+              "sure": true
+            },
+            "deliveryMessage": {
+              "id": "m6",
+              "sure": true
+            },
+            "price": {
+              "id": "PRICE_4",
+              "sure": true
+            },
+            "shipBy": {
+              "id": "DATE_1",
+              "sure": true
+            }
+          },
+          "itemWords": {
+            "messageId": "m2",
+            "quote": "Fujifilm X100V"
+          },
+          "claims": [
+            {
+              "messageId": "m2",
+              "quote": "shutter count under 5k, no scratches",
+              "kind": "condition"
+            }
+          ],
+          "dropped": 0
+        }
+      }
+    }
+  ]
+}

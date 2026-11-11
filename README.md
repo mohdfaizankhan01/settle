@@ -18,7 +18,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). **Ev
 
 **Live app:** https://settle-ulya.onrender.com (kept awake by a regular ping; if you still see Render's wake-up page, the first load takes about a minute).
 
-1. **[Judge mode](https://settle-ulya.onrender.com/demo)** → *Start judge mode*. You get seven private demo deals, buyer and seller side by side. Settle Link's own code runs live; PayPal is replayed from real sandbox runs, so nothing reaches PayPal.
+1. **[Judge mode](https://settle-ulya.onrender.com/demo)** → *Start judge mode*. You get eight private demo deals, buyer and seller side by side. Settle Link's own code runs live; PayPal is replayed from real sandbox runs, so nothing reaches PayPal.
    - *Buyer warned about Friends and Family*: the warning quotes the exact message and the PayPal terms it breaks.
    - *Seller warned about a fake payment email*: paste the "email" into *Got a payment received message?* and Settle answers from PayPal's record (not paid). Scam memory also recognises the script from two earlier (seeded) reports.
    - *Paid and ready to ship* / *HOLD after an address change*: the ship check, with each rule cited.

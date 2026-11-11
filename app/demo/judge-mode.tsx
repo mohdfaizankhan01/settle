@@ -85,7 +85,7 @@ export function JudgeMode() {
             </Link>
             <button onClick={start} disabled={busy} aria-busy={busy} className="btn-primary inline-flex items-center gap-2 rounded-full px-5 py-2 font-semibold disabled:opacity-40">
               {busy && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />}
-              {busy ? 'Setting up seven deals…' : session ? 'Start over with fresh deals' : 'Start judge mode'}
+              {busy ? 'Setting up eight deals…' : session ? 'Start over with fresh deals' : 'Start judge mode'}
             </button>
           </div>
         </header>
@@ -98,7 +98,7 @@ export function JudgeMode() {
         {session === undefined && <p className="mt-10 text-pp-muted">Loading…</p>}
         {session === null && (
           <p className="mt-10 max-w-2xl">
-            Starting judge mode creates seven demo deals that only this browser can see. They expire after a day. Real deals are never shown or changed.
+            Starting judge mode creates eight demo deals that only this browser can see. They expire after a day. Real deals are never shown or changed.
           </p>
         )}
 
