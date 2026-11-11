@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-11T13:19:24.557Z",
-  "commit": "7bde4c2",
+  "generatedAt": "2026-11-11T19:59:11.705Z",
+  "commit": "60fce25",
   "tests": {
-    "total": 296,
-    "pass": 296,
+    "total": 322,
+    "pass": 322,
     "fail": 0
   },
   "attacks": [
@@ -13,7 +13,7 @@
       "stopped": true,
       "rule": "lib/settle/rules.ts (ai-words); the AI only explains, it never approves",
       "test": "tests/deal-check.test.ts › keyword rules: only the sending side, show the match, and catch details hidden by redaction",
-      "ms": 99
+      "ms": 97
     },
     {
       "id": "fake-email",
@@ -53,7 +53,7 @@
       "stopped": true,
       "rule": "lib/settle/payment.ts: events applied to a deal are recorded; a replay is a no-op",
       "test": "tests/payment.test.ts › a replayed event is a no-op",
-      "ms": 10
+      "ms": 9
     },
     {
       "id": "cousin",
@@ -61,7 +61,7 @@
       "stopped": true,
       "rule": "lib/settle/ship-gate.ts: a ship-elsewhere warning or a new postcode after payment holds (SP-ADDR)",
       "test": "tests/ship-gate.test.ts › \"send it to my cousin\" after payment turns the gate to HOLD, naming SP-ADDR",
-      "ms": 12
+      "ms": 18
     },
     {
       "id": "seller-takes-money",
@@ -69,7 +69,7 @@
       "stopped": true,
       "rule": "lib/settle/handover.ts: release needs the buyer's link key, the seller's current code, and the secret of the phone that placed the PayPal hold",
       "test": "tests/handover.test.ts › only the buyer, with the code the seller shows, releases the money, once",
-      "ms": 8
+      "ms": 9
     },
     {
       "id": "reused-code",
@@ -85,7 +85,7 @@
       "stopped": true,
       "rule": "lib/settle/paid-check.ts and handover.ts: the answer comes only from this deal's PayPal order; no hold means no handover code",
       "test": "tests/handover.test.ts › a fake message that PayPal is holding the money gets the answer from PayPal, and no handover code",
-      "ms": 9
+      "ms": 8
     }
   ]
 }
