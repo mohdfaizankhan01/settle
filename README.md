@@ -60,7 +60,9 @@ flowchart LR
   chat["Chat (pasted, shared, or read by the Chrome extension)"] --> redact["Redaction<br/>names, contacts → placeholders"]
   redact --> model["Settle Link's own model<br/>MiniLM + one classifier per warning"]
   redact --> rules["Keyword rules"]
+  redact --> reader["AI reader (Groq, gpt-oss-120b)<br/>points at IDs and exact quotes"]
   model --> card["Deal card<br/>terms in code, locked by hash"]
+  reader -->|checked in code; agree or ask| card
   rules --> card
   card -->|both confirm| order["PayPal order from the card<br/>custom_id = dealId:hash"]
   order -->|CAPTURE, or AUTHORIZE for meet-ups| paypal[(PayPal sandbox)]
@@ -75,6 +77,7 @@ flowchart LR
 
 - **Redaction first.** Names, emails, phone numbers, addresses and bank details are removed before any model sees the chat. Prices, dates and links become tokens whose values stay in code.
 - **Settle Link's own AI.** Each redacted message becomes a MiniLM sentence embedding (quantized, run on our server with transformers.js); one logistic-regression classifier per warning gives a probability ([`lib/model`](lib/model)). Keyword rules add certainty where a phrase is unambiguous. The warning check sends no chat text to an AI provider. Fail closed: if the check can't run, nobody can confirm the card.
+- **An AI reads the deal but can only point at it.** Code checks every pointer, both people confirm, and PayPal decides. The reader (`openai/gpt-oss-120b` on Groq) answers with a price or date placeholder, a message ID, a delivery option, or exact words, and code checks every pointer. Code reads the same terms on its own; a term is filled only when both agree, otherwise both people answer a question showing both readings. It also quotes what the seller said about the item ("barely used, comes with the dock"), which goes on the confirmed card, into the PayPal order's item description and into a not-as-described case file. On 115 of our own held-out chats, both readers together filled 1 wrong price (code alone: 4) and 0 wrong deliveries (code alone: 3), at the cost of more questions ([`/proof`](https://settle-ulya.onrender.com/proof)). If the reader can't run, the card is read by code only and says so. ([`lib/reader`](lib/reader))
 - **PayPal decides, code checks.** Amounts, payee, fees and dates are handled in code. Payment counts only from a verified webhook plus a fresh GET; screenshots, emails and client callbacks never count.
 - **Receipts.** Every decision writes a receipt into a per-deal hash chain; the deal history shows whether it verifies.
 - **Links lock to the first device that opens them.** Whoever makes a deal gets both links, so each link works only on the device that first opened it; a meet-up hold can only be placed and released from the phone that paid.
@@ -137,7 +140,7 @@ Other approaches in this hackathon, and where Settle Link differs:
 ## Tools used
 
 - **PayPal (sandbox):** Orders v2 (capture and authorize), Payments v2 (authorization capture and void), JS SDK v6, Partner Referrals and merchant-integrations (seller onboarding), Webhooks with `verify-webhook-signature`, Disputes API, order tracking through the **APIMatic**-generated PayPal TypeScript SDK.
-- **AI:** Settle Link's own warning model (MiniLM embeddings via transformers.js, logistic regression per warning, trained in this repo). Jev (TypeSafe) is supported behind `JEV_PROVIDER=typesafe` but wasn't used (no credits).
+- **AI:** Settle Link's own warning model (MiniLM embeddings via transformers.js, logistic regression per warning, trained in this repo), and an AI deal reader on the **Groq API** (`openai/gpt-oss-120b`, JSON-schema output) that can only point at the redacted chat. Jev (TypeSafe) is supported behind `JEV_PROVIDER=typesafe` but wasn't used (no credits).
 - **Bryntum Scheduler** for the seller timeline. **Render** for hosting, **Neon** for Postgres. **pdf-lib** for evidence packs, **qrcode** for handover codes.
 - Built with **Claude Code**, using the PayPal plugin (best practices, sandbox MCP), the APIMatic context plugin for PayPal, the Render plugin, Playwright, and code and security review plugins.
 - Started from PayPal's [AG Grid hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate) (Next.js, AG Grid, AG Studio); its data pages are kept for local development only.
