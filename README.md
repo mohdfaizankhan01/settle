@@ -153,6 +153,16 @@ Other approaches in this hackathon, and where Settle Link differs:
 - Any error means Hold or Review, never "safe".
 - The Chrome extension reads a chat only when the seller clicks, never presses Send, and never opens the buyer's link. What it reads and keeps is on [/privacy](https://settle-ulya.onrender.com/privacy).
 
+## From sandbox to live
+
+Settle Link runs on the PayPal sandbox today. A real launch would need, at least:
+
+- **PayPal approval for live Partner Referrals.** Onboarding sellers as a platform needs PayPal to approve the partner account for live use; the sandbox doesn't.
+- **A live webhook.** A live REST app, its own webhook registered at the production URL, and `PAYPAL_WEBHOOK_ID` set to it. Payment still counts only from a verified webhook plus a fresh read of the order.
+- **Paid hosting.** The free Render instance sleeps when idle; a live service needs an instance that stays up, with backups for the Postgres record and receipts.
+- **An eval on real chats.** The warning check and the AI reader were measured on chats we wrote. Real chats, collected with consent and redacted, would need their own held-out eval before the numbers on /proof mean anything for live use.
+- **A privacy review.** Chats are redacted before any model sees them and scam memory stores keyed hashes, but a live service handling people's messages needs a proper review of what is kept, for how long, and where.
+
 ## Limitations
 
 - Sandbox only, on a free Render instance.
