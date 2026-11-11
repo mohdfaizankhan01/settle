@@ -30,6 +30,9 @@ services:
       # Scam memory's HMAC key (at least 32 random characters); without it, memory is off.
       - key: SETTLE_MEMORY_KEY
         sync: false
+      # Signs deal records for /verify; without it, live records are not signed.
+      - key: SETTLE_SIGNING_KEY
+        sync: false
       - key: TYPESAFE_API_KEY
         sync: false
       # AI deal reader (Groq). Set in the Dashboard; without it the card is read by code only.
