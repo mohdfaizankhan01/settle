@@ -620,7 +620,7 @@ function AfterPayment({ view, busy, act }: { view: DealView; busy: boolean; act:
         {a.fee && (
           <p className="mt-1 text-pp-muted">
             PayPal&apos;s fee on this payment: {a.fee.actual}
-            {a.fee.estimate && ` (Settle estimated ${a.fee.estimate})`}
+            {a.fee.estimate && ` (Settle Link estimated ${a.fee.estimate})`}
             {a.fee.net && `. You receive ${a.fee.net}`}.
           </p>
         )}
@@ -727,7 +727,7 @@ function LabelForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
       <label htmlFor="label-postcode" className="font-semibold">
         {a.postcodeLabel} on your shipping label
       </label>
-      <p className="mt-1 text-pp-muted">Settle compares it with PayPal&apos;s address before you hand the parcel over.</p>
+      <p className="mt-1 text-pp-muted">Settle Link compares it with PayPal&apos;s address before you hand the parcel over.</p>
       <div className="mt-2 flex gap-2">
         <input id="label-postcode" value={code} onChange={(e) => setCode(e.target.value)} className={input} autoComplete="off" />
         <button disabled={busy || !code.trim()} className={primary}>
@@ -765,7 +765,7 @@ function TrackingForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
         After you post it. PayPal needs tracking as proof of shipment and delivery. Sent through PayPal&apos;s TypeScript SDK; the check passes once PayPal shows it on the order.
       </p>
       {a.tracking?.state === 'unknown' && (
-        <p className="mt-2 text-pp-warning">PayPal didn&apos;t answer last time. Add it again: Settle checks PayPal first, so it won&apos;t be added twice.</p>
+        <p className="mt-2 text-pp-warning">PayPal didn&apos;t answer last time. Add it again: Settle Link checks PayPal first, so it won&apos;t be added twice.</p>
       )}
       <div className="mt-3 grid gap-2 sm:grid-cols-[10rem_minmax(0,1fr)_auto]">
         <select aria-label="Carrier" value={carrier} onChange={(e) => setCarrier(e.target.value)} className={input}>
@@ -795,7 +795,7 @@ function PaidCheckBox({ busy, act }: { busy: boolean; act: Act }) {
   return (
     <section aria-label="Is this paid?" className="text-sm">
       <h2 className="text-lg font-semibold">Got a &ldquo;payment received&rdquo; message?</h2>
-      <p className="mt-1 text-pp-muted">Paste the email or the text from the screenshot. Settle answers from this deal&apos;s PayPal order, not from the message. The text isn&apos;t saved.</p>
+      <p className="mt-1 text-pp-muted">Paste the email or the text from the screenshot. Settle Link answers from this deal&apos;s PayPal order, not from the message. The text isn&apos;t saved.</p>
       <form
         className="mt-3 space-y-2"
         onSubmit={async (e) => {
@@ -839,7 +839,7 @@ function AddMessages({ view, busy, act }: { view: DealView; busy: boolean; act: 
     >
       <h2 className="text-lg font-semibold">New messages since payment</h2>
       <p className="mt-1 text-pp-muted">
-        Paste any new messages from the chat, one per line starting with the sender&apos;s name as before. Settle checks them for warning signs, such as a new delivery address{view.role === 'seller' ? ', before you ship' : ''}.
+        Paste any new messages from the chat, one per line starting with the sender&apos;s name as before. Settle Link checks them for warning signs, such as a new delivery address{view.role === 'seller' ? ', before you ship' : ''}.
       </p>
       <textarea aria-label="New messages" rows={3} value={text} onChange={(e) => setText(e.target.value)} className={`${input} mt-2`} placeholder={names.length ? 'Name: message' : undefined} />
       <button disabled={busy || !text.trim()} className={`${primary} mt-2`}>
@@ -862,7 +862,7 @@ function DeliveredForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) 
     >
       <label className="block">
         <span className="font-semibold">Carrier shows delivered on</span>
-        <span className="block text-pp-muted">Settle can&apos;t see the carrier. Record it once their tracking page says delivered; a dispute needs it.</span>
+        <span className="block text-pp-muted">Settle Link can&apos;t see the carrier. Record it once their tracking page says delivered; a dispute needs it.</span>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${input} mt-1 w-auto`} />
       </label>
       <button disabled={busy || !date} className={primary}>
@@ -974,7 +974,7 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
       </div>
 
       <div className="text-sm">
-        <h3 className="text-lg font-semibold">Settle&apos;s advice: {d.adviceLabels![plan.advice].toLowerCase()}</h3>
+        <h3 className="text-lg font-semibold">Settle Link&apos;s advice: {d.adviceLabels![plan.advice].toLowerCase()}</h3>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           {plan.reasons.map((r) => (
             <li key={r}>{r}</li>
@@ -1039,7 +1039,7 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
 
           {preview && (
             <div className="mt-4 space-y-2 border-t border-pp-gridline pt-4">
-              <p className="font-semibold">This is exactly what Settle will send to PayPal, as you:</p>
+              <p className="font-semibold">This is exactly what Settle Link will send to PayPal, as you:</p>
               <p className="font-mono text-xs break-all">POST {preview.request.url}</p>
               <pre className="max-h-64 overflow-auto rounded-md bg-pp-canvas p-3 text-xs whitespace-pre-wrap">{JSON.stringify(preview.request.json, null, 2)}</pre>
               {preview.request.files.map((f) => (
@@ -1047,7 +1047,7 @@ function DisputePanel({ d, busy, act, dealId, judge }: { d: DisputeView; busy: b
                   File {f.name}, {Math.round(f.size / 1024)} KB, SHA-256 <span className="font-mono break-all">{f.sha256}</span>
                 </p>
               ))}
-              <p className="text-xs text-pp-muted">Request fingerprint {preview.request.hash.slice(0, 16)}…. If the case or the record changes before you approve, Settle asks you to review again.</p>
+              <p className="text-xs text-pp-muted">Request fingerprint {preview.request.hash.slice(0, 16)}…. If the case or the record changes before you approve, Settle Link asks you to review again.</p>
               <button
                 disabled={busy}
                 className="rounded-full bg-pp-navy px-5 py-2 font-semibold text-white disabled:opacity-40"

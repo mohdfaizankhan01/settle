@@ -79,7 +79,7 @@ try {
 
   await openDeal(page, 'A dispute with its evidence pack');
   await sellerTab();
-  const dispute = pane(page, 'Seller').getByText(/Settle's advice: answer with your evidence/);
+  const dispute = pane(page, 'Seller').getByText(/Settle Link's advice: answer with your evidence/);
   await dispute.waitFor();
   await save('3-dispute-case-file', pane(page, 'Seller'), { focus: dispute, above: 560, height: 1000 });
 

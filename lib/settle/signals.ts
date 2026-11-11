@@ -104,7 +104,7 @@ export const SIGNALS: Signal[] = [
     no: 'The buyer makes no such claim, or only says they will pay through the checkout.',
     cites: [],
     advice: {
-      means: 'Emails and screenshots are easy to fake. Settle confirms payment only from PayPal itself: a verified PayPal notification plus a fresh check of the order.',
+      means: 'Emails and screenshots are easy to fake. Settle Link confirms payment only from PayPal itself: a verified PayPal notification plus a fresh check of the order.',
       todo: 'Don\'t ship until this deal page shows the payment as confirmed. Check your PayPal account directly, not links in emails.',
     },
   },
@@ -150,7 +150,7 @@ export const SIGNALS: Signal[] = [
     cites: [],
     advice: {
       means: 'Codes sent to you are for logging in or approving actions on your account. Sharing one can hand over your account.',
-      todo: 'Never share a code you were sent. Settle never needs one.',
+      todo: 'Never share a code you were sent. Settle Link never needs one.',
     },
   },
   {
@@ -194,7 +194,7 @@ export const SIGNALS: Signal[] = [
     no: 'All messages are ordinary conversation between the two people.',
     cites: [],
     advice: {
-      means: 'Someone tried to steer the automated check. Settle ignores such text, but it\'s a sign of bad intent.',
+      means: 'Someone tried to steer the automated check. Settle Link ignores such text, but it\'s a sign of bad intent.',
       todo: 'Be extra careful with this deal and rely only on what this page shows from PayPal.',
     },
   },
@@ -214,8 +214,8 @@ export const TERM_SIGNALS = {
     cites: ['SP-INPERSON', 'PP-COLLECT'],
     advice: {
       means:
-        'Items handed over in person are not eligible for PayPal Seller Protection (unless paid by PayPal QR code in person, which Settle doesn\'t use), and the buyer can\'t make an Item Not Received claim for an item collected in person.',
-      todo: "Settle uses a PayPal hold for this deal: PayPal holds the buyer's money before you meet, and it's taken only when the buyer has checked the item and scans the seller's code. Seller: hand the item over only when your own deal page says Handed over. Buyer: if the item isn't right, don't scan.",
+        'Items handed over in person are not eligible for PayPal Seller Protection (unless paid by PayPal QR code in person, which Settle Link doesn\'t use), and the buyer can\'t make an Item Not Received claim for an item collected in person.',
+      todo: "Settle Link uses a PayPal hold for this deal: PayPal holds the buyer's money before you meet, and it's taken only when the buyer has checked the item and scans the seller's code. Seller: hand the item over only when your own deal page says Handed over. Buyer: if the item isn't right, don't scan.",
     },
   },
 };

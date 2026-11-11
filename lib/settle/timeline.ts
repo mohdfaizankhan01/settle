@@ -53,7 +53,7 @@ export function timeline(deals: { deal: Deal; title: string; scenario: string }[
       if (seen.has(w.signalId)) continue;
       seen.add(w.signalId);
       const title = signalById(w.signalId)?.title ?? (w.signalId === 'in_person' ? TERM_SIGNALS.in_person.title : 'Warning');
-      const found = w.by.startsWith('rule') ? 'a keyword rule' : w.by.startsWith('term') ? 'the card' : w.by === 'memory' ? 'scam memory' : "Settle's model";
+      const found = w.by.startsWith('rule') ? 'a keyword rule' : w.by.startsWith('term') ? 'the card' : w.by === 'memory' ? 'scam memory' : "Settle Link's model";
       add(`warn-${w.signalId}`, title, Date.parse(deal.check.at), Date.parse(deal.check.at), 'orange', `Warning: ${title}. Found by ${found}.${w.cites.length ? ` PayPal terms: ${w.cites.map(termTitle).join('; ')}.` : ''}`);
     }
     const both = deal.confirmations.length === 2 ? Math.max(...deal.confirmations.map((c) => Date.parse(c.at))) : undefined;
@@ -77,7 +77,7 @@ export function timeline(deals: { deal: Deal; title: string; scenario: string }[
       const o = deal.handover?.outcome;
       const deadline = holdDeadline(deal)?.getTime() ?? held + HOLD_DAYS * DAY;
       if (o) add('handover', o.kind === 'released' ? 'Handed over: PayPal took the money' : 'Called off: hold released', Date.parse(o.at), Date.parse(o.at), o.kind === 'released' ? 'green' : 'blue', o.kind === 'released' ? 'The buyer scanned the seller\'s code and confirmed.' : 'PayPal released the hold; the buyer was not charged.');
-      else add('meet', `Meet by ${day(deadline)}`, held, deadline, colour, `Hand over by ${iso(deadline).slice(0, 10)}. PayPal guarantees a hold for ${HOLD_DAYS} days; after that Settle releases it.`);
+      else add('meet', `Meet by ${day(deadline)}`, held, deadline, colour, `Hand over by ${iso(deadline).slice(0, 10)}. PayPal guarantees a hold for ${HOLD_DAYS} days; after that Settle Link releases it.`);
     }
     const delivered = deal.shipping?.delivered?.date;
     if (delivered) add('delivered', 'Delivered', Date.parse(`${delivered}T12:00:00Z`), Date.parse(`${delivered}T12:00:00Z`), 'teal', 'Entered by the seller from the carrier.');

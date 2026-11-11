@@ -47,7 +47,7 @@ export async function finishConnect(trackingId: string, deps: ConnectDeps): Prom
   const seller = await pp.sellerByTrackingId(trackingId);
   if (!seller) return { dealId: link.dealId, connected: false, reason: 'PayPal has not finished connecting this account yet.' };
   const missing = [
-    !seller.granted && 'access for Settle was not granted',
+    !seller.granted && 'access for Settle Link was not granted',
     !seller.paymentsReceivable && 'the account cannot receive payments yet',
     !seller.primaryEmailConfirmed && 'the account email is not confirmed',
   ].filter(Boolean);

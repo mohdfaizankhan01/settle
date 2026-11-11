@@ -113,17 +113,17 @@ export function describe(r: Receipt, role: Role = 'seller'): string {
     case 'handover.blocked':
       return `Handover refused: ${s(d.reason)}`;
     case 'handover.release_requested':
-      return 'The buyer scanned the code and confirmed the handover; Settle asked PayPal to take the held money.';
+      return 'The buyer scanned the code and confirmed the handover; Settle Link asked PayPal to take the held money.';
     case 'handover.released':
       return `PayPal took the held money (capture ${s(d.captureId)}, ${s(d.captureStatus) || 'status unknown'}). Payment counts once PayPal's verified notification arrives.`;
     case 'handover.release_failed':
       return `PayPal did not take the money (${s(d.reason)}); it stays held.`;
     case 'handover.voided':
       return d.by === 'meet_by_passed'
-        ? "No handover within PayPal's 3-day hold, so Settle released it. The buyer was not charged."
+        ? "No handover within PayPal's 3-day hold, so Settle Link released it. The buyer was not charged."
         : `The ${s(d.by)} called it off and PayPal released the hold. The buyer was not charged.`;
     case 'handover.unknown':
-      return `No answer from PayPal for the ${d.kind === 'release' ? 'capture' : 'release of the hold'}; Settle checks PayPal again before deciding.`;
+      return `No answer from PayPal for the ${d.kind === 'release' ? 'capture' : 'release of the hold'}; Settle Link checks PayPal again before deciding.`;
     case 'handover.void_failed':
       return `Releasing the hold failed (${s(d.reason)}); the money is still held.`;
     case 'order.capture_requested':

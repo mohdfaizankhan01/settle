@@ -100,15 +100,15 @@ export function HandoverPanel({ dealId, role, h, judge, busy, act }: { dealId: s
               ? `The buyer scanned the code on ${when(h.at)} and PayPal took the money. You can hand the item over.`
               : h.state === 'voided'
                 ? h.by === 'meet_by_passed'
-                  ? `No handover within PayPal's ${h.holdDays}-day hold, so Settle released it on ${when(h.at)}. The buyer was not charged.`
+                  ? `No handover within PayPal's ${h.holdDays}-day hold, so Settle Link released it on ${when(h.at)}. The buyer was not charged.`
                   : `The ${h.by} called it off on ${when(h.at)}. PayPal released the hold; the buyer was not charged.`
                 : h.state === 'waiting'
                   ? "Don't meet to hand over until this page shows the hold."
-                  : 'Settle sent the request to PayPal; this page updates when PayPal answers.'}
+                  : 'Settle Link sent the request to PayPal; this page updates when PayPal answers.'}
         </p>
         {h.state === 'held' && h.deadline && (
           <p className="mt-2 text-sm text-pp-muted">
-            PayPal guarantees a hold for {h.holdDays} days. If there&apos;s no handover by {when(h.deadline)}, Settle releases it and the buyer isn&apos;t charged.
+            PayPal guarantees a hold for {h.holdDays} days. If there&apos;s no handover by {when(h.deadline)}, Settle Link releases it and the buyer isn&apos;t charged.
           </p>
         )}
         <p className="mt-2 text-xs text-pp-muted">

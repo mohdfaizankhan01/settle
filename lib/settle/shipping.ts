@@ -153,7 +153,7 @@ export async function addTracking(dealId: string, key: string | null, input: Tra
   });
   await syncGate(deps.store, dealId, at);
   const saved = (await deps.store.getDeal(dealId))!;
-  if (state === 'unknown') throw new DealError("PayPal didn't answer, and the tracking isn't on the order yet. Try again: Settle checks PayPal before sending it twice.", 409);
+  if (state === 'unknown') throw new DealError("PayPal didn't answer, and the tracking isn't on the order yet. Try again: Settle Link checks PayPal before sending it twice.", 409);
   return saved;
 }
 

@@ -13,7 +13,7 @@ const TEXT: Record<string, { title: string; body: string }> = {
     title: 'Payment on this deal has already started',
     body: 'The buyer is paying the PayPal account that was connected before, so the account can’t change now. Go back to your deal page to see the payment.',
   },
-  error: { title: 'Settle could not check your PayPal connection', body: 'Go back to your deal page and press “I’ve finished connecting” to try again.' },
+  error: { title: 'Settle Link could not check your PayPal connection', body: 'Go back to your deal page and press “I’ve finished connecting” to try again.' },
 };
 
 export default async function Connected({ searchParams }: PageProps<'/connected'>) {

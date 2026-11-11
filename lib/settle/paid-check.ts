@@ -74,7 +74,7 @@ export async function paidCheck(dealId: string, key: string | null, text: string
   let answer: string;
   if (!reached || readFailedLast(deal) || (read && !read.ok)) {
     verdict = 'cant_check';
-    answer = "Couldn't reach PayPal just now, so Settle can't say either way. Don't ship until it can.";
+    answer = "Couldn't reach PayPal just now, so Settle Link can't say either way. Don't ship until it can.";
   } else if (isPaid(deal)) {
     verdict = 'paid';
     answer = `PayPal confirms this deal's payment of ${money} completed (capture ${deal.payment!.webhook!.captureId}).`;
@@ -94,7 +94,7 @@ export async function paidCheck(dealId: string, key: string | null, text: string
 
   const captureId = isPaid(deal) ? deal.payment!.webhook!.captureId : undefined;
   const notes = text.trim() ? notesFor(deal, text, captureId) : [];
-  if (verdict !== 'paid' && text.trim()) notes.unshift('Whatever this message says, it is not PayPal\'s record. Settle only trusts PayPal\'s own answer.');
+  if (verdict !== 'paid' && text.trim()) notes.unshift('Whatever this message says, it is not PayPal\'s record. Settle Link only trusts PayPal\'s own answer.');
 
   await deps.store.addReceipt({
     dealId,

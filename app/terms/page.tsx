@@ -5,7 +5,7 @@ import { TopBar } from '@/app/components/brand';
 // /terms: every PayPal clause Settle cites, with PayPal's own wording, read from
 // docs/protection-terms.md at build time. Each check on a deal page links to a row here.
 
-export const metadata = { title: 'PayPal terms Settle checks' };
+export const metadata = { title: 'PayPal terms Settle Link checks' };
 
 const plain = (s: string) => s.replace(/\*\*/g, '').replace(/`/g, '');
 
@@ -15,14 +15,14 @@ export default function Page() {
   const buyer = rows.filter((r) => r.id.startsWith('PP-'));
   return (
     <div className="min-h-full">
-      <TopBar note={"PayPal's own wording, copied from its pages. PayPal decides every claim; Settle only shows which checks pass."} />
+      <TopBar note={"PayPal's own wording, copied from its pages. PayPal decides every claim; Settle Link only shows which checks pass."} />
       <main className="mx-auto w-full max-w-4xl px-4 py-10 font-paypal text-pp-ink sm:py-12">
         <p className="text-sm">
           <Link href="/demo" className="text-pp-blue underline underline-offset-2">
             Back to judge mode
           </Link>
         </p>
-        <h1 className="mt-4 text-[28px] font-semibold text-pp-navy">PayPal terms Settle checks</h1>
+        <h1 className="mt-4 text-[28px] font-semibold text-pp-navy">PayPal terms Settle Link checks</h1>
         <p className="mt-2 max-w-2xl">
           Every warning and ship check on a deal page names one of these clauses. Quotes were retrieved on 18 October 2026 and re-checked word for word on 6 November 2026.
         </p>
@@ -65,7 +65,7 @@ function Section({ title, rows }: { title: string; rows: ReturnType<typeof loadT
                 <dd>{plain(r.uk)}</dd>
               </div>
               <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-pp-muted">How Settle uses it</dt>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-pp-muted">How Settle Link uses it</dt>
                 <dd>{plain(r.how)}</dd>
               </div>
             </dl>

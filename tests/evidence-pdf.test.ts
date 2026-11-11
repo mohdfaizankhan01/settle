@@ -56,7 +56,7 @@ test('the evidence pack builds, is deterministic, and says where each part came 
   assert.ok(doc.getPageCount() >= 1);
   assert.equal(doc.getTitle(), 'Settle Link evidence pack, dispute PP-D-1');
   const raw = contentOf(a);
-  for (const s of ['Source: PayPal API', 'Source: Settle record', 'The receipt chain verifies', 'PayPal does.', 'Missing: Proof of delivery']) {
+  for (const s of ['Source: PayPal API', 'Source: Settle Link record', 'The receipt chain verifies', 'PayPal does.', 'Missing: Proof of delivery']) {
     assert.ok(raw.includes(hex(s)), s);
   }
   // Names are redacted in the chat section: "Sam" never appears as text.

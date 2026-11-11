@@ -12,7 +12,7 @@ import { normalPostcode, trackerShown } from './ship-gate';
 import type { Deal, DisputeRecord } from './types';
 
 export type ProofStatus = 'on_file' | 'missing' | 'contradicts';
-export type ProofSource = 'PayPal API' | 'Settle record' | 'Entered by the seller';
+export type ProofSource = 'PayPal API' | 'Settle Link record' | 'Entered by the seller';
 
 export type Proof = {
   id: string;
@@ -68,7 +68,7 @@ function paymentProof(deal: Deal): Proof {
   const w = deal.payment?.webhook;
   return w
     ? { ...base, status: 'on_file', source: 'PayPal API', detail: `Capture ${w.captureId}, confirmed by a verified PayPal webhook and a fresh read of order ${deal.order?.id} that matched the card.` }
-    : { ...base, status: 'missing', source: 'PayPal API', detail: 'Settle has no verified PayPal confirmation of this payment.' };
+    : { ...base, status: 'missing', source: 'PayPal API', detail: 'Settle Link has no verified PayPal confirmation of this payment.' };
 }
 
 function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonly Receipt[]): Proof[] {
@@ -92,7 +92,7 @@ function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonl
   proofs.push(
     d
       ? { ...deliv, status: 'on_file', source: 'Entered by the seller', detail: `The seller recorded that the carrier shows it delivered on ${d.date}.` }
-      : { ...deliv, status: 'missing', source: 'Settle record', detail: "No delivery is recorded. Settle can't see the carrier's delivery status; without it the delivery can't be proved." },
+      : { ...deliv, status: 'missing', source: 'Settle Link record', detail: "No delivery is recorded. Settle Link can't see the carrier's delivery status; without it the delivery can't be proved." },
   );
 
   // Shipped to the PayPal address.
@@ -101,7 +101,7 @@ function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonl
   const elsewhere = deal.warnings.find((w) => w.signalId === 'ship_elsewhere' && w.messageId && ids.has(w.messageId));
   const label = deal.shipping?.labelPostcode;
   if (!shipTo?.postalCode || !label) {
-    proofs.push({ ...addr, status: 'missing', source: 'Settle record', detail: 'No label postcode was compared with PayPal\'s address before shipping.' });
+    proofs.push({ ...addr, status: 'missing', source: 'Settle Link record', detail: 'No label postcode was compared with PayPal\'s address before shipping.' });
   } else if (normalPostcode(label.value, deal.country) !== normalPostcode(shipTo.postalCode, deal.country)) {
     proofs.push({ ...addr, status: 'contradicts', source: 'Entered by the seller', detail: `The label postcode ${label.value} doesn't match PayPal's address (${shipTo.postalCode}).` });
   } else {
@@ -115,7 +115,7 @@ function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonl
 
   // The ship gate when tracking went in.
   const gate = gateAtShipping(receipts);
-  const g = { id: 'gate', label: 'Settle\'s ship check at shipping', cites: ['SP-RELEASE'], weight: 1, source: 'Settle record' as const };
+  const g = { id: 'gate', label: 'Settle Link\'s ship check at shipping', cites: ['SP-RELEASE'], weight: 1, source: 'Settle Link record' as const };
   if (!gate) proofs.push({ ...g, status: 'missing', detail: 'No ship check was recorded before tracking was added.' });
   else if (gate.decision === 'SHIP') proofs.push({ ...g, status: 'on_file', detail: `The ship check said ready to ship on ${day(gate.at)}, before tracking was added.` });
   else proofs.push({ ...g, status: 'contradicts', detail: `The ship check said ${gate.decision === 'HOLD' ? 'hold' : 'review'} when tracking was added (${day(gate.at)}).` });
@@ -128,7 +128,7 @@ function notReceivedProofs(deal: Deal, dispute: DisputeRecord, receipts: readonl
     label: 'Delivery method covered',
     cites: inPerson ? ['SP-INPERSON', 'PP-COLLECT'] : ['SP-PHYSICAL'],
     weight: 1,
-    source: 'Settle record',
+    source: 'Settle Link record',
     status: inPerson ? 'contradicts' : 'on_file',
     detail: inPerson ? 'The card says the item was handed over in person, which Seller Protection excludes.' : `The confirmed card says ${deal.card.delivery?.display ?? 'shipped'}.`,
   });
@@ -146,7 +146,7 @@ function notAsDescribedProofs(deal: Deal): Proof[] {
     label: 'The card both of you confirmed',
     cites: ['PP-SNAD-DEF'],
     weight: 2,
-    source: 'Settle record',
+    source: 'Settle Link record',
     status: both ? 'on_file' : 'missing',
     detail: both ? `Both confirmed "${deal.card.item?.display}" with fingerprint ${hash.slice(0, 16)}….` : 'The card was not confirmed by both sides as it is now.',
   });
@@ -158,7 +158,7 @@ function notAsDescribedProofs(deal: Deal): Proof[] {
     label: 'Where the item description came from',
     cites: ['PP-SNAD-DEF'],
     weight: 1,
-    source: src?.kind === 'entered' ? 'Entered by the seller' : 'Settle record',
+    source: src?.kind === 'entered' ? 'Entered by the seller' : 'Settle Link record',
     status: quote || src?.kind === 'entered' ? 'on_file' : 'missing',
     detail: quote ? `The ${quote.role}'s message ${quote.id.slice(1)} (redacted): "${redactedQuote(deal, quote.id)}"` : src?.kind === 'entered' ? 'Typed in by the seller and confirmed by the buyer.' : 'No source for the item description.',
   });
@@ -170,7 +170,7 @@ function notAsDescribedProofs(deal: Deal): Proof[] {
       label: 'What the seller said about the item, on the confirmed card',
       cites: ['SP-SNAD', 'PP-SNAD-DEF'],
       weight: 1,
-      source: 'Settle record',
+      source: 'Settle Link record',
       status: both ? 'on_file' : 'missing',
       detail: both
         ? `${claims.map((c) => `${c.kind}: ${claimText(deal, c)} (the seller's message ${c.messageId.slice(1)})`).join('; ')}. Confirmed by ${confirmed.map((c) => `the ${c.role} on ${day(c.at)}`).join(' and ')}.`
@@ -203,7 +203,7 @@ export function caseFile(deal: Deal, dispute: DisputeRecord, receipts: readonly 
     if (deal.card.claims?.length) notes.push("PayPal's definition of not as described excludes a defect the seller correctly described (PP-SNAD-DEF). The seller's own words on the confirmed card show what was described; PayPal decides whether the item matches them.");
   } else {
     proofs = [];
-    notes.push('Settle has no checklist for this reason. The evidence pack still holds the card, the payment and the receipts.');
+    notes.push('Settle Link has no checklist for this reason. The evidence pack still holds the card, the payment and the receipts.');
   }
   return {
     disputeId: dispute.id,

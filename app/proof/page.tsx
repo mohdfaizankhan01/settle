@@ -25,7 +25,7 @@ function micro(pick: (s: Signal) => PRF) {
 
 const COLUMNS = [
   { label: 'Keyword rules only', pick: (s: Signal) => s.rulesOnly },
-  { label: "Settle's model only", pick: (s: Signal) => s.model },
+  { label: "Settle Link's model only", pick: (s: Signal) => s.model },
   { label: 'Model plus rules (what runs)', pick: (s: Signal) => s.combined },
 ];
 
@@ -43,13 +43,13 @@ export default function Page() {
         </p>
         <h1 className="mt-4 text-[28px] font-semibold text-pp-navy">Proof</h1>
         <p className="mt-2 max-w-2xl">
-          Settle&apos;s warning check reads a redacted copy of the chat and explains what looks risky, and an AI reader points at the deal terms in it. It never approves a payment or a shipment: those come from PayPal&apos;s records and from both people. This page shows how often the check is right, how the rules that stop attacks are tested, and what we don&apos;t know.
+          Settle Link&apos;s warning check reads a redacted copy of the chat and explains what looks risky, and an AI reader points at the deal terms in it. It never approves a payment or a shipment: those come from PayPal&apos;s records and from both people. This page shows how often the check is right, how the rules that stop attacks are tested, and what we don&apos;t know.
         </p>
 
         <section className="mt-10">
           <h2 className="text-xl font-semibold">How often the warning check is right</h2>
           <p className="mt-2 max-w-2xl text-sm text-pp-muted">
-            {evalB.chats} chats we wrote for Settle, with {positives} risky moments across ten signals; every chat is a negative for each signal it doesn&apos;t list. The model ({evalB.model}) never trained on them. Run {evalB.ranAt.slice(0, 10)}. Precision: of the warnings shown, how many were right. Recall: of the risky moments, how many were caught.
+            {evalB.chats} chats we wrote for Settle Link, with {positives} risky moments across ten signals; every chat is a negative for each signal it doesn&apos;t list. The model ({evalB.model}) never trained on them. Run {evalB.ranAt.slice(0, 10)}. Precision: of the warnings shown, how many were right. Recall: of the risky moments, how many were caught.
           </p>
           <div className="mt-4 overflow-x-auto surface rounded-2xl">
             <table className="w-full min-w-[40rem] text-left text-sm">
@@ -170,7 +170,7 @@ export default function Page() {
               Weakest: {weakest.map(([id, s]) => `${signalById(id)?.title ?? id} (recall ${pct(s.combined.recall)})`).join(' and ')}. A missed warning never makes a deal safe: payment and shipping are still checked against PayPal&apos;s records, and the address rule holds a shipment on a new postcode whatever the model says.
             </li>
             <li>Thresholds were chosen on our training messages, never on these test chats.</li>
-            <li>PayPal decides every claim and dispute. Settle shows which checks pass; it never says a deal is protected.</li>
+            <li>PayPal decides every claim and dispute. Settle Link shows which checks pass; it never says a deal is protected.</li>
           </ul>
         </section>
       </main>

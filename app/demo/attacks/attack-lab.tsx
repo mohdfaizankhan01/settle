@@ -31,7 +31,7 @@ export function AttackLab() {
 
   return (
     <div className="min-h-full">
-      <TopBar note={"Judge mode: these attacks run through Settle's real server code in a throwaway store. PayPal is stood in, so nothing reaches PayPal and no money moves."} />
+      <TopBar note={"Judge mode: these attacks run through Settle Link's real server code in a throwaway store. PayPal is stood in, so nothing reaches PayPal and no money moves."} />
       <main className="mx-auto w-full max-w-4xl px-4 py-10 font-paypal text-pp-ink sm:py-12">
         <p className="text-sm">
           <Link href="/demo" className="text-pp-blue underline underline-offset-2">
@@ -72,7 +72,7 @@ export function AttackLab() {
                       {r.attempt}
                     </p>
                     <p className="mt-1">
-                      <span className="text-pp-muted">What Settle did: </span>
+                      <span className="text-pp-muted">What Settle Link did: </span>
                       {r.outcome}
                     </p>
                     <p className="mt-2 text-xs text-pp-muted">

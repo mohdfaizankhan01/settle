@@ -30,7 +30,7 @@ export function SellerTimeline() {
         </p>
         <h1 className="mt-4 text-[28px] font-semibold text-pp-navy">Seller timeline</h1>
         <p className="mt-1 max-w-3xl text-pp-muted">
-          Every deal as a seller sees it over time: when both sides agreed, when PayPal confirmed payment, the window to ship in, delivery, and a dispute&apos;s response window. Rows are coloured by Settle&apos;s ship check. Click a row or an event to open that deal.
+          Every deal as a seller sees it over time: when both sides agreed, when PayPal confirmed payment, the window to ship in, delivery, and a dispute&apos;s response window. Rows are coloured by Settle Link&apos;s ship check. Click a row or an event to open that deal.
         </p>
         <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm" aria-label="Colours">
           {[

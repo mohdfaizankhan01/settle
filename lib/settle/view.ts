@@ -24,7 +24,7 @@ export const SIMULATED_NOTE =
 
 /** Warnings explain; they never decide (problem statement, build change 3). */
 export const EXPLAIN_NOTE =
-  "Settle's AI explains these warnings from the chat. It never approves a payment or a shipment: that comes from PayPal's own records and from both of you.";
+  "Settle Link's AI explains these warnings from the chat. It never approves a payment or a shipment: that comes from PayPal's own records and from both of you.";
 
 const TERM_LABELS: Record<TermKey, string> = { item: 'Item', price: 'Price', delivery: 'Delivery', shipBy: 'Ship by', feePayer: "PayPal's fee paid by" };
 
@@ -291,11 +291,11 @@ function afterPaymentView(deal: Deal, role: Role, receipts: readonly Receipt[]) 
               ? { state: 'problem' as const, text: `The PayPal order doesn't match the card: ${read.mismatches.join('; ')}.` }
               : { state: 'waiting' as const, text: "Waiting for PayPal to confirm the hold. Don't meet to hand over until it does." };
   const payment = holdPayment ?? (readFailedLast(deal)
-    ? { state: 'cant_check' as const, text: "Couldn't reach PayPal on the last check. That isn't the same as unpaid; Settle tries again when the page reloads." }
+    ? { state: 'cant_check' as const, text: "Couldn't reach PayPal on the last check. That isn't the same as unpaid; Settle Link tries again when the page reloads." }
     : paid
     ? { state: 'paid' as const, text: 'PayPal confirmed the payment: a verified PayPal notification and a fresh read of the order both match the card.' }
     : read && !read.ok
-      ? { state: 'cant_check' as const, text: "Couldn't reach PayPal to check the payment. That isn't the same as unpaid; Settle tries again when the page reloads." }
+      ? { state: 'cant_check' as const, text: "Couldn't reach PayPal to check the payment. That isn't the same as unpaid; Settle Link tries again when the page reloads." }
       : read?.ok && (read.mismatches.length > 0 || (read.captureStatus && read.captureStatus !== 'COMPLETED'))
         ? { state: 'problem' as const, text: read.mismatches.length > 0 ? `The PayPal order doesn't match the card: ${read.mismatches.join('; ')}.` : `PayPal shows the payment as ${read.captureStatus}.` }
         : read?.ok && read.captureStatus === 'COMPLETED'

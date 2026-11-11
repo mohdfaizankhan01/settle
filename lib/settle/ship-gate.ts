@@ -82,7 +82,7 @@ function paymentCheck(deal: Deal): GateCheck {
     return { ...base, status: 'fail', detail: `The buyer opened a PayPal dispute (${disputed.id}). Don't ship while it is open; answer it from the dispute panel.`, proof: `PayPal dispute ${disputed.id}` };
   }
   if (readFailedLast(deal)) {
-    return { ...base, status: 'cant_check', detail: "The last read of the payment from PayPal failed. This is not the same as unpaid; Settle reads it again on the next page load." };
+    return { ...base, status: 'cant_check', detail: "The last read of the payment from PayPal failed. This is not the same as unpaid; Settle Link reads it again on the next page load." };
   }
   if (isPaid(deal)) {
     return { ...base, status: 'pass', detail: `Capture ${deal.payment!.webhook!.captureId} completed, confirmed by a verified PayPal webhook and a fresh read of the order, which matches the card.`, proof };
@@ -104,7 +104,7 @@ function deliveryCheck(deal: Deal): GateCheck {
   if (d === 'collect' || d === 'meetup') {
     return { ...base, status: 'fail', blocks: 'REVIEW', detail: 'An in-person handover is not eligible for Seller Protection.', cites: ['SP-INPERSON', 'PP-COLLECT'] };
   }
-  return { ...base, status: 'cant_check', blocks: 'REVIEW', detail: 'Digital or other deliveries have their own requirements that Settle does not check.', cites: ['SP-PHYSICAL'] };
+  return { ...base, status: 'cant_check', blocks: 'REVIEW', detail: 'Digital or other deliveries have their own requirements that Settle Link does not check.', cites: ['SP-PHYSICAL'] };
 }
 
 function addressCheck(deal: Deal): GateCheck {
@@ -183,7 +183,7 @@ export function shipGate(deal: Deal): Gate {
   const checks = [paymentCheck(deal), addressCheck(deal), deliveryCheck(deal), trackingCheck(deal), warningsCheck(deal)];
   const open = checks.filter((c) => c.status !== 'pass' && c.blocks);
   const decision: Decision = open.some((c) => c.blocks === 'HOLD') ? 'HOLD' : open.length > 0 ? 'REVIEW' : 'SHIP';
-  const reasons = open.filter((c) => c.blocks === decision).map((c) => `${c.detail} (${c.cites.map((id) => `${termTitle(id)}, ${id}`).join('; ') || 'Settle check'})`);
+  const reasons = open.filter((c) => c.blocks === decision).map((c) => `${c.detail} (${c.cites.map((id) => `${termTitle(id)}, ${id}`).join('; ') || 'Settle Link check'})`);
   const headline =
     decision === 'SHIP' ? 'Ready to ship to the PayPal address' : decision === 'HOLD' ? "Hold: don't ship yet" : 'Review before shipping';
   return { decision, headline, reasons, checks, note: GATE_NOTE };

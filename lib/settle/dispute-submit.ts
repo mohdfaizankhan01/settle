@@ -106,7 +106,7 @@ async function build(deal: Deal, dispute: DisputeRecord, choice: Choice, receipt
     if (Number(offerAmount) >= max) throw new DealError('a partial refund must be less than the disputed amount; refund in full instead', 400);
     json = { note, offer_amount: { currency_code: currency, value: offerAmount }, offer_type: 'REFUND' };
   } else {
-    throw new DealError('Settle does not send that action', 409);
+    throw new DealError('Settle Link does not send that action', 409);
   }
   const files = pdf ? [{ name: `settle-evidence-${dispute.id}.pdf`, contentType: 'application/pdf', bytes: pdf }] : [];
   const listed = files.map((f) => ({ name: f.name, contentType: f.contentType, size: f.bytes.length, sha256: createHash('sha256').update(f.bytes).digest('hex') }));
@@ -167,7 +167,7 @@ export async function submitApproved(dealId: string, key: string | null, dispute
     if (subs.some((s) => s.hash === request.hash && s.state === 'sent')) throw new DealError('this exact request was already sent', 409);
     // A 5xx or lost answer may have been recorded by PayPal: never send that exact request again.
     if (subs.some((s) => s.hash === request.hash && s.state === 'unknown')) {
-      throw new DealError("PayPal didn't confirm this request last time and it may have gone through. Check the case in PayPal; Settle won't send it twice.", 409);
+      throw new DealError("PayPal didn't confirm this request last time and it may have gone through. Check the case in PayPal; Settle Link won't send it twice.", 409);
     }
     return { ...d, submissions: [...subs.filter((s) => s.hash !== request.hash), { disputeId, rel: request.rel, hash: request.hash, state: 'sending', at }] };
   });

@@ -75,10 +75,10 @@ test('a judge walks from the home page through every deal state', async ({ page 
   // 7. A dispute: case file, advice, the exact request, then approve and send (replayed).
   await openDeal(page, 'A dispute with its evidence pack');
   const seller = pane(page, 'Seller');
-  await expect(seller.getByText(/Settle's advice: answer with your evidence/)).toBeVisible();
+  await expect(seller.getByText(/Settle Link's advice: answer with your evidence/)).toBeVisible();
   await expect(seller.getByText(/Proof on file: .* = 8 of 8/)).toBeVisible();
   await seller.getByRole('button', { name: 'Review the request' }).click();
-  await expect(seller.getByText('This is exactly what Settle will send to PayPal, as you:')).toBeVisible();
+  await expect(seller.getByText('This is exactly what Settle Link will send to PayPal, as you:')).toBeVisible();
   await expect(seller.getByText(/POST https:\/\/api-m\.sandbox\.paypal\.com\/v1\/customer\/disputes\//)).toBeVisible();
   await seller.getByRole('button', { name: 'Approve and send to PayPal' }).click();
   await expect(seller.getByText(/provide supporting info: sent.*PayPal debug ID rec-/)).toBeVisible();

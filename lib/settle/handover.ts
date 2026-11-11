@@ -178,7 +178,7 @@ export async function releaseHandover(dealId: string, key: string | null, token:
       // Neither the capture's answer nor a re-read: Settle doesn't know whether PayPal took the
       // money, so it stays "checking" and the next fresh read decides (resolveInFlight). Never a guess.
       await deps.store.addReceipt({ dealId, kind: 'handover.unknown', at: iso, data: { authorizationId: auth!.id, kind: 'release', debugId: debugIdOf(error) ?? null } });
-      throw new DealError("Couldn't confirm with PayPal whether the money was taken. Settle checks again automatically; don't hand the item over until the seller's page says Handed over.", 409);
+      throw new DealError("Couldn't confirm with PayPal whether the money was taken. Settle Link checks again automatically; don't hand the item over until the seller's page says Handed over.", 409);
     } else {
       const reason = error instanceof paypal.PayPalApiError ? `PayPal refused (${error.status})` : 'PayPal did not answer';
       await updateWithRetry(deps.store, dealId, (d) => ({ ...d, handover: { ...d.handover, inFlight: undefined, failed: { kind: 'release', at: iso, reason, debugId: debugIdOf(error) } } }));
@@ -230,7 +230,7 @@ export async function voidHold(dealId: string, by: 'buyer' | 'seller' | 'meet_by
       await deps.store.addReceipt({ dealId, kind: 'handover.voided', at: iso, data: { authorizationId, by, status: a.status, recovered: true, debugId: after?.debugId ?? null } });
     } else if (!after) {
       await deps.store.addReceipt({ dealId, kind: 'handover.unknown', at: iso, data: { authorizationId, kind: 'void', by, debugId: debugIdOf(error) ?? null } });
-      throw new DealError("Couldn't confirm with PayPal whether the hold was released. Settle checks again automatically.", 409);
+      throw new DealError("Couldn't confirm with PayPal whether the hold was released. Settle Link checks again automatically.", 409);
     } else {
       const reason = error instanceof paypal.PayPalApiError ? `PayPal refused (${error.status})` : 'PayPal did not answer';
       await updateWithRetry(deps.store, dealId, (d) => ({ ...d, handover: { ...d.handover, inFlight: undefined, failed: { kind: 'void', at: iso, reason, debugId: debugIdOf(error) } } }));

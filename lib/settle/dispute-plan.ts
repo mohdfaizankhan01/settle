@@ -74,7 +74,7 @@ function decide(cf: CaseFile, dispute: DisputeRecord): { advice: Advice; reasons
     }
     return { advice: 'fight', reasons: ['Both of you confirmed the item description, its source message is on file, and the PayPal order names the same item.', 'Not-as-described claims are outside Seller Protection (SP-SNAD); the record is your evidence of what was agreed.'] };
   }
-  return { advice: 'refund', reasons: ['Settle has no checklist for this reason. Read the claim in PayPal, and refund unless you can show it is wrong.'] };
+  return { advice: 'refund', reasons: ['Settle Link has no checklist for this reason. Read the claim in PayPal, and refund unless you can show it is wrong.'] };
 }
 
 export function disputePlan(cf: CaseFile, dispute: DisputeRecord): Plan {

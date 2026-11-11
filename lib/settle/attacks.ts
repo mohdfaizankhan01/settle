@@ -130,7 +130,7 @@ export async function runAttacks(): Promise<AttackResult[]> {
       },
     ),
     await timed(
-      { id: 'fake-email', title: 'A fake PayPal payment email', attempt: 'The buyer sends a "payment received, funds on hold until you ship" email and the seller pastes it into Settle.', rule: 'lib/settle/paid-check.ts: the answer comes only from the PayPal order', test: 'tests/paid-check.test.ts › a fake "payment received" email on an unpaid deal is not paid, with the mismatches named' },
+      { id: 'fake-email', title: 'A fake PayPal payment email', attempt: 'The buyer sends a "payment received, funds on hold until you ship" email and the seller pastes it into Settle Link.', rule: 'lib/settle/paid-check.ts: the answer comes only from the PayPal order', test: 'tests/paid-check.test.ts › a fake "payment received" email on an unpaid deal is not paid, with the mismatches named' },
       async () => {
         const store = new MemoryDealStore();
         const { dealId, keys } = await lockedDeal(store);
@@ -167,7 +167,7 @@ export async function runAttacks(): Promise<AttackResult[]> {
       },
     ),
     await timed(
-      { id: 'forged-webhook', title: 'A forged webhook', attempt: 'Someone posts a "PAYMENT.CAPTURE.COMPLETED" event to Settle\'s webhook URL with a made-up signature.', rule: 'lib/settle/webhook.ts: only verify-webhook-signature SUCCESS counts', test: 'tests/webhook.test.ts › a forged or bad signature is rejected, with 400' },
+      { id: 'forged-webhook', title: 'A forged webhook', attempt: 'Someone posts a "PAYMENT.CAPTURE.COMPLETED" event to Settle Link\'s webhook URL with a made-up signature.', rule: 'lib/settle/webhook.ts: only verify-webhook-signature SUCCESS counts', test: 'tests/webhook.test.ts › a forged or bad signature is rejected, with 400' },
       async () => {
         // PayPal's verify-webhook-signature answers FAILURE for a forged signature; that answer is stood in here.
         const body = JSON.stringify({ id: 'WH-FORGED', event_type: 'PAYMENT.CAPTURE.COMPLETED', resource: { id: 'CAP-FORGED' } });
@@ -176,7 +176,7 @@ export async function runAttacks(): Promise<AttackResult[]> {
       },
     ),
     await timed(
-      { id: 'replayed-webhook', title: 'A replayed webhook', attempt: 'A real, verified payment event is sent to Settle a second time.', rule: 'lib/settle/payment.ts: events applied to a deal are recorded; a replay is a no-op', test: 'tests/payment.test.ts › a replayed event is a no-op' },
+      { id: 'replayed-webhook', title: 'A replayed webhook', attempt: 'A real, verified payment event is sent to Settle Link a second time.', rule: 'lib/settle/payment.ts: events applied to a deal are recorded; a replay is a no-op', test: 'tests/payment.test.ts › a replayed event is a no-op' },
       async () => {
         const store = new MemoryDealStore();
         const { dealId, event, pp } = await paidDeal(store);

@@ -60,7 +60,7 @@ export function JudgeMode() {
 
   return (
     <div className="min-h-full">
-      <TopBar width="max-w-[1400px]" note={"Judge mode: demo deals in a private session. Settle's checks run live; PayPal is replayed from a real sandbox run, so nothing reaches PayPal and no money moves."} />
+      <TopBar width="max-w-[1400px]" note={"Judge mode: demo deals in a private session. Settle Link's checks run live; PayPal is replayed from a real sandbox run, so nothing reaches PayPal and no money moves."} />
       <main className="mx-auto w-full max-w-[1400px] px-4 py-10 font-paypal text-pp-ink sm:py-12">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">

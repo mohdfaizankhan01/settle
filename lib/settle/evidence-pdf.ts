@@ -116,9 +116,9 @@ export async function evidencePdf(deal: Deal, dispute: DisputeRecord, receipts: 
   w.text('Evidence pack', { size: 20, bold: true, color: NAVY, gap: 4 });
   w.text(`PayPal dispute ${dispute.id}: ${cf.reasonLabel}${cf.amount ? `, ${cf.amount}` : ''}. Stage ${dispute.stage}, status ${dispute.status}${dispute.dueDate ? `, seller response due ${day(dispute.dueDate)}` : ''}.`);
   w.text(`Settle Link deal ${deal.id}. Built from the deal's records as of ${asOf.toISOString()}. PayPal sandbox: no real money moved.`, { size: 9, color: MUTED });
-  w.text('Each section names where it came from: the PayPal API (read by Settle with the seller\'s permission), the Settle record (written when each step happened, chained by hash), or entered by the seller.', { size: 9, color: MUTED });
+  w.text('Each section names where it came from: the PayPal API (read by Settle Link with the seller\'s permission), the Settle Link record (written when each step happened, chained by hash), or entered by the seller.', { size: 9, color: MUTED });
 
-  w.heading('1. The deal card both sides confirmed', 'Settle record');
+  w.heading('1. The deal card both sides confirmed', 'Settle Link record');
   for (const [label, term] of [['Item', deal.card.item], ['Price', deal.card.price], ['Delivery', deal.card.delivery], ['Ship by', deal.card.shipBy], ["PayPal's fee paid by", deal.card.feePayer]] as const) {
     w.text(`${label}: ${term?.display ?? 'not agreed'}`, { indent: 8, gap: 0 });
   }
@@ -131,7 +131,7 @@ export async function evidencePdf(deal: Deal, dispute: DisputeRecord, receipts: 
   for (const c of deal.confirmations) w.text(`Confirmed by the ${c.role} at ${c.at}, card fingerprint ${c.cardHash}`, { indent: 8, size: 9, gap: 0 });
   w.text(`Card fingerprint now: ${cardHash(deal)}. The PayPal order carries ${deal.id}:<fingerprint> in its custom_id, so the payment is tied to this exact card.`, { indent: 8, size: 9 });
 
-  w.heading('2. The chat the card came from (redacted)', 'Settle record; names, contact details and account numbers removed');
+  w.heading('2. The chat the card came from (redacted)', 'Settle Link record; names, contact details and account numbers removed');
   const { item, price, delivery, shipBy, feePayer } = deal.card;
   const sources = new Set([
     ...[item, price, delivery, shipBy, feePayer].flatMap((term) => (term?.source.kind === 'message' ? [term.source.messageId] : [])),
@@ -154,22 +154,22 @@ export async function evidencePdf(deal: Deal, dispute: DisputeRecord, receipts: 
   if (read?.items?.length) w.text(`Items on the order: ${read.items.join('; ')}`, { indent: 8, gap: 0 });
   if (read?.shipTo) w.text(`Ship-to on the payment: postcode ${read.shipTo.postalCode ?? 'n/a'}, ${read.shipTo.countryCode ?? ''} (the full address is on the PayPal transaction).`, { indent: 8 });
 
-  w.heading('4. Shipping and tracking', 'PayPal API, Settle record and entered by the seller');
+  w.heading('4. Shipping and tracking', 'PayPal API, Settle Link record and entered by the seller');
   if (deal.shipping?.labelPostcode) w.text(`Label postcode typed by the seller on ${day(deal.shipping.labelPostcode.at)}: ${deal.shipping.labelPostcode.value}.`, { indent: 8, gap: 0 });
   if (t) w.text(`Tracking ${t.number} (${carrierLabel(deal, t.carrier)}) sent to PayPal on ${day(t.at)}, state ${t.state}${t.debugId ? `, PayPal debug ID ${t.debugId}` : ''}.`, { indent: 8, gap: 0 });
   else w.text('No tracking was added.', { indent: 8, gap: 0 });
   if (deal.shipping?.delivered) w.text(`Entered by the seller: the carrier shows delivered on ${deal.shipping.delivered.date}.`, { indent: 8, gap: 0 });
   const gate = gateAtShipping(receipts);
-  w.text(gate ? `Settle's ship check when tracking was added: ${gate.decision} (recorded ${gate.at}).` : 'No ship check was recorded before tracking.', { indent: 8 });
+  w.text(gate ? `Settle Link's ship check when tracking was added: ${gate.decision} (recorded ${gate.at}).` : 'No ship check was recorded before tracking.', { indent: 8 });
 
-  w.heading('5. Case file for this dispute', 'Settle record, from the sections above');
+  w.heading('5. Case file for this dispute', 'Settle Link record, from the sections above');
   for (const p of cf.proofs) {
     w.text(`${STATUS_WORD[p.status]}: ${p.label}`, { bold: true, indent: 8, gap: 0 });
     w.text(`${p.detail} (source: ${p.source}; PayPal terms: ${p.cites.map((id) => `${termTitle(id)}, ${id}`).join('; ')})`, { indent: 16, size: 9 });
   }
   for (const n of cf.notes) w.text(n, { indent: 8, size: 9 });
 
-  w.heading('6. Receipts', 'Settle record');
+  w.heading('6. Receipts', 'Settle Link record');
   const chain = verifyChain(receipts);
   w.text(chain.ok ? `The receipt chain verifies: ${chain.count} receipts, each holding the hash of the one before.` : `The receipt chain does NOT verify: broken at receipt ${chain.brokenAt} (${chain.reason}).`, { indent: 8, bold: true });
   for (const r of receipts) w.text(`#${r.seq} ${r.at} ${r.kind} ${r.hash.slice(0, 16)}…`, { indent: 8, size: 8, gap: 0 });
