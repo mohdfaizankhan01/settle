@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-16T20:48:56.943Z",
-  "commit": "9d29f34",
+  "generatedAt": "2026-11-16T22:14:57.798Z",
+  "commit": "e1d3d54",
   "tests": {
-    "total": 341,
-    "pass": 341,
+    "total": 366,
+    "pass": 366,
     "fail": 0
   },
   "attacks": [
@@ -13,7 +13,7 @@
       "stopped": true,
       "rule": "lib/settle/rules.ts (ai-words); the AI only explains, it never approves",
       "test": "tests/deal-check.test.ts › keyword rules: only the sending side, show the match, and catch details hidden by redaction",
-      "ms": 98
+      "ms": 108
     },
     {
       "id": "fake-email",
@@ -21,7 +21,7 @@
       "stopped": true,
       "rule": "lib/settle/paid-check.ts: the answer comes only from the PayPal order",
       "test": "tests/paid-check.test.ts › a fake \"payment received\" email on an unpaid deal is not paid, with the mismatches named",
-      "ms": 9
+      "ms": 12
     },
     {
       "id": "amount-in-browser",
@@ -29,7 +29,7 @@
       "stopped": true,
       "rule": "lib/settle/checkout.ts: orders are built on the server from the card; capture needs a fresh GET that matches it",
       "test": "tests/checkout.test.ts › an order whose amount, payee or custom_id differs from the card is not captured",
-      "ms": 8
+      "ms": 14
     },
     {
       "id": "card-edited",
@@ -37,7 +37,7 @@
       "stopped": true,
       "rule": "lib/settle/card.ts: the card is locked by hash; any change clears both confirmations",
       "test": "tests/checkout.test.ts › a card changed after confirming cannot be paid",
-      "ms": 12
+      "ms": 14
     },
     {
       "id": "forged-webhook",
@@ -53,7 +53,7 @@
       "stopped": true,
       "rule": "lib/settle/payment.ts: events applied to a deal are recorded; a replay is a no-op",
       "test": "tests/payment.test.ts › a replayed event is a no-op",
-      "ms": 9
+      "ms": 10
     },
     {
       "id": "cousin",
@@ -61,7 +61,7 @@
       "stopped": true,
       "rule": "lib/settle/ship-gate.ts: a ship-elsewhere warning or a new postcode after payment holds (SP-ADDR)",
       "test": "tests/ship-gate.test.ts › \"send it to my cousin\" after payment turns the gate to HOLD, naming SP-ADDR",
-      "ms": 11
+      "ms": 15
     },
     {
       "id": "seller-takes-money",
@@ -69,7 +69,7 @@
       "stopped": true,
       "rule": "lib/settle/handover.ts: release needs the buyer's link key, the seller's current code, and the secret of the phone that placed the PayPal hold",
       "test": "tests/handover.test.ts › only the buyer, with the code the seller shows, releases the money, once",
-      "ms": 8
+      "ms": 12
     },
     {
       "id": "reused-code",
@@ -77,7 +77,7 @@
       "stopped": true,
       "rule": "lib/settle/handover.ts: the code is single-use and only its hash is kept; a used hold cannot be taken again",
       "test": "tests/handover.test.ts › only the buyer, with the code the seller shows, releases the money, once",
-      "ms": 12
+      "ms": 10
     },
     {
       "id": "fake-hold",
@@ -85,7 +85,7 @@
       "stopped": true,
       "rule": "lib/settle/paid-check.ts and handover.ts: the answer comes only from this deal's PayPal order; no hold means no handover code",
       "test": "tests/handover.test.ts › a fake message that PayPal is holding the money gets the answer from PayPal, and no handover code",
-      "ms": 8
+      "ms": 15
     }
   ]
 }

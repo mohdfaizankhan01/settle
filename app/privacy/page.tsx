@@ -44,6 +44,9 @@ export default function Page() {
             . A server running Settle Link can turn this off with SETTLE_READER=off; the card is then read by Settle Link&apos;s own code only.
           </p>
           <p>
+            If the seller chooses to read the label postcode from a photo, the photo is <strong>not</strong> redacted: it shows the recipient&apos;s name and address. The seller&apos;s browser shrinks it first, which also drops the location and camera details the file carried, and then sends it once to Groq&apos;s API, where a vision model reads the recipient&apos;s postcode. Settle Link does not store the photo; the deal record keeps only whether a postcode was read, never the photo, the postcode or the address. The seller can crop the photo to the postcode before choosing it, or type the postcode instead. Judge mode never sends a photo anywhere. A server running Settle Link can turn photo reading off with SETTLE_LABEL_PHOTO=off.
+          </p>
+          <p>
             When the buyer pays, PayPal receives the order: the item, the price and the seller&apos;s PayPal account. Payment, buyer details and disputes are handled by PayPal under PayPal&apos;s own privacy statement.
           </p>
         </Section>
