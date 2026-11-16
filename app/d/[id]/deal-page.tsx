@@ -7,6 +7,7 @@ import type { DealView, SourceView } from '@/lib/settle/view';
 import { PayButton } from './pay-button';
 import { HandoverPanel, rememberBuyerKey } from './handover-panel';
 import { keyHeaders, rememberDevice } from './link-auth';
+import { useLiveUpdates } from './use-live';
 
 const keyFromHash = () => new URLSearchParams(window.location.hash.slice(1)).get('k') ?? '';
 
@@ -45,17 +46,31 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
     load(keyRef.current).catch((e: Error) => setError(e.message));
   }, [load, linkKey]);
 
-  // The other side acts on their own page: refresh every 10 s while this tab is visible.
+  // The other side acts on their own page. The live stream says so the moment it happens
+  // (use-live.ts); the page also checks on a timer while this tab is visible, every 30 s while the
+  // stream is open (that read is also the missed-webhook fallback) and every 10 s without it.
   const busyRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const reload = useCallback(() => {
+    if (!keyRef.current) return;
+    if (busyRef.current) dirtyRef.current = true;
+    else load(keyRef.current).catch(() => undefined);
+  }, [load]);
   useEffect(() => {
     busyRef.current = busy;
-  }, [busy]);
+    // A signal came while this page was acting: read once more now that it is done.
+    if (!busy && dirtyRef.current) {
+      dirtyRef.current = false;
+      reload();
+    }
+  }, [busy, reload]);
+  const live = useLiveUpdates(dealId, () => keyRef.current, reload);
   useEffect(() => {
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible' && !busyRef.current && keyRef.current) load(keyRef.current).catch(() => undefined);
-    }, 10_000);
+    }, live ? 30_000 : 10_000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, live]);
 
   const act = useCallback(
     async (path: string, body?: unknown) => {
@@ -96,7 +111,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
   return (
     <KeyContext.Provider value={() => keyRef.current ?? ''}>
     <Frame wide>
-      <Realness view={view} />
+      <Realness view={view} live={live} />
       <header className="mt-4 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[32px] font-semibold tracking-[-0.03em] text-pp-navy">
@@ -229,7 +244,7 @@ function EmbeddedFrame({ children }: { children: React.ReactNode; wide?: boolean
 }
 
 /** What's real on this screen: live sandbox or replayed PayPal, and whether the check ran. */
-function Realness({ view }: { view: DealView }) {
+function Realness({ view, live }: { view: DealView; live: boolean }) {
   const judge = view.realness.mode === 'judge';
   return (
     <div className={`rounded-xl border px-4 py-3 text-xs leading-relaxed ${judge ? 'border-pp-warning/40 bg-[#fffaf0]' : 'surface'}`}>
@@ -244,6 +259,12 @@ function Realness({ view }: { view: DealView }) {
         <li className="flex gap-2">
           <span className={`mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full ${view.realness.readerRan ? 'bg-pp-blue' : 'bg-pp-border'}`} aria-hidden="true" />
           {view.realness.reader}
+        </li>
+        <li className="flex gap-2">
+          <span className={`mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full ${live ? 'bg-pp-success' : 'bg-pp-border'}`} aria-hidden="true" />
+          {live
+            ? "Updates: live. This page refreshes the moment the other side acts or Settle Link hears from PayPal; PayPal's own notices can still take minutes."
+            : 'Updates: checking every 10 seconds.'}
         </li>
       </ul>
     </div>
