@@ -6,10 +6,21 @@
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). **Everything runs on the PayPal sandbox: no real money moves.** Licensed under [MIT](LICENSE).
 
-![The seller's view of a deal card: three warnings, each quoting the buyer's message](docs/screenshots/1-deal-card-warning.jpg)
+| | |
+| --- | --- |
+| **Demo video (3 min)** | https://youtu.be/HHtVwcTopUM |
+| **Live app** | https://settle-ulya.onrender.com |
+| **Judge mode, no login** | https://settle-ulya.onrender.com/demo |
+| **Proof and misses** | https://settle-ulya.onrender.com/proof |
+
+> The video was recorded on 10 Nov. Built since then and live on the site: the AI deal reader that can only point at the chat, a general-LLM baseline on /proof, signed records and [/verify](https://settle-ulya.onrender.com/verify), live updates on the deal page, and reading the label postcode from a photo. The video says 240 tests; there are 366 today.
+
+[![The seller's view of a deal card: three warnings, each quoting the buyer's message](docs/screenshots/1-deal-card-warning.jpg)](https://settle-ulya.onrender.com/demo)
 *A deal card in judge mode: the buyer's "PayPal is holding your money" message raises three warnings for the seller, including a scam-memory match.*
 
-**What's different**
+**Contents:** [What's different](#whats-different) · [Try it in 3 minutes](#for-judges-try-it-in-3-minutes) · [Screenshots](#screenshots) · [Judging criteria](#how-each-judging-criterion-is-met) · [The problem](#the-problem) · [What it does](#what-it-does) · [How it works](#how-it-works) · [How it compares](#how-it-compares) · [Real vs simulated](#whats-real-and-whats-simulated) · [Proof](#proof) · [Safety rules](#safety-rules) · [From sandbox to live](#from-sandbox-to-live) · [Limitations](#limitations) · [Tools used](#tools-used) · [Run it yourself](#run-it-yourself)
+
+## What's different
 
 - **The buyer pays the seller's own PayPal account.** The seller connects through Partner Referrals and the payee is the merchant ID PayPal reports; Settle Link never receives money and never uses Payouts. ([`lib/settle/connect.ts`](lib/settle/connect.ts), [`lib/paypal.ts`](lib/paypal.ts))
 - **Every ship check quotes PayPal's own terms**, word for word, and says that PayPal decides. ([`docs/protection-terms.md`](docs/protection-terms.md), [`lib/settle/ship-gate.ts`](lib/settle/ship-gate.ts), [/terms](https://settle-ulya.onrender.com/terms))
@@ -17,6 +28,26 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com). **Ev
 - **Both sides agree who pays PayPal's fee.** The card shows PayPal's fee, estimated in code from PayPal's published rates, and both people answer who pays it before anyone can confirm. ([`lib/settle/card.ts`](lib/settle/card.ts), [`lib/settle/fees.ts`](lib/settle/fees.ts), [`docs/fees.md`](docs/fees.md))
 - **The AI can't move money.** It only adds warnings and points at the chat. Payment counts only from a verified PayPal webhook plus a fresh read of the order; a meet-up hold is taken only when the buyer scans the seller's code.
 - **One record from DM to dispute.** The agreed card's fingerprint rides on the PayPal order, and disputes are answered through PayPal's Disputes API with an evidence PDF built from that record, after the seller approves the exact request.
+
+## For judges: try it in 3 minutes
+
+**Live app:** https://settle-ulya.onrender.com (kept awake by a regular ping; if you still see Render's wake-up page, the first load takes about a minute).
+
+1. **[Judge mode](https://settle-ulya.onrender.com/demo)** → *Start judge mode*. You get eight private demo deals, buyer and seller side by side. Settle Link's own code runs live; PayPal is replayed from real sandbox runs, so nothing reaches PayPal.
+   - *Buyer warned about Friends and Family*: the warning quotes the exact message and the PayPal terms it breaks.
+   - *Seller warned about a fake payment email*: paste the "email" into *Got a payment received message?* and Settle Link answers from PayPal's record (not paid). Scam memory also recognises the script from two earlier (seeded) reports.
+   - *Paid and ready to ship* / *HOLD after an address change*: the ship check, with each rule cited. On *Paid and ready to ship*, press **Try the sample label**: a vision model's recorded reading of a sample label fills the postcode box, and you still press Compare.
+   - *Code and the AI reader disagree on the price*: code read $15, the AI reader read $900, so both people answer instead of anyone guessing.
+   - *Meet-up*: PayPal holds the money; the seller shows a QR code, you open the scan as the buyer, and only then is the money taken.
+   - *A dispute with its evidence pack*: the case file, honest advice, and the exact request the seller approves.
+   - Answer a question on one side and watch the other side's pane change at once: each pane says "Updates: live".
+2. **[Try to fool it](https://settle-ulya.onrender.com/demo/attacks)**: ten real attacks run against the real server code (10 of 10 stopped), each naming the rule and the test that stop it.
+3. **[Proof](https://settle-ulya.onrender.com/proof)**: how often the warning check is right, and how often it raises a false alarm, on chats it never trained on. Try an honest chat too: "PayPal goods and services please, not friends and family" raises no warning.
+4. **[Seller timeline](https://settle-ulya.onrender.com/demo/timeline)** (Bryntum Scheduler): every demo deal over time, coloured by its check.
+5. **[Verify a record](https://settle-ulya.onrender.com/verify)**: in the dispute deal's seller view, open *History of this deal* and press *Download signed record* (the dispute panel's button also covers the evidence PDF, which you can download next to it), then drop the file on /verify. The check runs in your browser; change one character in the file and it fails. Judge-mode records are signed with a public demo key and say so ([`docs/verify.md`](docs/verify.md)).
+6. **The Chrome extension** (optional, needs WhatsApp Web or Messenger in Chrome): download the repo, open `chrome://extensions`, turn on Developer mode, *Load unpacked* → the [`extension/`](extension) folder, then open a chat and click **Settle Link** in the toolbar. It makes a real deal on the live app (PayPal sandbox). The demo video shows it on a real WhatsApp Web chat.
+
+**A live sandbox deal**: paste a chat at [/check](https://settle-ulya.onrender.com/check), or use the extension. Paying needs a PayPal sandbox buyer login and the seller connecting a sandbox business account; the logins are in the Devpost testing notes. We ran this path end to end on the live site on 11 to 16 Nov: a Sony A7 III deal whose seller's claims ("barely used", "comes with the original box and two batteries") went onto the confirmed card and the PayPal order, paid by the sandbox buyer (order `20986552ST7839223`, capture `5TX54612EU6152800`), tracking added to PayPal (`9400111899223197428490`), and a "not as described" dispute the buyer opened in PayPal's Resolution Center (case `PP-R-AUQ-10201835`), which arrived by webhook and opened the case file with both claims as evidence, 6 of 6 proofs on file.
 
 ## Screenshots
 
@@ -35,30 +66,11 @@ All from judge mode (demo data; PayPal replayed from recorded sandbox runs). `np
 
 | Criterion | Where to see it |
 | --- | --- |
-| **Technological Implementation** | Orders are built on the server from the locked card, with `<dealId>:<hash>` in `custom_id`, and payment counts only after a verified webhook plus a fresh GET ([`lib/settle/checkout.ts`](lib/settle/checkout.ts), [`lib/settle/webhook.ts`](lib/settle/webhook.ts)). Meet-ups use `intent: AUTHORIZE` and capture only on the buyer's QR scan ([`lib/settle/handover.ts`](lib/settle/handover.ts)). 366 tests in CI, a Playwright walk of the judge path, and sandbox runs with PayPal debug IDs ([`docs/SPIKES.md`](docs/SPIKES.md)). |
-| **Design** | Judge mode shows buyer and seller side by side for eight deal states ([/demo](https://settle-ulya.onrender.com/demo)). Every page says what's live and what's replayed in its top bar, and the card says "no warning signs found", never "safe" ([`app/components/brand.tsx`](app/components/brand.tsx), [`lib/settle/view.ts`](lib/settle/view.ts)). A deal link pasted into a chat app previews the item, price and "pay only through PayPal" ([`app/d/[id]/opengraph-image.tsx`](app/d/%5Bid%5D/opengraph-image.tsx)). |
+| **Technological Implementation** | Orders are built on the server from the locked card, with `<dealId>:<hash>` in `custom_id`, and payment counts only after a verified webhook plus a fresh GET ([`lib/settle/checkout.ts`](lib/settle/checkout.ts), [`lib/settle/webhook.ts`](lib/settle/webhook.ts)). Meet-ups use `intent: AUTHORIZE` and capture only on the buyer's QR scan ([`lib/settle/handover.ts`](lib/settle/handover.ts)). The deal page updates live over a server-sent stream that carries a signal, never deal data ([`lib/settle/watch.ts`](lib/settle/watch.ts)). 366 unit tests in CI, 16 Playwright tests against the deployed app, and sandbox runs with PayPal debug IDs ([`docs/SPIKES.md`](docs/SPIKES.md)). |
+| **Design** | Judge mode shows buyer and seller side by side for eight deal states ([/demo](https://settle-ulya.onrender.com/demo)). Every page says what's live and what's replayed in its top bar, and the card says "no warning signs found", never "safe" ([`app/components/brand.tsx`](app/components/brand.tsx), [`lib/settle/view.ts`](lib/settle/view.ts)). A deal link pasted into a chat app previews the item, price and "pay only through PayPal" ([`app/d/[id]/opengraph-image.tsx`](app/d/%5Bid%5D/opengraph-image.tsx)). Each pane says whether its updates are live or polled. |
 | **Potential Impact** | Social-media shopping scams: $2.1 billion reported in the US in 2025, 71% of UK APP scam cases ([The problem](#the-problem)). Both sides are covered: buyers are warned before paying, sellers are held before shipping ([`lib/settle/signals.ts`](lib/settle/signals.ts), [`lib/settle/ship-gate.ts`](lib/settle/ship-gate.ts)). The Chrome extension makes a deal from the open chat in one click ([`extension/`](extension)). |
-| **Innovation / Idea** | The AI reader can only point at IDs and exact quotes; a term is filled only when code and the reader agree, otherwise both people answer ([`lib/reader`](lib/reader)). Scam memory across deals, as keyed hashes ([`lib/settle/memory.ts`](lib/settle/memory.ts)). A dispute answered from the record that started in the DM ([`lib/settle/case-file.ts`](lib/settle/case-file.ts), [`lib/settle/evidence-pdf.ts`](lib/settle/evidence-pdf.ts)). Signed deal records that anyone can check in a browser or offline, with one shared check ([`lib/settle/verify-core.ts`](lib/settle/verify-core.ts), [/verify](https://settle-ulya.onrender.com/verify)). |
-| **Presentation** | Screenshots above and a 3-minute judge path below. [/proof](https://settle-ulya.onrender.com/proof) shows the counts behind each number, and the misses. [/demo/attacks](https://settle-ulya.onrender.com/demo/attacks) runs ten attacks live. |
-
-## For judges: try it in 3 minutes
-
-**Live app:** https://settle-ulya.onrender.com (kept awake by a regular ping; if you still see Render's wake-up page, the first load takes about a minute).
-
-1. **[Judge mode](https://settle-ulya.onrender.com/demo)** → *Start judge mode*. You get eight private demo deals, buyer and seller side by side. Settle Link's own code runs live; PayPal is replayed from real sandbox runs, so nothing reaches PayPal.
-   - *Buyer warned about Friends and Family*: the warning quotes the exact message and the PayPal terms it breaks.
-   - *Seller warned about a fake payment email*: paste the "email" into *Got a payment received message?* and Settle Link answers from PayPal's record (not paid). Scam memory also recognises the script from two earlier (seeded) reports.
-   - *Paid and ready to ship* / *HOLD after an address change*: the ship check, with each rule cited.
-   - *Meet-up*: PayPal holds the money; the seller shows a QR code, you open the scan as the buyer, and only then is the money taken.
-   - *A dispute with its evidence pack*: the case file, honest advice, and the exact request the seller approves.
-2. **[Try to fool it](https://settle-ulya.onrender.com/demo/attacks)**: ten real attacks run against the real server code (10 of 10 stopped), each naming the rule and the test that stop it.
-3. **[Proof](https://settle-ulya.onrender.com/proof)**: how often the warning check is right, and how often it raises a false alarm, on chats it never trained on. Try an honest chat too: "PayPal goods and services please, not friends and family" raises no warning.
-4. **[Seller timeline](https://settle-ulya.onrender.com/demo/timeline)** (Bryntum Scheduler): every demo deal over time, coloured by its check.
-5. **[Verify a record](https://settle-ulya.onrender.com/verify)**: in the dispute deal's seller view, open *History of this deal* and press *Download signed record* (the dispute panel's button also covers the evidence PDF, which you can download next to it), then drop the file on /verify. The check runs in your browser; change one character in the file and it fails. Judge-mode records are signed with a public demo key and say so ([`docs/verify.md`](docs/verify.md)).
-
-6. **The Chrome extension** (optional, needs WhatsApp Web or Messenger in Chrome): download the repo, open `chrome://extensions`, turn on Developer mode, *Load unpacked* → the [`extension/`](extension) folder, then open a chat and click **Settle Link** in the toolbar. It makes a real deal on the live app (PayPal sandbox). The demo video shows it on a real WhatsApp Web chat.
-
-**A live sandbox deal**: paste a chat at [/check](https://settle-ulya.onrender.com/check), or use the extension. Paying needs a PayPal sandbox buyer login and the seller connecting a sandbox business account; the logins are in the Devpost testing notes.
+| **Innovation / Idea** | The AI reader can only point at IDs and exact quotes; a term is filled only when code and the reader agree, otherwise both people answer ([`lib/reader`](lib/reader)). Scam memory across deals, as keyed hashes ([`lib/settle/memory.ts`](lib/settle/memory.ts)). A dispute answered from the record that started in the DM ([`lib/settle/case-file.ts`](lib/settle/case-file.ts), [`lib/settle/evidence-pdf.ts`](lib/settle/evidence-pdf.ts)). Signed deal records that anyone can check in a browser or offline, with one shared check ([`lib/settle/verify-core.ts`](lib/settle/verify-core.ts), [/verify](https://settle-ulya.onrender.com/verify)). The same "AI points, code checks" rule for a photo: a vision model names the recipient's postcode, code checks it is in the address block it quoted and isn't the sender's, and the seller still confirms ([`lib/label/read-label.ts`](lib/label/read-label.ts)). |
+| **Presentation** | A 3-minute [video](https://youtu.be/HHtVwcTopUM), screenshots, and a judge path that needs no login. [/proof](https://settle-ulya.onrender.com/proof) shows the counts behind each number, the misses, and a general-LLM baseline that beats us on false alarms, shown as it is. [/demo/attacks](https://settle-ulya.onrender.com/demo/attacks) runs ten attacks live. Every screen says what is live and what is replayed. |
 
 ## The problem
 
@@ -104,6 +116,8 @@ flowchart LR
   confirm --> receipts
   gate --> receipts
   dispute --> receipts
+  receipts -->|Ed25519| verify["Signed record<br/>checked at /verify"]
+  photo["Label photo"] -->|vision model points,<br/>code checks, seller confirms| gate
 ```
 
 - **Redaction first.** Names, emails, phone numbers, addresses and bank details are removed before any model sees the chat. Prices, dates and links become tokens whose values stay in code.
@@ -138,17 +152,23 @@ Other approaches in this hackathon, and where Settle Link differs:
 | Warning check | Settle Link's own model and rules, on every chat | — |
 | Test chats on /proof | — | 115 chats we wrote; a sanity check, not a benchmark |
 | Scam memory | Real reports between real deals | Judge mode seeds two earlier reports, labelled |
+| AI deal reader | `gpt-oss-120b` on Groq, on every real deal | Judge mode replays recorded readings, labelled with the date |
+| Label photo | A vision model on Groq reads the seller's photo; nothing is stored | Judge mode replays a recorded reading of a sample label and sends no photo anywhere |
+| Signed records | Ed25519 with the live key published at [/.well-known/settle-link-key.json](https://settle-ulya.onrender.com/.well-known/settle-link-key.json) | Judge mode signs with a public demo key; /verify never shows those as verified |
+| Live updates | A server-sent stream per deal page | — |
 | Chrome extension | Reads real web chats on click; makes real deals on the live app | — |
 | Money | — | Sandbox only: no real money moves anywhere |
 
 ## Proof
 
-- **366 tests** (`npm test`, run by CI on every push), with PayPal and the model mocked; a Playwright walk of the judge path on the deployed app (`npm run e2e`); and 8 Playwright tests of the extension's chat readers, including a buyer who types a fake `[time] Seller:` line or takes the seller's name (`npx playwright test e2e/extension-readers.spec.ts`).
+- **366 tests** (`npm test`, run by CI on every push), with PayPal and the model mocked, and **16 Playwright tests** against the deployed app (`npm run e2e`): the judge path, /verify with a tampered record, live updates with and without the stream, the label photo in judge mode, and the extension's chat readers, including a buyer who types a fake `[time] Seller:` line or takes the seller's name.
 - **10 of 10 attacks stopped** on [/demo/attacks](https://settle-ulya.onrender.com/demo/attacks), each tied to a named test.
 - **Warning check on 115 held-out chats** (model plus rules): precision 61%, recall 93%, versus 37% recall for keyword rules alone. Weakest: "move to another app" (recall 67%) and "ship somewhere else" (80%). A missed warning never makes a deal safe: payment and shipping are still checked against PayPal's records.
 - **Against a general LLM** (`npm run baseline`): the same 115 redacted chats, each sent once to `openai/gpt-oss-120b` on Groq asking only "Is this chat a scam attempt? yes or no, and which message." It caught 27 of 39 scam chats (ours: 37) and handled 0 of 6 injection chats (ours: 5), but wrongly flagged only 4 of 69 clean chats, where ours flags 16. Honest refusals: it flagged 2 of 7, ours 1. Both sides' misses are listed on [/proof](https://settle-ulya.onrender.com/proof).
 - **False alarms:** 53 of 69 chats with nothing risky show no warning, and 6 of 7 honest refusals ("not friends and family", "I don't take Zelle") show none. Refusals are handled in code; a question ("why not F&F?") is never read as a refusal.
 - **Live sandbox runs** with PayPal debug IDs in [`docs/SPIKES.md`](docs/SPIKES.md): seller onboarding, capture, tracking, refunds, a dispute answered with an evidence PDF, and a full meet-up (hold, QR handover, capture), each confirmed by verified webhooks.
+- **A full live deal on the deployed app, 11 to 16 Nov:** seller onboarding, both confirmations, payment by the sandbox buyer confirmed by webhook plus a fresh read, tracking on the PayPal order, delivery recorded, and a "not as described" dispute from PayPal's Resolution Center that opened the case file with the seller's own claims as evidence (IDs under [Try it in 3 minutes](#for-judges-try-it-in-3-minutes)). The dispute webhook took about 15 minutes to arrive, which the page now shows the moment it does.
+- **Label photo on 28 rendered labels** (`npm run label:eval`): 17 right, 0 wrong, 3 refused of 20 measured; 8 not run because Groq's free daily limit ran out, listed on /proof and not counted. Clean rendered labels, not phone photos.
 
 ## Safety rules
 
