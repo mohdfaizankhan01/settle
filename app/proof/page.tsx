@@ -3,6 +3,7 @@ import evalB from '@/data/eval/results-settle-link-b.json';
 import proof from '@/data/proof/proof.json';
 import readerEval from '@/data/eval/reader-test.json';
 import baseline from '@/data/eval/baseline.json';
+import labelEval from '@/data/eval/label.json';
 import { signalById } from '@/lib/settle/signals';
 import { TopBar } from '@/app/components/brand';
 
@@ -142,6 +143,8 @@ export default function Page() {
 
 
         <ReadingTheCard />
+
+        <ReadingALabel />
 
         <section className="mt-10">
           <h2 className="text-xl font-semibold">Tests and attacks</h2>
@@ -320,6 +323,57 @@ function AgainstAnLlm() {
       <p className="mt-3 max-w-2xl text-sm">
         A yes/no answer also can&apos;t say what to do: our warnings quote the message, name the PayPal term it breaks and tell each side what to do next. And whichever check is used, it only adds caution: payment and shipping are still decided by PayPal&apos;s records and both people.
       </p>
+    </section>
+  );
+}
+
+type LabelEval = {
+  note: string;
+  ranAt: string;
+  model: string;
+  labels: number;
+  ofLabels?: number;
+  notRun?: string[];
+  right: number;
+  wrong: number;
+  refused: number;
+  misses: { id: string; expected: string | null; got: string | null; outcome: string; reason: string | null }[];
+  latencyMs: { p50: number | null; p95: number | null };
+  tokensPerLabel: { input: number; output: number };
+  costPerLabelUsd: number | null;
+  earlierRuns?: { promptVersion: string; right: number; wrong: number; refused: number; labels: number; note: string }[];
+};
+
+/** Part B: the label photo reader, on rendered labels (npm run label:eval). */
+function ReadingALabel() {
+  const l = labelEval as unknown as LabelEval;
+  return (
+    <section className="mt-10 max-w-2xl">
+      <h2 className="text-xl font-semibold">Reading a label photo</h2>
+      <p className="mt-2 text-sm text-pp-muted">
+        A seller can read the label postcode from a photo ({l.model} on Groq). The reading only fills the box: the seller checks it, and code compares it with PayPal&apos;s address as before. {l.labels} of {l.ofLabels ?? l.labels} labels we rendered ourselves were measured, run {l.ranAt.slice(0, 10)}{l.notRun?.length ? `; ${l.notRun.length} not run yet because Groq's free daily limit was used up (${l.notRun.join(', ')}), so they are not counted either way` : ''}. {l.note}
+      </p>
+      <ul className="mt-3 divide-y divide-pp-gridline surface rounded-2xl text-sm tabular-nums">
+        <li className="px-4 py-2">
+          <strong>{l.right} of {l.labels}</strong> measured labels read right.
+        </li>
+        <li className="px-4 py-2">
+          <strong className={l.wrong ? 'text-pp-danger' : ''}>{l.wrong}</strong> read wrong. <strong>{l.refused}</strong> refused, so the seller types the postcode.
+        </li>
+        <li className="px-4 py-2">
+          {l.latencyMs.p50} ms median, {l.latencyMs.p95} ms at the 95th percentile; about {l.tokensPerLabel.input} tokens in and {l.tokensPerLabel.output} out per photo, which is ${l.costPerLabelUsd?.toFixed(5)} at Groq&apos;s paid rates ($0 on the free tier we use).
+        </li>
+      </ul>
+      {l.misses.length > 0 && (
+        <p className="mt-3 text-sm">
+          Not right: {l.misses.map((m) => `${m.id} (${m.outcome}${m.reason ? `: ${m.reason}` : ''})`).join('; ')}.
+        </p>
+      )}
+      {l.earlierRuns?.map((r) => (
+        <p key={r.promptVersion} className="mt-2 text-sm text-pp-muted">
+          Earlier run ({r.promptVersion}): {r.right} right, {r.wrong} wrong, {r.refused} refused of {r.labels}. {r.note}
+        </p>
+      ))}
     </section>
   );
 }

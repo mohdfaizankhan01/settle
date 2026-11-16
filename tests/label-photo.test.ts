@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { VisionSkip, type AskVision } from '../lib/label/provider';
-import { readLabelPhoto } from '../lib/label/photo';
+import { readLabelPhoto, SAMPLE_READING } from '../lib/label/photo';
 import { MAX_IMAGE_BYTES } from '../lib/label/read-label';
 import { createDeal, DealError, openLinks, withDevice } from '../lib/settle/deals';
 import { describe, history } from '../lib/settle/history';
@@ -25,7 +25,7 @@ test('the seller reads a label photo: the page gets the postcode only, and the r
   const receipts = await s.store.listReceipts(s.dealId);
   const r = receipts.at(-1)!;
   assert.equal(r.kind, 'shipping.label_photo');
-  assert.deepEqual(r.data, { result: 'read', model: 'qwen/test', reason: null });
+  assert.deepEqual(r.data, { result: 'read', source: 'live', model: 'qwen/test', reason: null });
   const everything = JSON.stringify([await s.get(), receipts]);
   assert.ok(!everything.includes(Buffer.from(JPEG).toString('base64')), 'the photo is not stored');
   assert.ok(!/LS1 1AA|HIGH ST|SAM BUYER|SW1A/.test(everything.replace(/"postal_code":"LS1 1AA"/g, '').replace(/1 High St/gi, '').replace(/Sam Buyer/g, '')), 'no address from the photo is stored');
@@ -58,15 +58,33 @@ test('only the seller, and only once the buyer has paid', async () => {
   assert.equal(called, 0, 'nothing is sent to the provider for a request that is refused');
 });
 
-test('judge mode never calls the provider', async () => {
+test('judge mode never calls the provider: an uploaded photo is not sent, and the sample replays its recorded reading', async () => {
   const s = await paidSetup();
   const stored = (await s.store.getDeal(s.dealId))!;
   await s.store.updateDeal(s.dealId, stored.version, { ...stored.value, demo: { session: 's1' } as never });
   let called = 0;
-  const out = await readLabelPhoto(s.dealId, s.keys.seller, JPEG, { store: s.store, ask: async (r, m) => (called++, ask(uk)(r, m)) });
-  assert.equal(out.status, 'skipped');
-  assert.match((out as { reason: string }).reason, /Judge mode does not read photos/);
+  const counting: AskVision = async (r, m) => (called++, ask(uk)(r, m));
+  const uploaded = await readLabelPhoto(s.dealId, s.keys.seller, JPEG, { store: s.store, ask: counting });
+  assert.equal(uploaded.status, 'skipped');
+  assert.match((uploaded as { reason: string }).reason, /Judge mode reads only the sample label, so nothing is sent/);
+  const sample = await readLabelPhoto(s.dealId, s.keys.seller, 'sample', { store: s.store, ask: counting });
+  assert.deepEqual(sample, { status: 'read', postcode: SAMPLE_READING.postcode, recorded: { at: SAMPLE_READING.recordedAt, model: SAMPLE_READING.model } });
   assert.equal(called, 0);
+  const last = (await s.store.listReceipts(s.dealId)).at(-1)!;
+  assert.deepEqual(last.data, { result: 'read', source: 'recorded', model: SAMPLE_READING.model, reason: null });
+});
+
+test('the sample label is for judge mode only', async () => {
+  const s = await paidSetup();
+  await rejects(readLabelPhoto(s.dealId, s.keys.seller, 'sample', { store: s.store, ask: ask(uk) }), 400);
+});
+
+test('the recorded sample reading is a real reading of the committed sample image', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { createHash } = await import('node:crypto');
+  const png = readFileSync('public/sample-label.png');
+  assert.equal(createHash('sha256').update(png).digest('hex'), SAMPLE_READING.sha256, 'public/sample-label.png is the image that was read');
+  assert.equal(SAMPLE_READING.postcode, '95131', 'the demo deals ship to 95131');
 });
 
 test('the history says it in words, to the seller only, and without the photo or the postcode', async () => {

@@ -32,6 +32,15 @@ test('a UK postcode matches with or without its space and in any case', () => {
   assert.deepEqual(validateReading({ recipientLines: ['LEEDS LS1 1AA'], postcode: 'ls1 1aa' }, 'UK'), { ok: true, postcode: 'LS1 1AA' });
 });
 
+test('common renamed fields are read; what they hold is still checked, and no address block is still a refusal', () => {
+  assert.deepEqual(validateReading({ lines: us.recipientLines, postcode: '95131-1234' }, 'US'), { ok: true, postcode: '95131-1234' });
+  assert.deepEqual(validateReading({ recipientAddress: us.recipientLines, recipientPostcode: '95131-1234', senderPostcode: null }, 'US'), { ok: true, postcode: '95131-1234' });
+  assert.deepEqual(validateReading({ recipient_address: us.recipientLines, postcode: '95131-1234' }, 'US'), { ok: true, postcode: '95131-1234' });
+  assert.equal(validateReading({ postcode: '95131', senderPostcode: '78701' }, 'US').ok, false, 'a postcode with no quoted address block');
+  assert.equal(validateReading({ lines: us.recipientLines, postcode: '90210' }, 'US').ok, false, 'renamed, but not in the block');
+  assert.equal(validateReading({ recipientAddress: ['FROM 78701'], postcode: '78701', sender_postcode: '78701' }, 'US').ok, false, 'renamed sender field');
+});
+
 test('everything else is refused, each with a reason the seller can read', () => {
   const no = (raw: unknown, country: 'US' | 'UK' = 'US') => {
     const r = validateReading(raw, country);

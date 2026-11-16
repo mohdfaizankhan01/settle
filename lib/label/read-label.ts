@@ -11,7 +11,7 @@ import type { Deal } from '../settle/types';
 import { askGroqVision, VisionSkip, type AskVision } from './provider';
 
 /** Bump when the prompt or schema changes. */
-export const LABEL_PROMPT_VERSION = 'label-1';
+export const LABEL_PROMPT_VERSION = 'label-2';
 export const DEFAULT_LABEL_MODEL = 'qwen/qwen3.8-27b';
 export const labelModel = () => process.env.SETTLE_LABEL_MODEL || DEFAULT_LABEL_MODEL;
 export const labelOff = () => process.env.SETTLE_LABEL_PHOTO === 'off';
@@ -46,8 +46,16 @@ const text = (s: string) => s.toUpperCase().replace(/\s+/g, ' ').trim();
  * in the country's format, and not the sender's. Pure, so every rule is tested.
  */
 export function validateReading(raw: unknown, country: Deal['country']): { ok: true; postcode: string } | { ok: false; reason: string } {
-  const r = raw as { recipientLines?: unknown; postcode?: unknown; senderPostcode?: unknown } | null;
-  if (!r || typeof r !== 'object') return { ok: false, reason: 'the answer was not in the expected form' };
+  if (!raw || typeof raw !== 'object') return { ok: false, reason: 'the answer was not in the expected form' };
+  // Models sometimes rename fields despite the schema (label-1 run: "lines", "recipientAddress").
+  // The names don't matter; what the fields hold is checked below, so the common names are read.
+  const f = raw as Record<string, unknown>;
+  const pick = (...names: string[]) => names.map((n) => f[n]).find((v) => v !== undefined);
+  const r = {
+    recipientLines: pick('recipientLines', 'recipient_lines', 'lines', 'recipientAddress', 'recipient_address'),
+    postcode: pick('postcode', 'recipientPostcode', 'recipient_postcode'),
+    senderPostcode: pick('senderPostcode', 'sender_postcode'),
+  };
   const lines = r.recipientLines;
   if (!Array.isArray(lines) || lines.length === 0 || lines.length > MAX_LINES || !lines.every((l) => typeof l === 'string' && l.length > 0 && l.length <= MAX_LINE_CHARS)) {
     return { ok: false, reason: 'no readable recipient address was found' };
@@ -69,7 +77,7 @@ export const SYSTEM = [
   'Report the RECIPIENT address block (the "ship to" or "deliver to" address, not the sender, "from" or return address) as separate lines exactly as printed, and the recipient\'s postcode in it exactly as printed.',
   'If a sender address is printed too, report its postcode separately as senderPostcode.',
   'If you cannot read a recipient postcode, return null for it. Never guess and never fill in a postcode that is not printed.',
-  'Answer with JSON only.',
+  'Answer with JSON only, in exactly this shape and with these field names: {"recipientLines": ["NAME", "STREET", "CITY STATE POSTCODE"], "postcode": "the recipient postcode or null", "senderPostcode": "the sender postcode or null"}.',
 ].join(' ');
 
 const SCHEMA = {

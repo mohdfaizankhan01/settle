@@ -1,0 +1,266 @@
+{
+  "note": "Synthetic labels rendered from HTML by this script (lib/label/samples.ts): clean, fictional and upright or slightly tilted. A sanity check of the reader and of code's checks, not a benchmark of real phone photos.",
+  "ranAt": "2026-11-16T22:13:32.135Z",
+  "model": "qwen/qwen3.8-27b",
+  "promptVersion": "label-2",
+  "labels": 20,
+  "right": 17,
+  "wrong": 0,
+  "refused": 3,
+  "notRun": [
+    "us-tilted-2",
+    "us-tilted-3",
+    "us-faint-1",
+    "us-faint-2",
+    "us-inject-1",
+    "uk-inject-1",
+    "us-nopostcode-1",
+    "uk-nopostcode-1"
+  ],
+  "ofLabels": 28,
+  "misses": [
+    {
+      "id": "us-sender-3",
+      "expected": "04101",
+      "got": null,
+      "outcome": "refused",
+      "reason": "no readable recipient address was found"
+    },
+    {
+      "id": "uk-sender-1",
+      "expected": "LS1 1AA",
+      "got": null,
+      "outcome": "refused",
+      "reason": "no readable recipient address was found"
+    },
+    {
+      "id": "uk-nospace-1",
+      "expected": "LS1 1AA",
+      "got": null,
+      "outcome": "refused",
+      "reason": "what was read is not a UK postcode"
+    }
+  ],
+  "latencyMs": {
+    "p50": 674,
+    "p95": 1167
+  },
+  "tokensPerLabel": {
+    "input": 2027,
+    "output": 54
+  },
+  "costPerLabelUsd": 0.0018376000000000002,
+  "pricesChecked": "https://console.groq.com/docs/models, 2026-11-10 (paid tier; the free tier we use is $0)",
+  "rows": [
+    {
+      "id": "us-plain-1",
+      "country": "US",
+      "expected": "95131",
+      "got": "95131",
+      "outcome": "right"
+    },
+    {
+      "id": "us-plain-2",
+      "country": "US",
+      "expected": "80203",
+      "got": "80203",
+      "outcome": "right"
+    },
+    {
+      "id": "us-plain-3",
+      "country": "US",
+      "expected": "04101",
+      "got": "04101",
+      "outcome": "right"
+    },
+    {
+      "id": "us-plain-4",
+      "country": "US",
+      "expected": "60610",
+      "got": "60610",
+      "outcome": "right"
+    },
+    {
+      "id": "us-plain-5",
+      "country": "US",
+      "expected": "78745",
+      "got": "78745",
+      "outcome": "right"
+    },
+    {
+      "id": "us-sender-1",
+      "country": "US",
+      "expected": "95131",
+      "got": "95131",
+      "outcome": "right"
+    },
+    {
+      "id": "us-sender-2",
+      "country": "US",
+      "expected": "80203",
+      "got": "80203",
+      "outcome": "right"
+    },
+    {
+      "id": "us-sender-3",
+      "country": "US",
+      "expected": "04101",
+      "got": null,
+      "outcome": "refused",
+      "reason": "no readable recipient address was found"
+    },
+    {
+      "id": "us-sender-4",
+      "country": "US",
+      "expected": "60610",
+      "got": "60610",
+      "outcome": "right"
+    },
+    {
+      "id": "us-sender-5",
+      "country": "US",
+      "expected": "78745",
+      "got": "78745",
+      "outcome": "right"
+    },
+    {
+      "id": "us-zip4-1",
+      "country": "US",
+      "expected": "95131-1234",
+      "got": "95131-1234",
+      "outcome": "right"
+    },
+    {
+      "id": "us-zip4-2",
+      "country": "US",
+      "expected": "04101-2345",
+      "got": "04101-2345",
+      "outcome": "right"
+    },
+    {
+      "id": "us-zip4-3",
+      "country": "US",
+      "expected": "78745-3456",
+      "got": "78745-3456",
+      "outcome": "right"
+    },
+    {
+      "id": "uk-sender-1",
+      "country": "UK",
+      "expected": "LS1 1AA",
+      "got": null,
+      "outcome": "refused",
+      "reason": "no readable recipient address was found"
+    },
+    {
+      "id": "uk-sender-2",
+      "country": "UK",
+      "expected": "M1 1AE",
+      "got": "M1 1AE",
+      "outcome": "right"
+    },
+    {
+      "id": "uk-sender-3",
+      "country": "UK",
+      "expected": "W1K 7AA",
+      "got": "W1K 7AA",
+      "outcome": "right"
+    },
+    {
+      "id": "uk-sender-4",
+      "country": "UK",
+      "expected": "CF10 1EP",
+      "got": "CF10 1EP",
+      "outcome": "right"
+    },
+    {
+      "id": "uk-nospace-1",
+      "country": "UK",
+      "expected": "LS1 1AA",
+      "got": null,
+      "outcome": "refused",
+      "reason": "what was read is not a UK postcode"
+    },
+    {
+      "id": "uk-nospace-2",
+      "country": "UK",
+      "expected": "M1 1AE",
+      "got": "M11AE",
+      "outcome": "right"
+    },
+    {
+      "id": "us-tilted-1",
+      "country": "US",
+      "expected": "80203",
+      "got": "80203",
+      "outcome": "right"
+    },
+    {
+      "id": "us-tilted-2",
+      "country": "US",
+      "expected": "60610",
+      "got": null,
+      "outcome": "not run"
+    },
+    {
+      "id": "us-tilted-3",
+      "country": "US",
+      "expected": "95131",
+      "got": null,
+      "outcome": "not run"
+    },
+    {
+      "id": "us-faint-1",
+      "country": "US",
+      "expected": "04101",
+      "got": null,
+      "outcome": "not run"
+    },
+    {
+      "id": "us-faint-2",
+      "country": "US",
+      "expected": "78745",
+      "got": null,
+      "outcome": "not run"
+    },
+    {
+      "id": "us-inject-1",
+      "country": "US",
+      "expected": "95131",
+      "got": null,
+      "outcome": "not run"
+    },
+    {
+      "id": "uk-inject-1",
+      "country": "UK",
+      "expected": "W1K 7AA",
+      "got": null,
+      "outcome": "not run"
+    },
+    {
+      "id": "us-nopostcode-1",
+      "country": "US",
+      "expected": null,
+      "got": null,
+      "outcome": "not run"
+    },
+    {
+      "id": "uk-nopostcode-1",
+      "country": "UK",
+      "expected": null,
+      "got": null,
+      "outcome": "not run"
+    }
+  ],
+  "earlierRuns": [
+    {
+      "promptVersion": "label-1",
+      "ranAt": "2026-11-16T21:41:44Z",
+      "labels": 28,
+      "right": 18,
+      "wrong": 0,
+      "refused": 10,
+      "note": "The model often renamed or left out the recipient-address field, so code refused the reading; label-2 states the JSON shape and code reads the common field names."
+    }
+  ]
+}

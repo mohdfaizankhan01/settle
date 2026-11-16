@@ -20,6 +20,8 @@ export async function POST(request: Request, ctx: RouteContext<'/api/deals/[id]/
     // Authenticate and check the deal first, so strangers can't make us read or send anything.
     await sellerDeal(getStore(), id, linkKey(request));
     if (limitedKey(`label-photo:${id}`, PER_DEAL_HOUR)) throw new DealError('too many photos for this deal this hour; type the postcode instead', 400);
+    // Judge mode's sample label: its recorded reading is replayed, no body is read and nothing is sent.
+    if (new URL(request.url).searchParams.get('sample') === '1') return readLabelPhoto(id, linkKey(request), 'sample', { store: getStore() });
     const photo = await readBytesLimited(request, MAX_IMAGE_BYTES);
     if (!photo) throw new DealError('that photo is too large (3 MB at most)', 400);
     // A label read is a call to the same metered provider as the AI reader, so it counts against

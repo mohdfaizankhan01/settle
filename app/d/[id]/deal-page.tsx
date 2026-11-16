@@ -15,6 +15,7 @@ const keyFromHash = () => new URLSearchParams(window.location.hash.slice(1)).get
 /** The caller's link key, for the few requests made outside `act` (the evidence pack download). */
 const KeyContext = createContext<() => string>(() => '');
 const DealIdContext = createContext('');
+const JudgeContext = createContext(false);
 
 /**
  * `linkKey` comes from judge mode, which shows both sides at once; otherwise the key is read from
@@ -113,6 +114,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
   return (
     <KeyContext.Provider value={() => keyRef.current ?? ''}>
     <DealIdContext.Provider value={dealId}>
+    <JudgeContext.Provider value={view.realness.mode === 'judge'}>
     <Frame wide>
       <Realness view={view} live={live} />
       <header className="mt-4 flex flex-wrap items-end justify-between gap-4">
@@ -238,6 +240,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
         </aside>
       </div>
     </Frame>
+    </JudgeContext.Provider>
     </DealIdContext.Provider>
     </KeyContext.Provider>
   );
@@ -748,18 +751,24 @@ function LabelForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
 
   // A photo only fills the box. The seller checks it and presses Compare: the typed path is what
   // the ship gate uses, so a photo can't pass anything by itself (lib/label/photo.ts).
-  const readPhoto = async (file: File | undefined) => {
+  const judge = useContext(JudgeContext);
+  const readPhoto = async (file: File | 'sample' | undefined) => {
     if (!file) return;
     setReading(true);
     setNote(null);
     try {
-      const photo = await shrinkPhoto(file);
-      const res = await fetch(`/api/deals/${dealId}/label/photo`, { method: 'POST', headers: { 'Content-Type': 'image/jpeg', ...keyHeaders(getKey()) }, body: photo });
+      const sample = file === 'sample';
+      const res = await fetch(`/api/deals/${dealId}/label/photo${sample ? '?sample=1' : ''}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/jpeg', ...keyHeaders(getKey()) },
+        body: sample ? undefined : await shrinkPhoto(file),
+      });
       const out = await res.json();
       if (!res.ok) throw new PhotoError(out.error ?? 'The photo could not be read. Type the postcode instead.');
       if (out.status === 'read') {
         setCode(out.postcode);
-        setNote({ ok: true, text: `The photo says ${out.postcode}. Check it against your label, then press Compare.` });
+        const replay = out.recorded ? ` Judge mode: a reading recorded on ${String(out.recorded.at).slice(0, 10)} (${out.recorded.model} on Groq), replayed; nothing was sent.` : '';
+        setNote({ ok: true, text: `The photo says ${out.postcode}. Check it against your label, then press Compare.${replay}` });
       } else {
         setNote({ ok: false, text: `Couldn't use that photo: ${out.reason}. Type the postcode instead.` });
       }
@@ -793,6 +802,15 @@ function LabelForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
           Or read it from a photo of the label
         </label>
         <input id="label-photo" type="file" accept="image/*" disabled={busy || reading} onChange={(e) => { void readPhoto(e.target.files?.[0]); e.target.value = ''; }} className="mt-1 block w-full text-sm" />
+        {judge && (
+          <p className="mt-2 text-xs">
+            <button type="button" disabled={busy || reading} onClick={() => void readPhoto('sample')} className="rounded-full border border-pp-border px-3 py-1 font-semibold disabled:opacity-40">
+              Try the sample label
+            </button>{' '}
+            <a href="/sample-label.png" target="_blank" rel="noreferrer" className="text-pp-blue underline underline-offset-2">see it</a>
+            <span className="text-pp-muted"> Judge mode replays a real reading of this sample; your own photos are not sent anywhere here.</span>
+          </p>
+        )}
         <p className="mt-1 text-xs text-pp-muted">
           An AI reads the photo and fills the box above; it can&apos;t approve anything, and you check it and press Compare. The photo is sent to Groq to be read and is not kept by Settle Link. It shows the recipient&apos;s name and address, so crop it to the postcode if you prefer.
         </p>

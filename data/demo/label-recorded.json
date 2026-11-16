@@ -1,0 +1,8 @@
+{
+  "note": "A real reading of public/sample-label.png, replayed in judge mode so judge sessions never call the model.",
+  "sha256": "5ad83fa3594c9bbbf8e079ac5f5436bc74afb724135a55c5baba10815a4fb260",
+  "postcode": "95131",
+  "model": "qwen/qwen3.8-27b",
+  "promptVersion": "label-1",
+  "recordedAt": "2026-11-16T21:41:44.244Z"
+}

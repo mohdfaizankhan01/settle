@@ -19,8 +19,12 @@ test('a label photo in judge mode says the reader is not used, fills nothing and
   const box = seller.getByLabel(/on your shipping label/);
   const before = await box.inputValue();
   await seller.getByLabel('Or read it from a photo of the label').setInputFiles({ name: 'label.png', mimeType: 'image/png', buffer: PNG });
-  await expect(seller.getByText(/Couldn't use that photo: Judge mode does not read photos; type the postcode instead/)).toBeVisible({ timeout: 15_000 });
+  await expect(seller.getByText(/Couldn't use that photo: Judge mode reads only the sample label, so nothing is sent; type the postcode instead/)).toBeVisible({ timeout: 15_000 });
   await expect(box).toHaveValue(before, { timeout: 1_000 });
+  // The sample label replays its recorded reading into the box; the seller still presses Compare.
+  await seller.getByRole('button', { name: 'Try the sample label' }).click();
+  await expect(seller.getByText(/The photo says 95131\. Check it against your label, then press Compare\. Judge mode: a reading recorded on .* replayed; nothing was sent\./)).toBeVisible({ timeout: 15_000 });
+  await expect(box).toHaveValue('95131');
   // Typing still works, as before.
   await box.fill('95131');
   await seller.getByRole('button', { name: 'Compare' }).click();
