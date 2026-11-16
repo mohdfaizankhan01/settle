@@ -1,5 +1,6 @@
-# Unit tests and a production build on every push and pull request. PayPal and the model are
-# mocked in the tests, so no secrets are needed; the build downloads the MiniLM model once.
+# Unit tests and a production build on every push and pull request. PayPal is mocked in the
+# tests, so no secrets are needed. The judge-mode, attack and history tests run Settle Link's own
+# warning check, which needs the MiniLM model (24 MB), so it is fetched (and cached) before them.
 name: CI
 
 on:
@@ -25,6 +26,13 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Cache the MiniLM model
+        uses: actions/cache@v4
+        with:
+          path: models
+          key: minilm-${{ hashFiles('lib/model/embed.ts') }}
+      - name: Fetch the MiniLM model
+        run: npm run model:fetch
       - name: Unit tests
         run: npm test
       - name: Production build
