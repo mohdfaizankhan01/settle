@@ -5,8 +5,9 @@ import { readLabelPhoto } from '../lib/label/photo';
 import { MAX_IMAGE_BYTES } from '../lib/label/read-label';
 import { createDeal, DealError, openLinks, withDevice } from '../lib/settle/deals';
 import { describe, history } from '../lib/settle/history';
-import { getStore } from '../lib/settle/runtime';
+import { getStore, READER_LIMITS } from '../lib/settle/runtime';
 import { askWith, paidSetup } from './helpers/paid-deal';
+import { PER_DEAL_HOUR } from '../app/api/deals/[id]/label/photo/route';
 
 process.env.PAYPAL_CLIENT_ID ??= 'test-client';
 
@@ -112,7 +113,7 @@ test('the route checks the link before it reads a byte: no key, a wrong key, the
   assert.equal((await post(fresh.deal.id, unpaid.seller)).status, 409);
 });
 
-test('the route answers a read request, refuses a too-large photo, and caps how many reads the provider gets a minute', async () => {
+test('the route answers a read request, and refuses a too-large photo', async () => {
   const d = await liveSeller();
   const ok = await post(d.id, d.keys.seller);
   assert.equal(ok.status, 200);
@@ -122,11 +123,43 @@ test('the route answers a read request, refuses a too-large photo, and caps how 
   const tooBig = await post(d.id, d.keys.seller, big);
   assert.equal(tooBig.status, 400);
   assert.match(((await tooBig.json()) as { error: string }).error, /too large/);
-  assert.equal((await post(d.id, d.keys.seller)).status, 200, 'the third read of the minute');
-  const busy = await post(d.id, d.keys.seller);
-  assert.equal(busy.status, 400);
-  assert.match(((await busy.json()) as { error: string }).error, /busy; try again in a minute, or type the postcode/);
   assert.ok(!JSON.stringify(await d.store.listReceipts(d.id)).includes(Buffer.from(JPEG).toString('base64')));
+});
+
+test('one deal can ask for a few reads an hour, so it cannot use up everyone\'s budget', async () => {
+  const d = await liveSeller();
+  for (let i = 0; i < PER_DEAL_HOUR; i++) assert.equal((await post(d.id, d.keys.seller)).status, 200, `read ${i + 1}`);
+  const over = await post(d.id, d.keys.seller);
+  assert.equal(over.status, 400);
+  assert.match(((await over.json()) as { error: string }).error, /too many photos for this deal/);
+});
+
+test('label reads share the AI reader\'s caps, and are counted only when a call goes out', async () => {
+  // The deals are made first: making a deal runs the AI reader, which is not what is counted here.
+  const deals = await Promise.all([liveSeller(), liveSeller()]);
+  const realFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    return new Response(JSON.stringify({ model: 'qwen/test', choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(uk) } }], usage: { prompt_tokens: 1800, completion_tokens: 20 } }), { status: 200 });
+  }) as typeof fetch;
+  process.env.GROQ_API_KEY = 'test-key';
+  try {
+    // A file that isn't a photo is refused before any call: it costs nothing.
+    const junk = await post(deals[0].id, deals[0].keys.seller, Uint8Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]));
+    assert.equal(((await junk.json()) as { status: string }).status, 'unreadable');
+    assert.equal(calls, 0);
+    const results: string[] = [];
+    for (let i = 0; i < READER_LIMITS.totalMinute + 1; i++) {
+      const d = deals[i % 2];
+      results.push(((await (await post(d.id, d.keys.seller)).json()) as { status: string; reason?: string }).reason ?? 'read');
+    }
+    assert.equal(calls, READER_LIMITS.totalMinute, 'the provider is called only up to the shared per-minute cap');
+    assert.match(results.at(-1)!, /the AI reader is busy \(3 reads a minute in total\)/);
+  } finally {
+    globalThis.fetch = realFetch;
+    delete process.env.GROQ_API_KEY;
+  }
 });
 
 test('a link used with the wrong device is refused', async () => {
