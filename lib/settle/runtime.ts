@@ -32,6 +32,9 @@ export function publicHost(request: Request): string {
  */
 export const linkKey = (request: Request) => withDevice(request.headers.get('x-settle-key'), request.headers.get('x-settle-device'));
 
+/** The caller's address: the rightmost X-Forwarded-For entry, the one Render's proxy appends. */
+export const addressOf = (request: Request) => request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || 'local';
+
 /**
  * At most `limit` calls per `windowMs` per client address and bucket, in memory per instance.
  * `globalLimit` also caps all clients together; it's only for routes that spend money (Jev
