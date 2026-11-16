@@ -61,3 +61,9 @@ docs/competitor-scan.md
 data/eval/reader-replies.local.json
 data/eval/baseline-replies.local.json
 data/eval/label-replies.local.json
+
+# Local submission drafts (never committed)
+docs/devpost.md
+docs/video-script.md
+docs/system-design.html
+docs/system-design.pdf
