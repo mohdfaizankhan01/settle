@@ -144,6 +144,8 @@ export function describe(r: Receipt, role: Role = 'seller'): string {
       }.`;
     case 'shipping.label_postcode':
       return `The seller typed the label postcode; it ${d.matchesPayPal ? 'matches' : d.matchesPayPal === false ? 'does not match' : 'was compared with'} PayPal's address.`;
+    case 'shipping.label_photo':
+      return d.result === 'read' ? 'A label photo was read and its postcode shown to the seller to check; the photo was not kept.' : `A label photo could not be used (${s(d.reason)}); the seller types the postcode instead.`;
     case 'tracking.added':
       return d.state === 'sent' ? `Tracking ${s(d.number)} added to the PayPal order${d.seenOnOrder ? ' and seen on it' : ''}.` : `Tracking ${s(d.number)} sent; PayPal didn't answer, so it was checked again.`;
     case 'tracking.failed':

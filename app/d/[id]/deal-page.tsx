@@ -7,12 +7,14 @@ import type { DealView, SourceView } from '@/lib/settle/view';
 import { PayButton } from './pay-button';
 import { HandoverPanel, rememberBuyerKey } from './handover-panel';
 import { keyHeaders, rememberDevice } from './link-auth';
+import { PhotoError, shrinkPhoto } from './shrink-photo';
 import { useLiveUpdates } from './use-live';
 
 const keyFromHash = () => new URLSearchParams(window.location.hash.slice(1)).get('k') ?? '';
 
 /** The caller's link key, for the few requests made outside `act` (the evidence pack download). */
 const KeyContext = createContext<() => string>(() => '');
+const DealIdContext = createContext('');
 
 /**
  * `linkKey` comes from judge mode, which shows both sides at once; otherwise the key is read from
@@ -110,6 +112,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
 
   return (
     <KeyContext.Provider value={() => keyRef.current ?? ''}>
+    <DealIdContext.Provider value={dealId}>
     <Frame wide>
       <Realness view={view} live={live} />
       <header className="mt-4 flex flex-wrap items-end justify-between gap-4">
@@ -235,6 +238,7 @@ export function DealPage({ dealId, linkKey, embedded = false }: { dealId: string
         </aside>
       </div>
     </Frame>
+    </DealIdContext.Provider>
     </KeyContext.Provider>
   );
 }
@@ -737,6 +741,35 @@ const primary = 'rounded-full bg-pp-blue px-5 py-2 text-sm font-semibold text-wh
 
 function LabelForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
   const [code, setCode] = useState(a.labelPostcode ?? '');
+  const dealId = useContext(DealIdContext);
+  const getKey = useContext(KeyContext);
+  const [reading, setReading] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // A photo only fills the box. The seller checks it and presses Compare: the typed path is what
+  // the ship gate uses, so a photo can't pass anything by itself (lib/label/photo.ts).
+  const readPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    setReading(true);
+    setNote(null);
+    try {
+      const photo = await shrinkPhoto(file);
+      const res = await fetch(`/api/deals/${dealId}/label/photo`, { method: 'POST', headers: { 'Content-Type': 'image/jpeg', ...keyHeaders(getKey()) }, body: photo });
+      const out = await res.json();
+      if (!res.ok) throw new PhotoError(out.error ?? 'The photo could not be read. Type the postcode instead.');
+      if (out.status === 'read') {
+        setCode(out.postcode);
+        setNote({ ok: true, text: `The photo says ${out.postcode}. Check it against your label, then press Compare.` });
+      } else {
+        setNote({ ok: false, text: `Couldn't use that photo: ${out.reason}. Type the postcode instead.` });
+      }
+    } catch (e) {
+      setNote({ ok: false, text: e instanceof PhotoError ? e.message : 'The photo could not be read. Type the postcode instead.' });
+    } finally {
+      setReading(false);
+    }
+  };
+
   return (
     <form
       className="text-sm"
@@ -754,6 +787,21 @@ function LabelForm({ a, busy, act }: { a: After; busy: boolean; act: Act }) {
         <button disabled={busy || !code.trim()} className={primary}>
           Compare
         </button>
+      </div>
+      <div className="mt-3">
+        <label htmlFor="label-photo" className="font-semibold">
+          Or read it from a photo of the label
+        </label>
+        <input id="label-photo" type="file" accept="image/*" disabled={busy || reading} onChange={(e) => { void readPhoto(e.target.files?.[0]); e.target.value = ''; }} className="mt-1 block w-full text-sm" />
+        <p className="mt-1 text-xs text-pp-muted">
+          An AI reads the photo and fills the box above; it can&apos;t approve anything, and you check it and press Compare. The photo is sent to Groq to be read and is not kept by Settle Link. It shows the recipient&apos;s name and address, so crop it to the postcode if you prefer.
+        </p>
+        {reading && <p role="status" className="mt-2 text-pp-muted">Reading the photo…</p>}
+        {note && (
+          <p role="status" className={`mt-2 ${note.ok ? 'text-pp-success' : 'text-pp-warning'}`}>
+            {note.text}
+          </p>
+        )}
       </div>
     </form>
   );
