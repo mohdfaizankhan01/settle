@@ -2,6 +2,7 @@
 // tests and local runs without a database, Postgres for the app. Deal updates are optimistic:
 // a write based on a stale version fails, so two confirmations can't overwrite each other.
 
+import { announce } from './changes';
 import { makeReceipt, type Receipt, type ReceiptInput } from './receipts';
 import type { Deal } from './types';
 
@@ -117,6 +118,7 @@ export class MemoryDealStore implements DealStore {
   async createDeal(deal: Deal) {
     if (this.deals.has(deal.id)) throw new Error('deal already exists');
     this.deals.set(deal.id, { version: 1, value: clone(deal) });
+    announce(deal.id);
   }
 
   async getDeal(id: string) {
@@ -129,6 +131,7 @@ export class MemoryDealStore implements DealStore {
     if (!stored || stored.version !== version) throw new StaleWriteError();
     const next = { version: version + 1, value: clone(deal) };
     this.deals.set(id, next);
+    announce(id);
     return clone(next);
   }
 
@@ -136,6 +139,7 @@ export class MemoryDealStore implements DealStore {
     const chain = this.receipts.get(input.dealId) ?? [];
     const receipt = makeReceipt(chain.at(-1), clone(input));
     this.receipts.set(input.dealId, [...chain, receipt]);
+    announce(input.dealId);
     return clone(receipt);
   }
 

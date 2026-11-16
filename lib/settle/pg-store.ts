@@ -3,6 +3,7 @@
 // one locks the deal row so two writers can't fork the chain, and (deal_id, seq) is the backstop.
 
 import postgres, { type JSONValue, type Sql } from 'postgres';
+import { announce } from './changes';
 import { makeReceipt, type Receipt, type ReceiptInput } from './receipts';
 import { StaleWriteError, type DealStore, type DemoSession, type MemoryEntry, type SellerLink, type Stored, type WebhookEventRecord } from './store';
 import type { Deal } from './types';
@@ -88,6 +89,7 @@ export class PgDealStore implements DealStore {
   async createDeal(deal: Deal) {
     await this.schema();
     await this.sql`INSERT INTO deals (id, version, doc) VALUES (${deal.id}, 1, ${json(this.sql, deal)})`;
+    announce(deal.id);
   }
 
   async getDeal(id: string): Promise<Stored<Deal> | undefined> {
@@ -102,12 +104,13 @@ export class PgDealStore implements DealStore {
       UPDATE deals SET version = version + 1, doc = ${json(this.sql, deal)}
       WHERE id = ${id} AND version = ${version} RETURNING version`;
     if (rows.length !== 1) throw new StaleWriteError();
+    announce(id);
     return { version: version + 1, value: deal };
   }
 
   async addReceipt(input: ReceiptInput): Promise<Receipt> {
     await this.schema();
-    return this.sql.begin(async (tx) => {
+    const receipt = (await this.sql.begin(async (tx) => {
       const locked = await tx`SELECT id FROM deals WHERE id = ${input.dealId} FOR UPDATE`;
       if (locked.length !== 1) throw new Error('no such deal');
       const [last] = await tx<{ doc: Receipt }[]>`
@@ -117,7 +120,9 @@ export class PgDealStore implements DealStore {
         INSERT INTO receipts (deal_id, seq, hash, doc)
         VALUES (${receipt.dealId}, ${receipt.seq}, ${receipt.hash}, ${tx.json(receipt as unknown as JSONValue)})`;
       return receipt;
-    }) as Promise<Receipt>;
+    })) as Receipt;
+    announce(input.dealId);
+    return receipt;
   }
 
   async listReceipts(dealId: string) {
