@@ -31,7 +31,7 @@ export async function sellerDeal(store: DealStore, dealId: string, key: string |
   return stored;
 }
 
-const POSTCODE: Record<Deal['country'], RegExp> = {
+export const POSTCODE: Record<Deal["country"], RegExp> = {
   UK: /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i,
   US: /^\d{5}(?:-\d{4})?$/,
 };
